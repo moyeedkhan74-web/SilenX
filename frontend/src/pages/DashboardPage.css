@@ -1,0 +1,21 @@
+.dashboard-page {
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.dashboard-main {
+  flex: 1;
+  overflow: hidden;
+}
+
+.dashboard-chat-layout {
+  display: flex;
+  height: 100%;
+}
+
+@media (max-width: 768px) {
+  .dashboard-page {
+    flex-direction: column;
+  }
+}

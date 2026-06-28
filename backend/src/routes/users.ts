@@ -1,0 +1,88 @@
+import { Router, Request, Response } from 'express';
+import QRCode from 'qrcode';
+import { users } from '../store/db';
+
+const router = Router();
+
+// GET /api/users/me — Get current user profile
+router.get('/me', (_req: Request, res: Response) => {
+  const selfUser = users.find(u => u.id === 'self');
+  if (selfUser) {
+    res.status(200).json(selfUser);
+  } else {
+    res.status(404).json({ message: 'Self user profile not found' });
+  }
+});
+
+// PUT /api/users/me — Update profile
+router.put('/me', (req: Request, res: Response) => {
+  const selfUser = users.find(u => u.id === 'self');
+  if (selfUser) {
+    const { displayName, bio, status } = req.body;
+    if (displayName) selfUser.displayName = displayName;
+    if (bio) selfUser.bio = bio;
+    if (status) selfUser.status = status;
+    selfUser.updatedAt = new Date();
+    res.status(200).json(selfUser);
+  } else {
+    res.status(404).json({ message: 'Self user profile not found' });
+  }
+});
+
+// GET /api/users/me/uid — Get current user's UID
+router.get('/me/uid', (_req: Request, res: Response) => {
+  const selfUser = users.find(u => u.id === 'self');
+  if (selfUser) {
+    res.status(200).json({ uid: selfUser.uid });
+  } else {
+    res.status(404).json({ message: 'UID not found' });
+  }
+});
+
+// GET /api/users/me/qr — Get current user's QR code as PNG image
+router.get('/me/qr', async (_req: Request, res: Response) => {
+  const selfUser = users.find(u => u.id === 'self');
+  if (!selfUser) {
+    res.status(404).json({ message: 'QR not found' });
+    return;
+  }
+
+  try {
+    const deepLink = `slienx://uid/${selfUser.uid}`;
+    const qrBuffer = await QRCode.toBuffer(deepLink, {
+      type: 'png',
+      width: 300,
+      margin: 2,
+      color: { dark: '#212121', light: '#ffffff' },
+      errorCorrectionLevel: 'H',
+    });
+    res.setHeader('Content-Type', 'image/png');
+    res.setHeader('Content-Disposition', `inline; filename="${selfUser.uid}_qr.png"`);
+    res.send(qrBuffer);
+  } catch (err) {
+    console.error('QR generation failed:', err);
+    res.status(500).json({ message: 'Failed to generate QR code' });
+  }
+});
+
+// GET /api/users/by-uid/:uid — Get user by UID
+router.get('/by-uid/:uid', (req: Request, res: Response) => {
+  const targetUid = req.params.uid;
+  const found = users.find(u => u.uid.toLowerCase() === targetUid.toLowerCase());
+  if (found) {
+    res.status(200).json(found);
+  } else {
+    res.status(404).json({ message: `User with Secure ID "${targetUid}" not found` });
+  }
+});
+
+// GET /api/users/:id/public-key — Get user's public encryption key
+router.get('/:id/public-key', (req: Request, res: Response) => {
+  // Return dummy public key
+  res.status(200).json({
+    userId: req.params.id,
+    publicKey: 'pk_x25519_mock_key_bytes_xyz_789'
+  });
+});
+
+export default router;

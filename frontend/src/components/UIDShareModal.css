@@ -1,0 +1,58 @@
+.uid-share-modal {
+  max-width: 420px;
+  text-align: center;
+}
+
+.uid-share-modal h2 {
+  font-size: 1.3rem;
+  margin-bottom: 20px;
+  background: linear-gradient(135deg, var(--primary-light), var(--secondary-light));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.qr-container {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.qr-canvas-wrapper {
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: 0 4px 24px rgba(59, 130, 246, 0.15);
+  display: inline-block;
+}
+
+.qr-canvas-wrapper canvas {
+  display: block;
+  border-radius: 8px;
+}
+
+.uid-display-text {
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 1rem;
+  color: var(--primary-light);
+  background: rgba(59, 130, 246, 0.08);
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  border-radius: 8px;
+  padding: 10px 18px;
+  display: inline-block;
+  letter-spacing: 1px;
+  margin-bottom: 20px;
+  user-select: all;
+}
+
+.uid-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.uid-actions .btn {
+  flex: 1;
+  max-width: 180px;
+  font-size: 0.85rem;
+}

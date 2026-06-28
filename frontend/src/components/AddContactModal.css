@@ -1,0 +1,127 @@
+.add-contact-modal {
+  max-width: 480px;
+}
+
+.add-contact-modal h2 {
+  font-size: 1.3rem;
+  margin-bottom: 16px;
+  background: linear-gradient(135deg, var(--primary-light), var(--secondary-light));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.modal-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.modal-tab {
+  flex: 1;
+  padding: 10px 16px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  color: var(--text-secondary);
+  font-weight: 500;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.modal-tab:hover {
+  background: rgba(59, 130, 246, 0.08);
+  border-color: rgba(59, 130, 246, 0.2);
+}
+
+.modal-tab.active {
+  background: rgba(59, 130, 246, 0.12);
+  border-color: var(--primary-light);
+  color: var(--primary-light);
+}
+
+/* QR Scanner Area */
+.qr-reader-container {
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 12px;
+  min-height: 50px;
+}
+
+.qr-reader-container video {
+  border-radius: 12px;
+}
+
+.scan-start-area {
+  text-align: center;
+  padding: 40px 20px;
+  border: 2px dashed rgba(59, 130, 246, 0.2);
+  border-radius: 12px;
+  background: rgba(59, 130, 246, 0.04);
+}
+
+.scan-controls {
+  text-align: center;
+  padding: 8px 0;
+}
+
+.scan-error {
+  color: #ef4444;
+  font-size: 0.82rem;
+  text-align: center;
+  margin: 8px 0;
+  padding: 8px 12px;
+  background: rgba(239, 68, 68, 0.08);
+  border-radius: 8px;
+}
+
+.camera-subtext {
+  color: var(--text-tertiary);
+  font-size: 0.82rem;
+  margin-bottom: 16px;
+}
+
+/* UID Entry Area */
+.enter-tab {
+  text-align: center;
+}
+
+.enter-help {
+  color: var(--text-tertiary);
+  font-size: 0.82rem;
+  margin-bottom: 14px;
+}
+
+.input-uid {
+  width: 100%;
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  color: var(--text-primary);
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 0.95rem;
+  letter-spacing: 1px;
+  margin-bottom: 12px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.input-uid:focus {
+  border-color: var(--primary-light);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+}
+
+.input-uid::placeholder {
+  color: var(--text-tertiary);
+  letter-spacing: 2px;
+}
+
+.input-uid:disabled {
+  opacity: 0.6;
+}
+
+.btn-block {
+  width: 100%;
+}
