@@ -11,3 +11,10 @@ Thumbs.db
 dist/
 build/
 coverage/
+
+# Firebase config with credentials (use .env instead)
+frontend/src/config/firebase.ts
+
+# Temp files
+status_ascii.txt
+*.txt
