@@ -1,5 +1,6 @@
 import { initializeApp, type FirebaseApp } from 'firebase/app';
 import { getAnalytics, type Analytics } from 'firebase/analytics';
+import { getAuth, GoogleAuthProvider, type Auth } from 'firebase/auth';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY || '',
@@ -20,11 +21,16 @@ const hasRequiredConfig = Boolean(
 
 let app: FirebaseApp | null = null;
 let analytics: Analytics | null = null;
+let auth: Auth | null = null;
+let googleProvider: GoogleAuthProvider | null = null;
 
 if (hasRequiredConfig) {
   try {
     app = initializeApp(firebaseConfig);
     analytics = getAnalytics(app);
+    auth = getAuth(app);
+    googleProvider = new GoogleAuthProvider();
+    googleProvider.setCustomParameters({ prompt: 'select_account' });
   } catch (error) {
     console.warn('Firebase initialization failed:', error);
   }
@@ -32,4 +38,4 @@ if (hasRequiredConfig) {
   console.warn('Firebase config is missing. Skipping Firebase initialization.');
 }
 
-export { app, analytics };
+export { app, analytics, auth, googleProvider };
