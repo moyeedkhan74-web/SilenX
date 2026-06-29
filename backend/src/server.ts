@@ -48,10 +48,12 @@ registerSocketHandlers(io);
 
 const port = Number(process.env.PORT) || 5000;
 
-if (require.main === module) {
+const startServer = () => {
   server.listen(port, () => {
     console.log(`[Server] SlienX backend listening on port ${port}`);
   });
-}
+};
 
-export { app, io, server, port };
+startServer();
+
+export { app, io, server, port, startServer };
