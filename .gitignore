@@ -15,6 +15,11 @@ coverage/
 # Firebase config with credentials (use .env instead)
 frontend/src/config/firebase.ts
 
+# Local Google/Firebase credential files
+google-services.json
+client_secret_*.json
+firebase.json
+
 # Temp files
 status_ascii.txt
 *.txt
