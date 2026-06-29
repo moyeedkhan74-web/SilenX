@@ -1,0 +1,8 @@
+{
+  "name": "slienx",
+  "private": true,
+  "scripts": {
+    "build": "npm --prefix backend ci && npm --prefix backend run build",
+    "start": "node backend/dist/server.js"
+  }
+}

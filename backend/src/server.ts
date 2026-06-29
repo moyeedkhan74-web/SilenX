@@ -10,7 +10,13 @@ import conversationRoutes from './routes/conversations';
 import callRoutes from './routes/calls';
 
 const app = express();
-app.use(cors({ origin: config.frontendUrl, methods: ['GET', 'POST', 'PUT', 'DELETE'] }));
+app.use(
+  cors({
+    origin: config.frontendUrl,
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    credentials: true,
+  })
+);
 app.use(express.json());
 
 const server = http.createServer(app);
@@ -19,6 +25,7 @@ const io = new Server(server, {
   cors: {
     origin: config.isProduction ? [config.frontendUrl] : '*',
     methods: ['GET', 'POST'],
+    credentials: true,
   },
 });
 
@@ -39,7 +46,12 @@ app.use('/api/calls', callRoutes);
 // ─── WebSocket ─────────────────────────────────────────────
 registerSocketHandlers(io);
 
-// ─── Start ─────────────────────────────────────────────────
-server.listen(config.port, () => {
-  console.log(`[Server] SlienX backend listening on port ${config.port}`);
-});
+const port = Number(process.env.PORT) || 5000;
+
+if (require.main === module) {
+  server.listen(port, () => {
+    console.log(`[Server] SlienX backend listening on port ${port}`);
+  });
+}
+
+export { app, io, server, port };
