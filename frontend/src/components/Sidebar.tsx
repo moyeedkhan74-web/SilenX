@@ -27,7 +27,22 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange }) => {
   return (
     <aside className="sidebar">
       <div className="sidebar-logo" aria-label="SlienX">
-        <img src="/slienx-logo.png" alt="SlienX" style={{ width: 28, height: 28, borderRadius: 6, objectFit: 'contain' }} />
+        <div
+          style={{
+            width: 28,
+            height: 28,
+            borderRadius: 6,
+            display: 'grid',
+            placeItems: 'center',
+            background: 'linear-gradient(135deg, #2563eb, #06b6d4)',
+            color: 'white',
+            fontSize: 12,
+            fontWeight: 800,
+            letterSpacing: '0.06em',
+          }}
+        >
+          SX
+        </div>
       </div>
 
       <nav className="sidebar-nav">
