@@ -6,6 +6,7 @@ import ContactsTab from '../components/ContactsTab';
 import ProfileTab from '../components/ProfileTab';
 import SettingsTab from '../components/SettingsTab';
 import AddContactModal from '../components/AddContactModal';
+import NotificationsPanel from '../components/NotificationsPanel';
 import { useChatStore } from '../store/chatStore';
 import './DashboardPage.css';
 
@@ -46,6 +47,7 @@ const DashboardPage: React.FC = () => {
       <main className="dashboard-main">
         {renderMainContent()}
       </main>
+      <NotificationsPanel />
 
       <AddContactModal 
         isOpen={isAddContactOpen} 

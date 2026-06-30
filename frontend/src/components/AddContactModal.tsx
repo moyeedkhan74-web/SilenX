@@ -127,10 +127,10 @@ const AddContactModal: React.FC<AddContactModalProps> = ({ isOpen, onClose, onAd
     setIsSearching(true);
     setError('');
     try {
-      const res = await fetch(`/api/users/by-uid/${encodeURIComponent(searchUid)}`);
+      const res = await fetch(`/api/users/search?uid=${encodeURIComponent(searchUid)}`);
       if (res.ok) {
         const user: FoundUser = await res.json();
-        setPreviewUser(user);
+        setPreviewUser(user as any);
       } else {
         setError(`Secure ID "${searchUid}" not found. Try: SEC_f6e5d4c3b2a1 (Bob) or SEC_a1b2c3d4e5f6 (Alice).`);
       }
@@ -159,10 +159,10 @@ const AddContactModal: React.FC<AddContactModalProps> = ({ isOpen, onClose, onAd
     if (!previewUser) return;
 
     try {
-      const res = await fetch('/api/requests', {
+      const res = await fetch('/api/requests/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ recipientUid: previewUser.uid }),
+        body: JSON.stringify({ receiverId: previewUser.id }),
       });
       if (res.ok) {
         // request created

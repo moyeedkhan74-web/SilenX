@@ -49,7 +49,7 @@ router.post('/', (req: Request, res: Response) => {
 
 // GET /api/requests — list incoming requests for 'self'
 router.get('/', (_req: Request, res: Response) => {
-  const incoming = friendRequests.filter(r => r.toUserId === 'self');
+  const incoming = friendRequests.filter((r: any) => (r.toUserId === 'self' || r.receiverId === 'self'));
   res.status(200).json(incoming);
 });
 
@@ -101,7 +101,10 @@ router.post('/:id/accept', (req: Request, res: Response) => {
     res.status(404).json({ message: 'Request not found' });
     return;
   }
-  if (reqObj.receiverId !== 'self') {
+  const senderId = (reqObj as any).senderId || (reqObj as any).fromUserId;
+  const receiverId = (reqObj as any).receiverId || (reqObj as any).toUserId;
+
+  if (receiverId !== 'self') {
     res.status(403).json({ message: 'Cannot accept requests not addressed to you' });
     return;
   }
@@ -118,13 +121,13 @@ router.post('/:id/accept', (req: Request, res: Response) => {
   }
 
   // Notify sender
-  const senderSocketId = getSocketIdForUser(reqObj.senderId);
+  const senderSocketId = getSocketIdForUser(senderId);
   if (senderSocketId && io) {
-    io.to(senderSocketId).emit('request:accepted', { id: reqObj.id, by: reqObj.receiverId });
+    io.to(senderSocketId).emit('request:accepted', { id: reqObj.id, by: receiverId });
   }
 
   // Create conversation (direct) for chat UI
-  const recipient = users.find(u => u.id === reqObj.senderId);
+  const recipient = users.find(u => u.id === senderId);
   if (!recipient) {
     res.status(500).json({ message: 'Request source user not found' });
     return;
@@ -158,15 +161,19 @@ router.post('/:id/decline', (req: Request, res: Response) => {
     res.status(404).json({ message: 'Request not found' });
     return;
   }
-  if (reqObj.toUserId !== 'self') {
+  const senderId = (reqObj as any).senderId || (reqObj as any).fromUserId;
+  const receiverId = (reqObj as any).receiverId || (reqObj as any).toUserId;
+
+  if (receiverId !== 'self') {
     res.status(403).json({ message: 'Cannot decline requests not addressed to you' });
     return;
   }
+
   reqObj.status = 'declined';
   reqObj.updatedAt = new Date();
 
   // Notify sender
-  const senderSocketId = getSocketIdForUser(reqObj.senderId);
+  const senderSocketId = getSocketIdForUser(senderId);
   if (senderSocketId && io) {
     io.to(senderSocketId).emit('request:declined', { id: reqObj.id });
   }

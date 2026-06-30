@@ -4,6 +4,7 @@ import { Lock, ShieldCheck, Sparkles } from 'lucide-react';
 import { signInWithPopup } from 'firebase/auth';
 import { auth, googleProvider } from '../config/firebase';
 import { useAuthStore } from '../store/authStore';
+import { connectSocket } from '../services/socket';
 import './LoginPage.css';
 
 const LoginPage: React.FC = () => {
@@ -39,6 +40,14 @@ const LoginPage: React.FC = () => {
         },
         token
       );
+
+      // register socket for real-time events
+      try {
+        const socket = connectSocket();
+        socket.emit('register', { userId: firebaseUser.uid });
+      } catch (err) {
+        console.warn('Socket registration failed', err);
+      }
 
       navigate('/');
     } catch (err) {
