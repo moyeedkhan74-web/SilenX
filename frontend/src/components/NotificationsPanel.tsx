@@ -19,7 +19,11 @@ const NotificationsPanel: React.FC = () => {
 
   const load = async () => {
     try {
-      const res = await fetch(`${API_URL}/api/requests`);
+      const res = await fetch(`${API_URL}/api/requests`, {
+        headers: {
+          'x-user-id': user?.id || 'self',
+        },
+      });
       if (res.ok) {
         const data = await res.json();
         // map incoming friendRequests shape to PendingReq
@@ -69,7 +73,12 @@ const NotificationsPanel: React.FC = () => {
 
   const accept = async (id: string) => {
     try {
-      const res = await fetch(`${API_URL}/api/requests/${encodeURIComponent(id)}/accept`, { method: 'POST' });
+      const res = await fetch(`${API_URL}/api/requests/${encodeURIComponent(id)}/accept`, {
+        method: 'POST',
+        headers: {
+          'x-user-id': user?.id || 'self',
+        },
+      });
       if (res.ok) load();
     } catch (err) {
       console.error(err);
@@ -78,7 +87,12 @@ const NotificationsPanel: React.FC = () => {
 
   const decline = async (id: string) => {
     try {
-      const res = await fetch(`${API_URL}/api/requests/${encodeURIComponent(id)}/decline`, { method: 'POST' });
+      const res = await fetch(`${API_URL}/api/requests/${encodeURIComponent(id)}/decline`, {
+        method: 'POST',
+        headers: {
+          'x-user-id': user?.id || 'self',
+        },
+      });
       if (res.ok) load();
     } catch (err) {
       console.error(err);

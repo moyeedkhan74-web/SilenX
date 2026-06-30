@@ -5,8 +5,19 @@ import { getSocketIdForUser } from '../websocket/socketStore';
 
 const router = Router();
 
+const getCurrentUserId = (req: Request): string => {
+  const fromHeader = req.header('x-user-id');
+  if (fromHeader) return fromHeader;
+
+  const fromBody = (req.body as { userId?: string } | undefined)?.userId;
+  if (typeof fromBody === 'string' && fromBody.trim()) return fromBody;
+
+  return 'self';
+};
+
 // POST /api/requests — create a contact request (outgoing)
 router.post('/', (req: Request, res: Response) => {
+  const currentUserId = getCurrentUserId(req);
   const { recipientUid } = req.body;
   if (!recipientUid) {
     res.status(400).json({ message: 'recipientUid is required' });
@@ -21,10 +32,10 @@ router.post('/', (req: Request, res: Response) => {
 
   const newReq = {
     id: `req_${Date.now()}`,
-    fromUserId: 'self',
+    fromUserId: currentUserId,
     toUserId: recipient.id,
-    fromUid: users.find(u => u.id === 'self')?.uid || 'SEC_UNKNOWN',
-    fromDisplayName: users.find(u => u.id === 'self')?.displayName || 'User',
+    fromUid: users.find(u => u.id === currentUserId)?.uid || 'SEC_UNKNOWN',
+    fromDisplayName: users.find(u => u.id === currentUserId)?.displayName || 'User',
     toUid: recipient.uid,
     toDisplayName: recipient.displayName,
     status: 'pending' as const,
@@ -47,14 +58,16 @@ router.post('/', (req: Request, res: Response) => {
   res.status(201).json(newReq);
 });
 
-// GET /api/requests — list incoming requests for 'self'
-router.get('/', (_req: Request, res: Response) => {
-  const incoming = friendRequests.filter((r: any) => (r.toUserId === 'self' || r.receiverId === 'self'));
+// GET /api/requests — list incoming requests for the signed-in user
+router.get('/', (req: Request, res: Response) => {
+  const currentUserId = getCurrentUserId(req);
+  const incoming = friendRequests.filter((r: any) => (r.toUserId === currentUserId || r.receiverId === currentUserId));
   res.status(200).json(incoming);
 });
 
 // POST /api/requests/send — send by receiverId
 router.post('/send', (req: Request, res: Response) => {
+  const currentUserId = getCurrentUserId(req);
   const { receiverId } = req.body;
   if (!receiverId) {
     res.status(400).json({ message: 'receiverId is required' });
@@ -68,7 +81,7 @@ router.post('/send', (req: Request, res: Response) => {
 
   const newReq = {
     id: `fr_${Date.now()}`,
-    senderId: 'self',
+    senderId: currentUserId,
     receiverId: receiver.id,
     status: 'pending' as const,
     createdAt: new Date(),
@@ -96,6 +109,7 @@ router.post('/send', (req: Request, res: Response) => {
 // POST /api/requests/:id/accept — accept incoming request and create conversation
 router.post('/:id/accept', (req: Request, res: Response) => {
   const id = req.params.id;
+  const currentUserId = getCurrentUserId(req);
   const reqObj = friendRequests.find((r: any) => r.id === id);
   if (!reqObj) {
     res.status(404).json({ message: 'Request not found' });
@@ -104,7 +118,7 @@ router.post('/:id/accept', (req: Request, res: Response) => {
   const senderId = (reqObj as any).senderId || (reqObj as any).fromUserId;
   const receiverId = (reqObj as any).receiverId || (reqObj as any).toUserId;
 
-  if (receiverId !== 'self') {
+  if (receiverId !== currentUserId) {
     res.status(403).json({ message: 'Cannot accept requests not addressed to you' });
     return;
   }
@@ -139,14 +153,14 @@ router.post('/:id/accept', (req: Request, res: Response) => {
     type: 'direct' as const,
     name: null,
     avatarUrl: null,
-    createdBy: 'self',
+    createdBy: currentUserId,
     createdAt: new Date(),
     updatedAt: new Date(),
   };
 
   conversations.push(newConvo);
 
-  const member1 = { id: `m_${newConvoId}_self`, conversationId: newConvoId, userId: 'self', joinedAt: new Date(), leftAt: null, muted: false };
+  const member1 = { id: `m_${newConvoId}_self`, conversationId: newConvoId, userId: currentUserId, joinedAt: new Date(), leftAt: null, muted: false };
   const member2 = { id: `m_${newConvoId}_other`, conversationId: newConvoId, userId: recipient.id, joinedAt: new Date(), leftAt: null, muted: false };
   conversationMembers.push(member1, member2);
 
@@ -156,6 +170,7 @@ router.post('/:id/accept', (req: Request, res: Response) => {
 // POST /api/requests/:id/decline — decline incoming request
 router.post('/:id/decline', (req: Request, res: Response) => {
   const id = req.params.id;
+  const currentUserId = getCurrentUserId(req);
   const reqObj = friendRequests.find((r: any) => r.id === id);
   if (!reqObj) {
     res.status(404).json({ message: 'Request not found' });
@@ -164,7 +179,7 @@ router.post('/:id/decline', (req: Request, res: Response) => {
   const senderId = (reqObj as any).senderId || (reqObj as any).fromUserId;
   const receiverId = (reqObj as any).receiverId || (reqObj as any).toUserId;
 
-  if (receiverId !== 'self') {
+  if (receiverId !== currentUserId) {
     res.status(403).json({ message: 'Cannot decline requests not addressed to you' });
     return;
   }

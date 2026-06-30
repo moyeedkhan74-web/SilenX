@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Html5Qrcode } from 'html5-qrcode';
 import { Camera, Lock, X } from 'lucide-react';
 import { API_URL, normalizeUid } from '../config/webrtc-config';
+import { useAuthStore } from '../store/authStore';
 import UserPreviewModal from './UserPreviewModal';
 
 import './AddContactModal.css';
@@ -50,6 +51,7 @@ const AddContactModal: React.FC<AddContactModalProps> = ({ isOpen, onClose, onAd
   const [error, setError] = useState('');
   const [previewUser, setPreviewUser] = useState<FoundUser | null>(null);
   const scannerRef = useRef<Html5Qrcode | null>(null);
+  const user = useAuthStore((state) => state.user);
 
   
 
@@ -163,7 +165,10 @@ const AddContactModal: React.FC<AddContactModalProps> = ({ isOpen, onClose, onAd
     try {
       const res = await fetch(`${API_URL}/api/requests/send`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-id': user?.id || 'self',
+        },
         body: JSON.stringify({ receiverId: previewUser.id }),
       });
       if (res.ok) {
