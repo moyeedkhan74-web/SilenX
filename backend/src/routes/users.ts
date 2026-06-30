@@ -86,11 +86,29 @@ router.get('/search', (req: Request, res: Response) => {
     res.status(400).json({ message: 'uid query parameter required' });
     return;
   }
-  const found = users.find(u => u.uid.toLowerCase() === uid.toLowerCase());
+
+  const normalizedInput = uid.toLowerCase().trim();
+  const withPrefix = normalizedInput.startsWith('sec_') ? normalizedInput : `sec_${normalizedInput}`;
+  const withoutPrefix = normalizedInput.replace(/^sec_/, '');
+
+  const found = users.find((u: any) => {
+    const candidates = [u.uid, u.id, u.googleId, u.email]
+      .filter(Boolean)
+      .map((value: string) => String(value).toLowerCase().trim());
+
+    return candidates.some((value: string) => {
+      const normalizedValue = value.toLowerCase().trim();
+      return normalizedValue === normalizedInput
+        || normalizedValue === withPrefix
+        || normalizedValue === withoutPrefix
+        || normalizedValue.replace(/^sec_/, '') === withoutPrefix;
+    });
+  });
+
   if (found) {
     res.status(200).json({ id: found.id, displayName: found.displayName, avatar: found.avatarUrl, uid: found.uid, bio: found.bio });
   } else {
-    res.status(404).json({ message: 'User not found' });
+    res.status(404).json({ message: `No account found for this Secure ID. Please check the ID and try again.` });
   }
 });
 

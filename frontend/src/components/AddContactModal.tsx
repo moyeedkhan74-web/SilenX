@@ -138,7 +138,8 @@ const AddContactModal: React.FC<AddContactModalProps> = ({ isOpen, onClose, onAd
         const user: FoundUser = await res.json();
         setPreviewUser(user as any);
       } else {
-        setError('No account found for this Secure ID. Please check the ID and try again.');
+        const body = await res.json().catch(() => ({}));
+        setError(body.message || 'No account found for this Secure ID. Please check the ID and try again.');
       }
     } catch (err) {
       console.error('Lookup failed:', err);
