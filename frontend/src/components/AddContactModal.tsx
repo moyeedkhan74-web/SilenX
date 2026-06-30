@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Html5Qrcode } from 'html5-qrcode';
 import { Camera, Lock, X } from 'lucide-react';
 import UserPreviewModal from './UserPreviewModal';
-import { useChatStore } from '../store/chatStore';
+
 import './AddContactModal.css';
 
 interface FoundUser {
@@ -49,7 +49,7 @@ const AddContactModal: React.FC<AddContactModalProps> = ({ isOpen, onClose, onAd
   const [previewUser, setPreviewUser] = useState<FoundUser | null>(null);
   const scannerRef = useRef<Html5Qrcode | null>(null);
 
-  const { createConversation, setActiveConversation } = useChatStore();
+  
 
   // Clean up scanner when modal closes or tab switches
   useEffect(() => {
