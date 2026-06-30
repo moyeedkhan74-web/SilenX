@@ -18,10 +18,11 @@ router.get('/me', (_req: Request, res: Response) => {
 router.put('/me', (req: Request, res: Response) => {
   const selfUser = users.find(u => u.id === 'self');
   if (selfUser) {
-    const { displayName, bio, status } = req.body;
-    if (displayName) selfUser.displayName = displayName;
-    if (bio) selfUser.bio = bio;
-    if (status) selfUser.status = status;
+      const { displayName, bio, status, avatarUrl } = req.body;
+      if (displayName) selfUser.displayName = displayName;
+      if (bio) selfUser.bio = bio;
+      if (status) selfUser.status = status;
+      if (typeof avatarUrl === 'string') selfUser.avatarUrl = avatarUrl;
     selfUser.updatedAt = new Date();
     res.status(200).json(selfUser);
   } else {

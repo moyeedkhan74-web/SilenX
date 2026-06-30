@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Copy, Download, QrCode } from 'lucide-react';
 import UIDShareModal from './UIDShareModal';
+import EditProfileModal from './EditProfileModal';
 import './ProfileTab.css';
 
 interface UserProfile {
@@ -15,12 +16,17 @@ interface UserProfile {
 const ProfileTab: React.FC = () => {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isShareOpen, setIsShareOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
 
-  useEffect(() => {
+  const loadProfile = () => {
     fetch('/api/users/me')
       .then(res => res.json())
       .then(data => setProfile(data))
       .catch(err => console.error('Failed to fetch profile:', err));
+  };
+
+  useEffect(() => {
+    loadProfile();
   }, []);
 
   const uid = profile?.uid || 'Loading...';
@@ -74,13 +80,19 @@ const ProfileTab: React.FC = () => {
           <p className="profile-bio">{profile?.bio || ''}</p>
         </div>
 
-        <button className="btn btn-primary" style={{ marginTop: 24, width: '100%' }}>Edit Profile</button>
+        <button className="btn btn-primary" style={{ marginTop: 24, width: '100%' }} onClick={() => setIsEditOpen(true)}>Edit Profile</button>
       </div>
 
       <UIDShareModal 
         isOpen={isShareOpen} 
         onClose={() => setIsShareOpen(false)} 
         uid={uid} 
+      />
+      <EditProfileModal
+        isOpen={isEditOpen}
+        onClose={() => setIsEditOpen(false)}
+        profile={profile}
+        onSaved={() => loadProfile()}
       />
     </div>
   );
