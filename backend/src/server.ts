@@ -13,7 +13,7 @@ import requestRoutes from './routes/requests';
 const app = express();
 app.use(
   cors({
-    origin: config.frontendUrl,
+    origin: config.isProduction ? config.frontendUrl : true,
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
     credentials: true,
   })
