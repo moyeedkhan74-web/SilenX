@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Copy, Download, QrCode } from 'lucide-react';
 import { API_URL } from '../config/webrtc-config';
+import { useAuthStore } from '../store/authStore';
 import UIDShareModal from './UIDShareModal';
 import EditProfileModal from './EditProfileModal';
 import './ProfileTab.css';
@@ -18,6 +19,7 @@ const ProfileTab: React.FC = () => {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isShareOpen, setIsShareOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
+  const currentUser = useAuthStore((s) => s.user);
 
   const loadProfile = () => {
     fetch(`${API_URL}/api/users/me`)
@@ -30,7 +32,7 @@ const ProfileTab: React.FC = () => {
     loadProfile();
   }, []);
 
-  const uid = profile?.uid || 'Loading...';
+  const uid = profile?.uid || currentUser?.uid || 'Loading...';
 
   const copyUid = () => {
     navigator.clipboard.writeText(uid);

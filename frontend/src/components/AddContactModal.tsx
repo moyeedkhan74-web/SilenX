@@ -133,7 +133,7 @@ const AddContactModal: React.FC<AddContactModalProps> = ({ isOpen, onClose, onAd
         const user: FoundUser = await res.json();
         setPreviewUser(user as any);
       } else {
-        setError(`Secure ID "${searchUid}" not found. Try: SEC_f6e5d4c3b2a1 (Bob) or SEC_a1b2c3d4e5f6 (Alice).`);
+        setError('No account found for this Secure ID. Please check the ID and try again.');
       }
     } catch (err) {
       console.error('Lookup failed:', err);

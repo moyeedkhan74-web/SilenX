@@ -3,6 +3,7 @@ import { X, Save, Copy, Download, ImageIcon } from 'lucide-react';
 import { QRCodeCanvas } from 'qrcode.react';
 import './EditProfileModal.css';
 import { API_URL } from '../config/webrtc-config';
+import { useAuthStore } from '../store/authStore';
 
 interface Props {
   isOpen: boolean;
@@ -11,18 +12,13 @@ interface Props {
   onSaved: () => void;
 }
 
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const PHONE_REGEX = /^[0-9\-\s\+]{6,20}$/;
-
 const EditProfileModal: React.FC<Props> = ({ isOpen, onClose, profile, onSaved }) => {
   const [displayName, setDisplayName] = useState('');
   const [avatarUrl, setAvatarUrl] = useState('');
   const [bio, setBio] = useState('');
-  const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
   const [saving, setSaving] = useState(false);
-  const [errors, setErrors] = useState<{ email?: string; phone?: string }>({});
-  const uid = profile?.uid || 'SEC_8f7d6e5c4b3a';
+  const currentUser = useAuthStore((s) => s.user);
+  const uid = profile?.uid || currentUser?.uid || 'Loading...';
   const qrRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -30,9 +26,6 @@ const EditProfileModal: React.FC<Props> = ({ isOpen, onClose, profile, onSaved }
       setDisplayName(profile.displayName || '');
       setAvatarUrl(profile.avatarUrl || '');
       setBio(profile.bio || '');
-      setEmail(profile.email || '');
-      setPhone((profile as any).phone || '');
-      setErrors({});
     }
   }, [profile, isOpen]);
 
@@ -48,14 +41,6 @@ const EditProfileModal: React.FC<Props> = ({ isOpen, onClose, profile, onSaved }
     const reader = new FileReader();
     reader.onload = () => setAvatarUrl(String(reader.result));
     reader.readAsDataURL(f);
-  };
-
-  const validate = () => {
-    const e: any = {};
-    if (email && !EMAIL_REGEX.test(email)) e.email = 'Invalid email';
-    if (phone && !PHONE_REGEX.test(phone)) e.phone = 'Invalid phone (numbers, +, dashes allowed)';
-    setErrors(e);
-    return Object.keys(e).length === 0;
   };
 
   const handleCopyUid = async () => {
@@ -80,11 +65,10 @@ const EditProfileModal: React.FC<Props> = ({ isOpen, onClose, profile, onSaved }
   };
 
   const handleSave = async () => {
-    if (!validate()) return;
     setSaving(true);
     try {
       // If there's an avatar file, in a real app we'd upload it. Here we'll use data URL or avatarUrl input.
-      const payload: any = { displayName, avatarUrl, bio, phone, email };
+      const payload: any = { displayName, avatarUrl, bio };
       const res = await fetch(`${API_URL}/api/users/me`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -115,14 +99,6 @@ const EditProfileModal: React.FC<Props> = ({ isOpen, onClose, profile, onSaved }
             <label>Display Name</label>
             <input value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
 
-            <label>Email</label>
-            <input value={email} onChange={(e) => setEmail(e.target.value)} />
-            {errors.email && <div className="field-error">{errors.email}</div>}
-
-            <label>Phone</label>
-            <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+1-555-0100" />
-            {errors.phone && <div className="field-error">{errors.phone}</div>}
-
             <label>Bio</label>
             <textarea value={bio} onChange={(e) => setBio(e.target.value)} />
 
@@ -146,8 +122,6 @@ const EditProfileModal: React.FC<Props> = ({ isOpen, onClose, profile, onSaved }
             <div className="preview-card">
               <div className="preview-avatar" style={{backgroundImage: `url(${avatarUrl || ''})`}}>{!avatarUrl && (displayName?.[0] || 'U')}</div>
               <div className="preview-name">{displayName || 'Your Name'}</div>
-              <div className="preview-email">{email || 'you@example.com'}</div>
-              <div className="preview-phone">{phone || ''}</div>
               <p className="preview-bio">{bio || 'Your bio appears here.'}</p>
 
               <div className="uid-section">
