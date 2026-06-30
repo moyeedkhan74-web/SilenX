@@ -175,3 +175,5 @@ export const messages: Message[] = [
   { id: 'm11', conversationId: 'conv3', senderId: 'self', encryptedContent: 'Looks amazing! Love the glassmorphism effect', contentType: 'text', createdAt: new Date(Date.now() - 59 * 60 * 1000), editedAt: null, deletedAt: null },
   { id: 'm12', conversationId: 'conv3', senderId: 'u3', encryptedContent: 'Check the new mockups I sent', contentType: 'text', createdAt: new Date(Date.now() - 52 * 60 * 1000), editedAt: null, deletedAt: null }
 ];
+
+export const contactRequests: ContactRequest[] = [];

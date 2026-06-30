@@ -8,6 +8,7 @@ import authRoutes from './routes/auth';
 import userRoutes from './routes/users';
 import conversationRoutes from './routes/conversations';
 import callRoutes from './routes/calls';
+import requestRoutes from './routes/requests';
 
 const app = express();
 app.use(
@@ -42,6 +43,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/conversations', conversationRoutes);
 app.use('/api/calls', callRoutes);
+app.use('/api/requests', requestRoutes);
 
 // ─── WebSocket ─────────────────────────────────────────────
 registerSocketHandlers(io);

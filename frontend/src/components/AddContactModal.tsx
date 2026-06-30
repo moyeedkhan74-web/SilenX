@@ -158,14 +158,25 @@ const AddContactModal: React.FC<AddContactModalProps> = ({ isOpen, onClose, onAd
   const handleAddContact = async () => {
     if (!previewUser) return;
 
-    const newConvo = await createConversation(previewUser.uid);
-    if (newConvo) {
-      setActiveConversation(newConvo.id);
+    try {
+      const res = await fetch('/api/requests', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ recipientUid: previewUser.uid }),
+      });
+      if (res.ok) {
+        // request created
+        setPreviewUser(null);
+        setUid('');
+        onAddComplete();
+      } else {
+        const body = await res.json().catch(() => ({}));
+        setError(body.message || 'Failed to send request');
+      }
+    } catch (err) {
+      console.error('Send request failed:', err);
+      setError('Network error when sending request');
     }
-
-    setPreviewUser(null);
-    setUid('');
-    onAddComplete();
   };
 
   if (!isOpen) return null;

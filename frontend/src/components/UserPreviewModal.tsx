@@ -26,10 +26,10 @@ const UserPreviewModal: React.FC<UserPreviewProps> = ({ user, onClose, onAdd }) 
         </p>
         <div className="preview-actions">
           <button className="btn" style={{ background: 'var(--bg-tertiary)' }} onClick={onClose}>
-            Cancel
+            Close
           </button>
           <button className="btn btn-primary" onClick={onAdd}>
-            Add Contact
+            Send Request
           </button>
         </div>
       </div>

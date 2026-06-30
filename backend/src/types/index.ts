@@ -140,3 +140,16 @@ export interface UserStatusPayload {
   userId: string;
   status: UserStatus;
 }
+
+export interface ContactRequest {
+  id: string;
+  fromUserId: string;
+  toUserId: string;
+  fromUid: string;
+  toUid: string;
+  fromDisplayName?: string;
+  toDisplayName?: string;
+  status: 'pending' | 'accepted' | 'rejected';
+  createdAt: Date;
+}
+
