@@ -16,7 +16,6 @@ const PHONE_REGEX = /^[0-9\-\s\+]{6,20}$/;
 const EditProfileModal: React.FC<Props> = ({ isOpen, onClose, profile, onSaved }) => {
   const [displayName, setDisplayName] = useState('');
   const [avatarUrl, setAvatarUrl] = useState('');
-  const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [bio, setBio] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
@@ -32,7 +31,6 @@ const EditProfileModal: React.FC<Props> = ({ isOpen, onClose, profile, onSaved }
       setBio(profile.bio || '');
       setEmail(profile.email || '');
       setPhone((profile as any).phone || '');
-      setAvatarFile(null);
       setErrors({});
     }
   }, [profile, isOpen]);
@@ -46,7 +44,6 @@ const EditProfileModal: React.FC<Props> = ({ isOpen, onClose, profile, onSaved }
   };
 
   const handleFileSelect = (f: File) => {
-    setAvatarFile(f);
     const reader = new FileReader();
     reader.onload = () => setAvatarUrl(String(reader.result));
     reader.readAsDataURL(f);
