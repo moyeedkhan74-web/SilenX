@@ -6,16 +6,17 @@ const router = Router();
 // POST /api/auth/google — Login with Google profile payload
 // For production, verify the token with Google. Here we accept a profile payload from frontend.
 router.post('/google', (req: Request, res: Response) => {
-  const { googleId, email, displayName, avatar } = req.body as any;
+  const { googleId, email, displayName, avatar, firebaseUid } = req.body as any;
   if (!googleId || !email) {
     res.status(400).json({ message: 'googleId and email required' });
     return;
   }
 
-  let user = users.find(u => u.googleId === googleId || u.email === email);
+  const authUserId = firebaseUid || googleId;
+  let user = users.find((u: any) => u.googleId === googleId || u.email === email || u.id === authUserId || u.uid === authUserId);
   if (!user) {
-    const id = `u_${Date.now()}`;
-    const uid = `uid_${id}_${Math.random().toString(36).slice(2,8)}`;
+    const id = authUserId || `u_${Date.now()}`;
+    const uid = `SEC_${id}`;
     user = {
       id,
       uid,
