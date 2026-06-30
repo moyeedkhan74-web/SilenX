@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Copy, Download, QrCode } from 'lucide-react';
+import { API_URL } from '../config/webrtc-config';
 import UIDShareModal from './UIDShareModal';
 import EditProfileModal from './EditProfileModal';
 import './ProfileTab.css';

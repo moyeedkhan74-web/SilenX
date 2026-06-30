@@ -1,4 +1,4 @@
-import { User, Conversation, ConversationMember, Message, ContactRequest } from '../types';
+import { User, Conversation, ConversationMember, Message, ContactRequest, FriendRequest, Friend } from '../types';
 
 // In-Memory Database Seed Sets
 export const users: User[] = [

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { connectSocket, getSocket } from '../services/socket';
 import { useAuthStore } from '../store/authStore';
+import { API_URL } from '../config/webrtc-config';
 import './NotificationsPanel.css';
 
 interface PendingReq {

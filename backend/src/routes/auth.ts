@@ -31,7 +31,7 @@ router.post('/google', (req: Request, res: Response) => {
       updatedAt: new Date(),
       deletedAt: null,
     } as any;
-    users.push(user);
+    users.push(user as any);
   }
 
   // Return mock token and user

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Html5Qrcode } from 'html5-qrcode';
 import { Camera, Lock, X } from 'lucide-react';
+import { API_URL } from '../config/webrtc-config';
 import UserPreviewModal from './UserPreviewModal';
 
 import './AddContactModal.css';
