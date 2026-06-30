@@ -6,6 +6,8 @@ import DashboardPage from './pages/DashboardPage';
 import CallOverlay from './components/CallOverlay';
 import { auth } from './config/firebase';
 import { useAuthStore } from './store/authStore';
+import { API_URL } from './config/webrtc-config';
+import { connectSocket } from './services/socket';
 import './App.css';
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -39,19 +41,72 @@ function App() {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         const token = await firebaseUser.getIdToken();
-        login(
-          {
-            id: firebaseUser.uid,
-            uid: firebaseUser.uid,
-            email: firebaseUser.email || '',
-            displayName: firebaseUser.displayName || 'Secure User',
-            avatarUrl: firebaseUser.photoURL || null,
-            status: 'online',
-            lastSeen: new Date().toISOString(),
-            bio: 'Signed in with Google',
-          },
-          token
-        );
+        try {
+          const payload = {
+            googleId: firebaseUser.providerData?.[0]?.uid || firebaseUser.uid,
+            email: firebaseUser.email,
+            displayName: firebaseUser.displayName,
+            avatar: firebaseUser.photoURL,
+          };
+          const resp = await fetch(`${API_URL}/api/auth/google`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+          if (resp.ok) {
+            const body = await resp.json();
+            const serverUser = body.user;
+            const serverToken = body.token;
+            login(
+              {
+                id: serverUser.id,
+                uid: serverUser.uid || serverUser.id,
+                email: serverUser.email || '',
+                displayName: serverUser.displayName || 'Secure User',
+                avatarUrl: serverUser.avatarUrl || null,
+                status: serverUser.status || 'online',
+                lastSeen: new Date().toISOString(),
+                bio: serverUser.bio || 'Signed in with Google',
+              },
+              serverToken
+            );
+            try {
+              const socket = connectSocket();
+              socket.emit('register', { userId: serverUser.id });
+            } catch (error) {
+              console.warn('Socket registration failed:', error);
+            }
+          } else {
+            login(
+              {
+                id: firebaseUser.uid,
+                uid: firebaseUser.uid,
+                email: firebaseUser.email || '',
+                displayName: firebaseUser.displayName || 'Secure User',
+                avatarUrl: firebaseUser.photoURL || null,
+                status: 'online',
+                lastSeen: new Date().toISOString(),
+                bio: 'Signed in with Google',
+              },
+              token
+            );
+          }
+        } catch (error) {
+          console.warn('Backend auth failed:', error);
+          login(
+            {
+              id: firebaseUser.uid,
+              uid: firebaseUser.uid,
+              email: firebaseUser.email || '',
+              displayName: firebaseUser.displayName || 'Secure User',
+              avatarUrl: firebaseUser.photoURL || null,
+              status: 'online',
+              lastSeen: new Date().toISOString(),
+              bio: 'Signed in with Google',
+            },
+            token
+          );
+        }
       } else {
         logout();
       }

@@ -28,5 +28,6 @@ export const WEBRTC_CONFIG = {
   ],
 };
 
-export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-export const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000';
+const defaultBackendUrl = import.meta.env.DEV ? 'http://localhost:5000' : '';
+export const API_URL = import.meta.env.VITE_API_URL || defaultBackendUrl;
+export const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || defaultBackendUrl;

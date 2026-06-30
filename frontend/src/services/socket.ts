@@ -5,11 +5,13 @@ let socket: Socket | null = null;
 
 export const connectSocket = (): Socket => {
   if (!socket) {
-    socket = io(SOCKET_URL, {
+    const options = {
       reconnection: true,
       reconnectionAttempts: 5,
       reconnectionDelay: 1000,
-    });
+    };
+
+    socket = SOCKET_URL ? io(SOCKET_URL, options) : io(options);
 
     socket.on('connect', () => {
       console.log(`[Socket] Connected: ${socket?.id}`);

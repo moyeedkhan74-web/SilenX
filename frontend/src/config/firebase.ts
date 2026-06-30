@@ -27,7 +27,13 @@ let googleProvider: GoogleAuthProvider | null = null;
 if (hasRequiredConfig) {
   try {
     app = initializeApp(firebaseConfig);
-    analytics = getAnalytics(app);
+    if (firebaseConfig.measurementId) {
+      try {
+        analytics = getAnalytics(app);
+      } catch (error) {
+        console.warn('Firebase analytics initialization failed:', error);
+      }
+    }
     auth = getAuth(app);
     googleProvider = new GoogleAuthProvider();
     googleProvider.setCustomParameters({ prompt: 'select_account' });
