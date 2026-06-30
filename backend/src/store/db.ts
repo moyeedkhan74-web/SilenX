@@ -91,6 +91,21 @@ export const users: User[] = [
     createdAt: new Date(),
     updatedAt: new Date(),
     deletedAt: null
+  },
+  {
+    id: 'u6',
+    uid: 'SEC_FjEcUktRBeZlbLxX',
+    email: 'testuser@example.com',
+    phone: '+1-555-0199',
+    googleId: 'google_testuser_123',
+    displayName: 'Test User',
+    avatarUrl: null,
+    status: 'online',
+    lastSeen: new Date(),
+    bio: 'Test account for Secure ID lookup',
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    deletedAt: null
   }
 ];
 
