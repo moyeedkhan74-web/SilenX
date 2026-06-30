@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { UserPlus } from 'lucide-react';
 import './ContactsTab.css';
 import { useChatStore } from '../store/chatStore';
+import { API_URL } from '../config/webrtc-config';
 
 interface ContactsTabProps {
   onAddClick: () => void;
@@ -23,7 +24,7 @@ const ContactsTab: React.FC<ContactsTabProps> = ({ onAddClick }) => {
 
   const loadRequests = async () => {
     try {
-      const res = await fetch('/api/requests');
+      const res = await fetch(`${API_URL}/api/requests`);
       if (res.ok) {
         const data = await res.json();
         setRequests(data.map((r: any) => ({ ...r, createdAt: new Date(r.createdAt).toISOString() })));
@@ -39,7 +40,7 @@ const ContactsTab: React.FC<ContactsTabProps> = ({ onAddClick }) => {
 
   const handleAccept = async (id: string) => {
     try {
-      const res = await fetch(`/api/requests/${encodeURIComponent(id)}/accept`, { method: 'POST' });
+      const res = await fetch(`${API_URL}/api/requests/${encodeURIComponent(id)}/accept`, { method: 'POST' });
       if (res.ok) {
         await fetchConversations();
         loadRequests();
@@ -51,7 +52,7 @@ const ContactsTab: React.FC<ContactsTabProps> = ({ onAddClick }) => {
 
   const handleDecline = async (id: string) => {
     try {
-      const res = await fetch(`/api/requests/${encodeURIComponent(id)}/decline`, { method: 'POST' });
+      const res = await fetch(`${API_URL}/api/requests/${encodeURIComponent(id)}/decline`, { method: 'POST' });
       if (res.ok) {
         loadRequests();
       }

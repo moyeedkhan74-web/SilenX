@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import type { Conversation, ChatMessage } from '../types';
+import { API_URL } from '../config/webrtc-config';
 
 interface ChatState {
   conversations: Conversation[];
@@ -31,7 +32,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   fetchConversations: async () => {
     set({ isLoading: true });
     try {
-      const res = await fetch('/api/conversations');
+      const res = await fetch(`${API_URL}/api/conversations`);
       if (res.ok) {
         const data = await res.json();
         set({ conversations: data });
@@ -45,7 +46,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   fetchMessages: async (conversationId: string) => {
     try {
-      const res = await fetch(`/api/conversations/${conversationId}/messages`);
+      const res = await fetch(`${API_URL}/api/conversations/${conversationId}/messages`);
       if (res.ok) {
         const data = await res.json();
         set((state) => ({
@@ -62,7 +63,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   createConversation: async (recipientUid: string) => {
     try {
-      const res = await fetch('/api/conversations', {
+      const res = await fetch(`${API_URL}/api/conversations`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ type: 'direct', recipientUid }),

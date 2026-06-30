@@ -18,7 +18,7 @@ const NotificationsPanel: React.FC = () => {
 
   const load = async () => {
     try {
-      const res = await fetch('/api/requests');
+      const res = await fetch(`${API_URL}/api/requests`);
       if (res.ok) {
         const data = await res.json();
         // map incoming friendRequests shape to PendingReq
@@ -68,7 +68,7 @@ const NotificationsPanel: React.FC = () => {
 
   const accept = async (id: string) => {
     try {
-      const res = await fetch(`/api/requests/${encodeURIComponent(id)}/accept`, { method: 'POST' });
+      const res = await fetch(`${API_URL}/api/requests/${encodeURIComponent(id)}/accept`, { method: 'POST' });
       if (res.ok) load();
     } catch (err) {
       console.error(err);
@@ -77,7 +77,7 @@ const NotificationsPanel: React.FC = () => {
 
   const decline = async (id: string) => {
     try {
-      const res = await fetch(`/api/requests/${encodeURIComponent(id)}/decline`, { method: 'POST' });
+      const res = await fetch(`${API_URL}/api/requests/${encodeURIComponent(id)}/decline`, { method: 'POST' });
       if (res.ok) load();
     } catch (err) {
       console.error(err);

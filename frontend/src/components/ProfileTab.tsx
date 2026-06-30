@@ -19,7 +19,7 @@ const ProfileTab: React.FC = () => {
   const [isEditOpen, setIsEditOpen] = useState(false);
 
   const loadProfile = () => {
-    fetch('/api/users/me')
+    fetch(`${API_URL}/api/users/me`)
       .then(res => res.json())
       .then(data => setProfile(data))
       .catch(err => console.error('Failed to fetch profile:', err));
@@ -38,7 +38,7 @@ const ProfileTab: React.FC = () => {
 
   const downloadQr = async () => {
     try {
-      const res = await fetch('/api/users/me/qr');
+      const res = await fetch(`${API_URL}/api/users/me/qr`);
       if (!res.ok) throw new Error('Failed to fetch QR');
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);

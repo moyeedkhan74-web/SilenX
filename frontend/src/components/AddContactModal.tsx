@@ -127,7 +127,7 @@ const AddContactModal: React.FC<AddContactModalProps> = ({ isOpen, onClose, onAd
     setIsSearching(true);
     setError('');
     try {
-      const res = await fetch(`/api/users/search?uid=${encodeURIComponent(searchUid)}`);
+      const res = await fetch(`${API_URL}/api/users/search?uid=${encodeURIComponent(searchUid)}`);
       if (res.ok) {
         const user: FoundUser = await res.json();
         setPreviewUser(user as any);
@@ -159,7 +159,7 @@ const AddContactModal: React.FC<AddContactModalProps> = ({ isOpen, onClose, onAd
     if (!previewUser) return;
 
     try {
-      const res = await fetch('/api/requests/send', {
+      const res = await fetch(`${API_URL}/api/requests/send`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ receiverId: previewUser.id }),

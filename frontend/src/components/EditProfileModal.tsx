@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { X, Save, Copy, Download, ImageIcon } from 'lucide-react';
 import { QRCodeCanvas } from 'qrcode.react';
 import './EditProfileModal.css';
+import { API_URL } from '../config/webrtc-config';
 
 interface Props {
   isOpen: boolean;
@@ -84,7 +85,7 @@ const EditProfileModal: React.FC<Props> = ({ isOpen, onClose, profile, onSaved }
     try {
       // If there's an avatar file, in a real app we'd upload it. Here we'll use data URL or avatarUrl input.
       const payload: any = { displayName, avatarUrl, bio, phone, email };
-      const res = await fetch('/api/users/me', {
+      const res = await fetch(`${API_URL}/api/users/me`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
