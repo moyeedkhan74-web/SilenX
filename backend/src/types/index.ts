@@ -8,6 +8,7 @@ export interface User {
   id: string;
   uid: string;
   email: string;
+  phone?: string;
   googleId: string;
   displayName: string;
   avatarUrl: string | null;
