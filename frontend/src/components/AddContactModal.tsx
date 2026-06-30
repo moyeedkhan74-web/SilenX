@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Html5Qrcode } from 'html5-qrcode';
-import { Camera, Lock, X } from 'lucide-react';
+import { Camera, Lock } from 'lucide-react';
+import Modal from './ui/Modal';
+import Input from './ui/Input';
+import Button from './ui/Button';
+import UserPreviewModal from './UserPreviewModal';
 import { API_URL, normalizeUid } from '../config/webrtc-config';
 import { useAuthStore } from '../store/authStore';
-import UserPreviewModal from './UserPreviewModal';
-
 import './AddContactModal.css';
 
 interface FoundUser {
@@ -22,12 +24,6 @@ interface AddContactModalProps {
   onAddComplete: () => void;
 }
 
-/**
- * Parse UID from scanned QR data.
- * Accepts formats:
- *   - "slienx://uid/SEC_xxxxxxxxxxxx"
- *   - "SEC_xxxxxxxxxxxx" (raw UID)
- */
 function parseUidFromScan(data: string): string | null {
   const deepLinkMatch = data.match(/slienx:\/\/uid\/(.+)/i);
   if (deepLinkMatch) return deepLinkMatch[1].trim();
@@ -38,13 +34,12 @@ function parseUidFromScan(data: string): string | null {
   return null;
 }
 
-/** Validate UID format: accept SEC_ values and plain IDs entered by the user */
 function isValidUid(uid: string): boolean {
   const normalized = normalizeUid(uid);
   return /^SEC_[A-Za-z0-9._-]{3,}$/.test(normalized);
 }
 
-const AddContactModal: React.FC<AddContactModalProps> = ({ isOpen, onClose, onAddComplete }) => {
+export const AddContactModal: React.FC<AddContactModalProps> = ({ isOpen, onClose, onAddComplete }) => {
   const [activeTab, setActiveTab] = useState<'scan' | 'enter'>('scan');
   const [uid, setUid] = useState('');
   const [isSearching, setIsSearching] = useState(false);
@@ -55,9 +50,6 @@ const AddContactModal: React.FC<AddContactModalProps> = ({ isOpen, onClose, onAd
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const user = useAuthStore((state) => state.user);
 
-  
-
-  // Clean up scanner when modal closes or tab switches
   useEffect(() => {
     return () => {
       stopScanner();
@@ -85,7 +77,7 @@ const AddContactModal: React.FC<AddContactModalProps> = ({ isOpen, onClose, onAd
     if (scannerRef.current) {
       try {
         const state = scannerRef.current.getState();
-        if (state === 2) { // SCANNING
+        if (state === 2) {
           await scannerRef.current.stop();
         }
       } catch {
@@ -115,7 +107,7 @@ const AddContactModal: React.FC<AddContactModalProps> = ({ isOpen, onClose, onAd
             setScanError('Invalid QR code. Expected a SlienX QR code.');
           }
         },
-        () => { /* ignore scan failures (no QR in frame) */ }
+        () => {}
       );
 
       setScannerActive(true);
@@ -136,7 +128,7 @@ const AddContactModal: React.FC<AddContactModalProps> = ({ isOpen, onClose, onAd
       const res = await fetch(`${API_URL}/api/users/search?uid=${encodeURIComponent(searchUid)}`);
       if (res.ok) {
         const user: FoundUser = await res.json();
-        setPreviewUser(user as any);
+        setPreviewUser(user);
       } else {
         const body = await res.json().catch(() => ({}));
         setError(body.message || 'No account found for this Secure ID. Please check the ID and try again.');
@@ -175,7 +167,6 @@ const AddContactModal: React.FC<AddContactModalProps> = ({ isOpen, onClose, onAd
         body: JSON.stringify({ receiverId: previewUser.id }),
       });
       if (res.ok) {
-        // request created
         setPreviewUser(null);
         setUid('');
         onAddComplete();
@@ -189,92 +180,74 @@ const AddContactModal: React.FC<AddContactModalProps> = ({ isOpen, onClose, onAd
     }
   };
 
-  if (!isOpen) return null;
-
   return (
     <>
-      <div className="modal-overlay" onClick={onClose}>
-        <div className="modal-content add-contact-modal" onClick={(e) => e.stopPropagation()}>
-          <button className="modal-close" onClick={onClose} type="button">
-            <X size={18} />
+      <Modal isOpen={isOpen} onClose={onClose} className="add-contact-modal" title="Add Contact">
+        <div className="modal-tabs">
+          <button 
+            type="button"
+            className={`modal-tab ${activeTab === 'scan' ? 'active' : ''}`}
+            onClick={() => setActiveTab('scan')}
+          >
+            <Camera size={16} /> Scan QR
           </button>
-          <h2>Add Contact</h2>
-          
-          <div className="modal-tabs">
-            <button 
-              className={`modal-tab ${activeTab === 'scan' ? 'active' : ''}`}
-              onClick={() => setActiveTab('scan')}
-            >
-              <Camera size={16} /> Scan QR
-            </button>
-            <button 
-              className={`modal-tab ${activeTab === 'enter' ? 'active' : ''}`}
-              onClick={() => setActiveTab('enter')}
-            >
-              <Lock size={16} /> Enter UID
-            </button>
-          </div>
-
-          <div className="modal-tab-content">
-            {activeTab === 'scan' ? (
-              <div className="scan-tab">
-                <div id="qr-reader" className="qr-reader-container" />
-                
-                {scanError && (
-                  <p className="scan-error">{scanError}</p>
-                )}
-
-                {!scannerActive && (
-                  <div className="scan-start-area">
-                    <p className="camera-subtext">Point your camera at a SlienX QR code</p>
-                    <button 
-                      className="btn btn-primary"
-                      onClick={startScanner}
-                    >
-                      <Camera size={16} /> Open Camera
-                    </button>
-                  </div>
-                )}
-
-                {scannerActive && (
-                  <div className="scan-controls">
-                    <p style={{ color: 'var(--primary-light)', fontWeight: 600, fontSize: '0.85rem' }}>
-                      Scanning for QR codes...
-                    </p>
-                    <button 
-                      className="btn-secondary"
-                      onClick={stopScanner}
-                      style={{ marginTop: 8 }}
-                    >
-                      Stop Camera
-                    </button>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="enter-tab">
-                <p className="enter-help">Enter the Secure ID. If you paste a plain ID, it will be fixed automatically.</p>
-                <input 
-                  type="text" 
-                  className="input-uid"
-                  placeholder="SEC_xxxxxxxxxxxx" 
-                  value={uid}
-                  onChange={(e) => setUid(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleLookup()}
-                  disabled={isSearching}
-                  maxLength={20}
-                />
-                {error && (
-                  <p className="scan-error" style={{ marginBottom: 16 }}>{error}</p>
-                )}
-                <button className="btn btn-primary btn-block" onClick={handleLookup} disabled={isSearching}>
-                  {isSearching ? 'Searching...' : 'Lookup User'}
-                </button>
-              </div>
-            )}
-          </div>
+          <button 
+            type="button"
+            className={`modal-tab ${activeTab === 'enter' ? 'active' : ''}`}
+            onClick={() => setActiveTab('enter')}
+          >
+            <Lock size={16} /> Enter UID
+          </button>
         </div>
-      </div>
+
+        <div className="modal-tab-content">
+          {activeTab === 'scan' ? (
+            <div className="scan-tab">
+              <div id="qr-reader" className="qr-reader-container" />
+              
+              {scanError && (
+                <p className="scan-error">{scanError}</p>
+              )}
+
+              {!scannerActive && (
+                <div className="scan-start-area">
+                  <p className="camera-subtext">Point your camera at a SlienX QR code</p>
+                  <Button variant="primary" onClick={startScanner}>
+                    <Camera size={16} /> Open Camera
+                  </Button>
+                </div>
+              )}
+
+              {scannerActive && (
+                <div className="scan-controls">
+                  <p style={{ color: 'var(--primary-light)', fontWeight: 600, fontSize: '0.85rem' }}>
+                    Scanning for QR codes...
+                  </p>
+                  <Button variant="secondary" onClick={stopScanner} style={{ marginTop: 8 }}>
+                    Stop Camera
+                  </Button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="enter-tab">
+              <p className="enter-help">Enter the Secure ID. If you paste a plain ID, it will be fixed automatically.</p>
+              <Input
+                value={uid}
+                onChange={(e) => setUid(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleLookup()}
+                disabled={isSearching}
+                maxLength={20}
+                placeholder="SEC_xxxxxxxxxxxx"
+                error={error}
+              />
+              <Button variant="primary" fullWidth onClick={handleLookup} disabled={isSearching}>
+                {isSearching ? 'Searching...' : 'Lookup User'}
+              </Button>
+            </div>
+          )}
+        </div>
+      </Modal>
 
       {previewUser && (
         <UserPreviewModal 

@@ -1,6 +1,8 @@
-import React, { useRef, useState } from 'react';
-import { Copy, Download, X } from 'lucide-react';
-import { QRCodeCanvas } from 'qrcode.react';
+import React from 'react';
+import Modal from './ui/Modal';
+import Button from './ui/Button';
+import UIDDisplay from './shared/UIDDisplay';
+import QRCodeSection from './shared/QRCodeSection';
 import './UIDShareModal.css';
 
 interface UIDShareModalProps {
@@ -9,73 +11,19 @@ interface UIDShareModalProps {
   uid: string;
 }
 
-const UIDShareModal: React.FC<UIDShareModalProps> = ({ isOpen, onClose, uid }) => {
-  const qrRef = useRef<HTMLDivElement>(null);
-  const [copied, setCopied] = useState(false);
-  const [downloaded, setDownloaded] = useState(false);
-
-  if (!isOpen) return null;
-
-  const deepLink = `slienx://uid/${uid}`;
-
-  const handleCopy = () => {
-    navigator.clipboard.writeText(uid);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  const handleDownloadPNG = () => {
-    const canvas = qrRef.current?.querySelector('canvas');
-    if (!canvas) return;
-
-    canvas.toBlob((blob) => {
-      if (!blob) return;
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `${uid}_qr.png`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-      setDownloaded(true);
-      setTimeout(() => setDownloaded(false), 2000);
-    }, 'image/png');
-  };
-
+export const UIDShareModal: React.FC<UIDShareModalProps> = ({ isOpen, onClose, uid }) => {
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content uid-share-modal" onClick={(e) => e.stopPropagation()}>
-        <button className="modal-close" onClick={onClose} type="button">
-          <X size={18} />
-        </button>
-        <h2>Your Secure ID</h2>
-        
-        <div className="qr-container" ref={qrRef}>
-          <div className="qr-canvas-wrapper">
-            <QRCodeCanvas
-              value={deepLink}
-              size={300}
-              level="H"
-              includeMargin={true}
-              bgColor="#ffffff"
-              fgColor="#212121"
-            />
-          </div>
+    <Modal isOpen={isOpen} onClose={onClose} className="uid-share-modal" title="Your Secure ID">
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px', padding: '10px 0' }}>
+        <QRCodeSection uid={uid} size={250} />
+        <div style={{ width: '100%' }}>
+          <UIDDisplay uid={uid} isLoading={uid === 'Loading...'} />
         </div>
-        
-        <p className="uid-display-text">{uid}</p>
-        
-        <div className="uid-actions">
-          <button className="btn btn-primary" onClick={handleCopy} disabled={copied}>
-            {copied ? 'Copied!' : <><Copy size={16} /> Copy UID</>}
-          </button>
-          <button className="btn btn-primary" onClick={handleDownloadPNG} disabled={downloaded}>
-            {downloaded ? 'Saved!' : <><Download size={16} /> Download QR</>}
-          </button>
-        </div>
+        <Button variant="secondary" onClick={onClose} style={{ width: '100%' }}>
+          Close
+        </Button>
       </div>
-    </div>
+    </Modal>
   );
 };
 

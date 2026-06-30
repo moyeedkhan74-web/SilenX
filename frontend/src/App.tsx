@@ -3,6 +3,10 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { onAuthStateChanged } from 'firebase/auth';
 import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
+import ChatsPage from './pages/ChatsPage';
+import ContactsPage from './pages/ContactsPage';
+import ProfilePage from './pages/ProfilePage';
+import SettingsPage from './pages/SettingsPage';
 import CallOverlay from './components/CallOverlay';
 import { auth } from './config/firebase';
 import { useAuthStore } from './store/authStore';
@@ -129,7 +133,13 @@ function App() {
                 <DashboardPage />
               </ProtectedRoute>
             }
-          />
+          >
+            <Route index element={<Navigate to="/chats" replace />} />
+            <Route path="chats" element={<ChatsPage />} />
+            <Route path="contacts" element={<ContactsPage />} />
+            <Route path="profile" element={<ProfilePage />} />
+            <Route path="settings" element={<SettingsPage />} />
+          </Route>
         </Routes>
 
         <CallOverlay />

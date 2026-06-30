@@ -1,0 +1,89 @@
+import React from 'react';
+
+const COLORS = ['#2E5BBA', '#4ECDC4', '#FF9800', '#9C27B0', '#E91E63', '#00BCD4', '#8BC34A', '#FF5722', '#607D8B'];
+
+function hashColor(name = '') {
+  let hash = 0;
+  for (let index = 0; index < name.length; index += 1) {
+    hash = name.charCodeAt(index) + ((hash << 5) - hash);
+  }
+  return COLORS[Math.abs(hash) % COLORS.length];
+}
+
+interface AvatarDisplayProps {
+  name?: string;
+  avatarUrl?: string | null;
+  size?: number;
+  online?: boolean;
+  status?: string;
+}
+
+export const AvatarDisplay: React.FC<AvatarDisplayProps> = ({
+  name = '',
+  avatarUrl,
+  size = 40,
+  online,
+  status
+}) => {
+  const isOnline = online !== undefined ? online : status === 'online';
+  const initials = name ? name.charAt(0).toUpperCase() : '?';
+
+  return (
+    <div className="avatar-display-container" style={{ position: 'relative', display: 'inline-flex', flexShrink: 0 }}>
+      {avatarUrl ? (
+        <img
+          src={avatarUrl}
+          alt={name}
+          style={{
+            width: size,
+            height: size,
+            borderRadius: '50%',
+            objectFit: 'cover',
+            display: 'block',
+          }}
+          onError={(e) => {
+            // Fallback when image loading fails
+            (e.target as HTMLElement).style.display = 'none';
+          }}
+        />
+      ) : (
+        <div
+          style={{
+            width: size,
+            height: size,
+            borderRadius: '50%',
+            background: hashColor(name),
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: '#fff',
+            fontSize: size * 0.38,
+            fontWeight: 700,
+            userSelect: 'none',
+            letterSpacing: '-0.5px',
+          }}
+        >
+          {initials}
+        </div>
+      )}
+      
+      {isOnline !== undefined && (
+        <span
+          className={`status-dot ${isOnline ? 'online' : 'offline'}`}
+          style={{
+            position: 'absolute',
+            bottom: 1,
+            right: 1,
+            width: Math.max(size * 0.26, 10),
+            height: Math.max(size * 0.26, 10),
+            borderRadius: '50%',
+            background: isOnline ? '#4CAF50' : '#BDBDBD',
+            border: '2px solid var(--bg-primary)',
+          }}
+        />
+      )}
+    </div>
+  );
+};
+
+export default AvatarDisplay;

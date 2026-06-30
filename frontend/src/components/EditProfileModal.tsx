@@ -1,9 +1,15 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { X, Save, Copy, Download, ImageIcon } from 'lucide-react';
-import { QRCodeCanvas } from 'qrcode.react';
-import './EditProfileModal.css';
+import React, { useState, useEffect } from 'react';
+import { Save, ImageIcon } from 'lucide-react';
+import Modal from './ui/Modal';
+import Input from './ui/Input';
+import Button from './ui/Button';
+import AvatarDisplay from './shared/AvatarDisplay';
+import UIDDisplay from './shared/UIDDisplay';
+import QRCodeSection from './shared/QRCodeSection';
 import { API_URL } from '../config/webrtc-config';
 import { useAuthStore } from '../store/authStore';
+import { uploadToBackblaze } from '../services/backblaze';
+import './EditProfileModal.css';
 
 interface Props {
   isOpen: boolean;
@@ -12,14 +18,16 @@ interface Props {
   onSaved: () => void;
 }
 
-const EditProfileModal: React.FC<Props> = ({ isOpen, onClose, profile, onSaved }) => {
+export const EditProfileModal: React.FC<Props> = ({ isOpen, onClose, profile, onSaved }) => {
   const [displayName, setDisplayName] = useState('');
   const [avatarUrl, setAvatarUrl] = useState('');
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [bio, setBio] = useState('');
   const [saving, setSaving] = useState(false);
+  const [displayNameError, setDisplayNameError] = useState('');
+  
   const currentUser = useAuthStore((s) => s.user);
   const uid = profile?.uid || currentUser?.uid || 'Loading...';
-  const qrRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (profile) {
@@ -27,9 +35,8 @@ const EditProfileModal: React.FC<Props> = ({ isOpen, onClose, profile, onSaved }
       setAvatarUrl(profile.avatarUrl || '');
       setBio(profile.bio || '');
     }
+    setDisplayNameError('');
   }, [profile, isOpen]);
-
-  if (!isOpen) return null;
 
   const onDrop = (e: React.DragEvent) => {
     e.preventDefault();
@@ -38,37 +45,34 @@ const EditProfileModal: React.FC<Props> = ({ isOpen, onClose, profile, onSaved }
   };
 
   const handleFileSelect = (f: File) => {
+    setAvatarFile(f);
     const reader = new FileReader();
     reader.onload = () => setAvatarUrl(String(reader.result));
     reader.readAsDataURL(f);
   };
 
-  const handleCopyUid = async () => {
-    await navigator.clipboard.writeText(uid);
-    alert('UID copied');
-  };
-
-  const handleDownloadQr = () => {
-    const canvas = qrRef.current?.querySelector('canvas');
-    if (!canvas) return;
-    canvas.toBlob((blob) => {
-      if (!blob) return;
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${uid}_qr.png`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    }, 'image/png');
-  };
-
   const handleSave = async () => {
+    if (!displayName.trim()) {
+      setDisplayNameError('Display Name is required.');
+      return;
+    }
+    
     setSaving(true);
     try {
-      // If there's an avatar file, in a real app we'd upload it. Here we'll use data URL or avatarUrl input.
-      const payload: any = { displayName, avatarUrl, bio };
+      let finalAvatarUrl = avatarUrl;
+
+      if (avatarFile) {
+        try {
+          const uploaded = await uploadToBackblaze(avatarFile, 'avatars');
+          finalAvatarUrl = uploaded.url;
+        } catch (uploadError) {
+          console.error(uploadError);
+          alert('Avatar upload failed');
+          return;
+        }
+      }
+
+      const payload: any = { displayName, avatarUrl: finalAvatarUrl, bio };
       const res = await fetch(`${API_URL}/api/users/me`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -90,61 +94,94 @@ const EditProfileModal: React.FC<Props> = ({ isOpen, onClose, profile, onSaved }
   };
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content edit-profile-modal dark" onClick={(e) => e.stopPropagation()}>
-        <button className="modal-close" onClick={onClose} type="button"><X size={18} /></button>
-        <div className="editor-grid">
-          <div className="editor-form">
-            <h2>Edit Profile</h2>
-            <label>Display Name</label>
-            <input value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
+    <Modal isOpen={isOpen} onClose={onClose} className="edit-profile-modal dark">
+      <div className="editor-grid">
+        <div className="editor-form">
+          <h2>Edit Profile</h2>
+          
+          <Input 
+            label="Display Name (required)" 
+            value={displayName} 
+            onChange={(e) => {
+              setDisplayName(e.target.value);
+              if (e.target.value.trim()) setDisplayNameError('');
+            }}
+            error={displayNameError}
+            disabled={saving}
+          />
 
-            <label>Bio</label>
-            <textarea value={bio} onChange={(e) => setBio(e.target.value)} />
+          <div className="input-group" style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '16px' }}>
+            <label className="input-label" style={{ fontWeight: 500, fontSize: '13px', color: 'var(--text-secondary)' }}>
+              Bio (optional)
+            </label>
+            <textarea 
+              value={bio} 
+              onChange={(e) => setBio(e.target.value)} 
+              disabled={saving}
+              style={{
+                width: '100%',
+                padding: '10px 14px',
+                borderRadius: '8px',
+                border: '1px solid var(--border-color)',
+                backgroundColor: 'var(--bg-secondary)',
+                color: 'var(--text-primary)',
+                fontSize: '14px',
+                outline: 'none',
+                boxSizing: 'border-box',
+                minHeight: '80px',
+                resize: 'vertical'
+              }}
+            />
+          </div>
 
-            <label>Avatar (drag & drop or paste URL)</label>
+          <div style={{ marginBottom: '24px' }}>
+            <label className="input-label" style={{ display: 'block', fontWeight: 500, fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '8px' }}>
+              Avatar (drag & drop or paste URL)
+            </label>
             <div className="avatar-uploader" onDrop={onDrop} onDragOver={(e) => e.preventDefault()}>
               <div className="uploader-inner">
                 <ImageIcon size={28} />
                 <input type="file" accept="image/*" onChange={(e) => e.target.files && handleFileSelect(e.target.files[0])} />
-                <input className="avatar-url-input" placeholder="Image URL or leave empty" value={avatarUrl} onChange={(e) => setAvatarUrl(e.target.value)} />
+                <input 
+                  className="avatar-url-input" 
+                  placeholder="Image URL or leave empty" 
+                  value={avatarUrl} 
+                  onChange={(e) => setAvatarUrl(e.target.value)} 
+                  disabled={saving}
+                />
               </div>
-            </div>
-
-            <div className="actions-row">
-              <button className="btn" onClick={onClose} disabled={saving}>Cancel</button>
-              <button className="btn btn-primary" onClick={handleSave} disabled={saving}>{saving ? 'Saving...' : <><Save size={14} /> Save</>}</button>
             </div>
           </div>
 
-          <div className="editor-preview">
-            <h3>Preview</h3>
-            <div className="preview-card">
-              <div className="preview-avatar" style={{backgroundImage: `url(${avatarUrl || ''})`}}>{!avatarUrl && (displayName?.[0] || 'U')}</div>
-              <div className="preview-name">{displayName || 'Your Name'}</div>
-              <p className="preview-bio">{bio || 'Your bio appears here.'}</p>
+          <div className="actions-row">
+            <Button variant="secondary" onClick={onClose} disabled={saving}>
+              Cancel
+            </Button>
+            <Button variant="primary" onClick={handleSave} disabled={saving}>
+              {saving ? 'Saving...' : <><Save size={14} /> Save</>}
+            </Button>
+          </div>
+        </div>
 
-              <div className="uid-section">
-                <div className="uid-row">
-                  <code className="uid-code">{uid}</code>
-                  <div className="uid-actions">
-                    <button className="btn" onClick={handleCopyUid}><Copy size={14} /></button>
-                    <button className="btn" onClick={() => setTimeout(() => { /* noop for visual */ }, 0)}><Download size={14} /></button>
-                  </div>
-                </div>
+        <div className="editor-preview">
+          <h3>Preview</h3>
+          <div className="preview-card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
+            <AvatarDisplay name={displayName} avatarUrl={avatarUrl} size={64} />
+            <div className="preview-name" style={{ marginTop: '12px', fontWeight: 600 }}>{displayName || 'Your Name'}</div>
+            <p className="preview-bio" style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>{bio || 'Your bio appears here.'}</p>
 
-                <div className="qr-wrap" ref={qrRef}>
-                  <QRCodeCanvas value={uid} size={180} level="H" includeMargin={true} />
+            <div className="uid-section" style={{ width: '100%', marginTop: '16px' }}>
+              <UIDDisplay uid={uid} isLoading={uid === 'Loading...'} />
+              {uid !== 'Loading...' && (
+                <div style={{ marginTop: '16px' }}>
+                  <QRCodeSection uid={uid} size={150} />
                 </div>
-                <div style={{marginTop:8}}>
-                  <button className="btn btn-secondary" onClick={handleDownloadQr}>Download QR</button>
-                </div>
-              </div>
+              )}
             </div>
           </div>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 };
 

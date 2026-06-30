@@ -1,28 +1,27 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { MessageCircle, Users, User, Settings, LogOut } from 'lucide-react';
-import type { TabName } from '../pages/DashboardPage';
-import './Sidebar.css';
+import '../Sidebar.css';
 
-interface SidebarProps {
-  activeTab: TabName;
-  onTabChange: (tab: TabName) => void;
-}
+interface SidebarProps {}
 
-const tabs: { name: TabName; label: string; icon: React.ReactNode }[] = [
-  { name: 'chats', label: 'Chats', icon: <MessageCircle size={20} /> },
-  { name: 'contacts', label: 'Contacts', icon: <Users size={20} /> },
-  { name: 'profile', label: 'Profile', icon: <User size={20} /> },
-  { name: 'settings', label: 'Settings', icon: <Settings size={20} /> },
+const tabs = [
+  { path: '/chats', label: 'Chats', icon: <MessageCircle size={20} /> },
+  { path: '/contacts', label: 'Contacts', icon: <Users size={20} /> },
+  { path: '/profile', label: 'Profile', icon: <User size={20} /> },
+  { path: '/settings', label: 'Settings', icon: <Settings size={20} /> },
 ];
 
-const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange }) => {
+export const Sidebar: React.FC<SidebarProps> = () => {
   const navigate = useNavigate();
+  const location = useLocation();
 
   const handleLogout = () => {
     console.log('[Auth] Clearing session and logging out');
     navigate('/login');
   };
+
+  const currentPath = location.pathname;
 
   return (
     <aside className="sidebar">
@@ -46,17 +45,20 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange }) => {
       </div>
 
       <nav className="sidebar-nav">
-        {tabs.map((tab) => (
-          <button
-            key={tab.name}
-            className={`nav-item ${activeTab === tab.name ? 'active' : ''}`}
-            onClick={() => onTabChange(tab.name)}
-            data-tooltip={tab.label}
-            type="button"
-          >
-            {tab.icon}
-          </button>
-        ))}
+        {tabs.map((tab) => {
+          const isActive = currentPath.startsWith(tab.path);
+          return (
+            <button
+              key={tab.path}
+              className={`nav-item ${isActive ? 'active' : ''}`}
+              onClick={() => navigate(tab.path)}
+              data-tooltip={tab.label}
+              type="button"
+            >
+              {tab.icon}
+            </button>
+          );
+        })}
       </nav>
 
       <div className="sidebar-bottom">
