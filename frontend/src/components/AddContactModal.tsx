@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Html5Qrcode } from 'html5-qrcode';
 import { Camera, Lock, X } from 'lucide-react';
-import { API_URL } from '../config/webrtc-config';
+import { API_URL, normalizeUid } from '../config/webrtc-config';
 import UserPreviewModal from './UserPreviewModal';
 
 import './AddContactModal.css';
@@ -35,9 +35,10 @@ function parseUidFromScan(data: string): string | null {
   return null;
 }
 
-/** Validate UID format: must be SEC_ followed by hex chars, total >= 16 chars */
+/** Validate UID format: accept either SEC_ values or simple raw values entered by the user */
 function isValidUid(uid: string): boolean {
-  return /^SEC_[0-9a-fA-F]{8,}$/.test(uid.trim());
+  const normalized = normalizeUid(uid);
+  return /^SEC_[0-9a-fA-F]{8,}$/.test(normalized);
 }
 
 const AddContactModal: React.FC<AddContactModalProps> = ({ isOpen, onClose, onAddComplete }) => {
@@ -144,13 +145,13 @@ const AddContactModal: React.FC<AddContactModalProps> = ({ isOpen, onClose, onAd
   };
 
   const handleLookup = () => {
-    const formattedUid = uid.trim();
+    const formattedUid = normalizeUid(uid);
     if (!formattedUid) {
       setError('Please enter a Secure ID.');
       return;
     }
     if (!isValidUid(formattedUid)) {
-      setError('Invalid format. UID must start with SEC_ followed by hex characters (e.g., SEC_a1b2c3d4e5f6).');
+      setError('Invalid format. Please enter a valid Secure ID.');
       return;
     }
     lookupByUid(formattedUid);
@@ -244,7 +245,7 @@ const AddContactModal: React.FC<AddContactModalProps> = ({ isOpen, onClose, onAd
               </div>
             ) : (
               <div className="enter-tab">
-                <p className="enter-help">Enter the 16-character Secure ID (starts with SEC_)</p>
+                <p className="enter-help">Enter the Secure ID. If you paste a plain ID, it will be fixed automatically.</p>
                 <input 
                   type="text" 
                   className="input-uid"

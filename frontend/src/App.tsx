@@ -6,7 +6,7 @@ import DashboardPage from './pages/DashboardPage';
 import CallOverlay from './components/CallOverlay';
 import { auth } from './config/firebase';
 import { useAuthStore } from './store/authStore';
-import { API_URL } from './config/webrtc-config';
+import { API_URL, normalizeUid } from './config/webrtc-config';
 import { connectSocket } from './services/socket';
 import './App.css';
 
@@ -60,7 +60,7 @@ function App() {
             login(
               {
                 id: serverUser.id,
-                uid: serverUser.uid || serverUser.id,
+                uid: normalizeUid(serverUser.uid || serverUser.id),
                 email: serverUser.email || '',
                 displayName: serverUser.displayName || 'Secure User',
                 avatarUrl: serverUser.avatarUrl || null,
@@ -80,7 +80,7 @@ function App() {
             login(
               {
                 id: firebaseUser.uid,
-                uid: firebaseUser.uid,
+                uid: normalizeUid(firebaseUser.uid),
                 email: firebaseUser.email || '',
                 displayName: firebaseUser.displayName || 'Secure User',
                 avatarUrl: firebaseUser.photoURL || null,

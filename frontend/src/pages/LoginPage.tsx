@@ -5,7 +5,7 @@ import { signInWithPopup } from 'firebase/auth';
 import { auth, googleProvider } from '../config/firebase';
 import { useAuthStore } from '../store/authStore';
 import { connectSocket } from '../services/socket';
-import { API_URL } from '../config/webrtc-config';
+import { API_URL, normalizeUid } from '../config/webrtc-config';
 import './LoginPage.css';
 
 const LoginPage: React.FC = () => {
@@ -49,7 +49,7 @@ const LoginPage: React.FC = () => {
           login(
             {
               id: serverUser.id,
-              uid: serverUser.uid || serverUser.id,
+              uid: normalizeUid(serverUser.uid || serverUser.id),
               email: serverUser.email || '',
               displayName: serverUser.displayName || 'Secure User',
               avatarUrl: serverUser.avatarUrl || null,
@@ -72,7 +72,7 @@ const LoginPage: React.FC = () => {
           login(
             {
               id: firebaseUser.uid,
-              uid: firebaseUser.uid,
+              uid: firebaseUser.uid ? normalizeUid(firebaseUser.uid) : '',
               email: firebaseUser.email || '',
               displayName: firebaseUser.displayName || 'Secure User',
               avatarUrl: firebaseUser.photoURL || null,

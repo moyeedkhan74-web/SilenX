@@ -31,3 +31,9 @@ export const WEBRTC_CONFIG = {
 const defaultBackendUrl = import.meta.env.DEV ? 'http://localhost:5000' : '';
 export const API_URL = import.meta.env.VITE_API_URL || defaultBackendUrl;
 export const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || defaultBackendUrl;
+
+export const normalizeUid = (value: string | null | undefined): string => {
+  const raw = (value || '').trim();
+  if (!raw) return '';
+  return raw.startsWith('SEC_') ? raw : `SEC_${raw}`;
+};
