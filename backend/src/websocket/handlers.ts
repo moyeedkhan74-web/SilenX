@@ -1,4 +1,5 @@
 import { Server, Socket } from 'socket.io';
+import { setUserSocket, removeSocketById, getSocketIdForUser } from './socketStore';
 import type {
   SendMessagePayload,
   TypingPayload,
@@ -15,6 +16,13 @@ import type {
 export function registerSocketHandlers(io: Server): void {
   io.on('connection', (socket: Socket) => {
     console.log(`[Socket] User connected: ${socket.id}`);
+
+    socket.on('register', (data: { userId: string }) => {
+      if (data?.userId) {
+        setUserSocket(data.userId, socket.id);
+        console.log(`[Socket] Registered user ${data.userId} -> ${socket.id}`);
+      }
+    });
 
     // ─── Messaging ─────────────────────────────────────────
 
@@ -132,6 +140,7 @@ export function registerSocketHandlers(io: Server): void {
 
     socket.on('disconnect', (reason) => {
       console.log(`[Socket] User disconnected: ${socket.id}, reason: ${reason}`);
+      removeSocketById(socket.id);
       socket.broadcast.emit('user-disconnected', { userId: socket.id });
     });
   });

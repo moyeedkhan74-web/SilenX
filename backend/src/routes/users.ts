@@ -79,6 +79,21 @@ router.get('/by-uid/:uid', (req: Request, res: Response) => {
   }
 });
 
+// GET /api/users/search?uid=uid_xxx — Search user by UID (query param)
+router.get('/search', (req: Request, res: Response) => {
+  const uid = String(req.query.uid || '').trim();
+  if (!uid) {
+    res.status(400).json({ message: 'uid query parameter required' });
+    return;
+  }
+  const found = users.find(u => u.uid.toLowerCase() === uid.toLowerCase());
+  if (found) {
+    res.status(200).json({ id: found.id, displayName: found.displayName, avatar: found.avatarUrl, uid: found.uid, bio: found.bio });
+  } else {
+    res.status(404).json({ message: 'User not found' });
+  }
+});
+
 // GET /api/users/:id/public-key — Get user's public encryption key
 router.get('/:id/public-key', (req: Request, res: Response) => {
   // Return dummy public key

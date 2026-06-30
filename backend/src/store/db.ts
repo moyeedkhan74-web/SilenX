@@ -183,3 +183,7 @@ export const messages: Message[] = [
 ];
 
 export const contactRequests: ContactRequest[] = [];
+
+export const friendRequests: FriendRequest[] = [];
+
+export const friends: Friend[] = [];

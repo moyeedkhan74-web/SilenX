@@ -154,3 +154,19 @@ export interface ContactRequest {
   createdAt: Date;
 }
 
+export interface FriendRequest {
+  id: string;
+  senderId: string;
+  receiverId: string;
+  status: 'pending' | 'accepted' | 'declined';
+  createdAt: Date;
+  updatedAt: Date | null;
+}
+
+export interface Friend {
+  id: string;
+  userId1: string;
+  userId2: string;
+  createdAt: Date;
+}
+
