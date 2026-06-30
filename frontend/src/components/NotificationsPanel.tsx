@@ -84,27 +84,25 @@ const NotificationsPanel: React.FC = () => {
     }
   };
 
+  if (requests.length === 0) return null;
+
   return (
     <aside className="notifications-panel">
       <h4>Requests</h4>
-      {requests.length === 0 ? (
-        <p className="no-requests">No pending requests</p>
-      ) : (
-        <div className="requests-list">
-          {requests.map((r) => (
-            <div key={r.id} className="request-item">
-              <div className="meta">
-                <div className="avatar">{r.senderAvatar ? <img src={r.senderAvatar} alt="avatar" /> : r.senderName?.[0]}</div>
-                <div className="text"><div className="name">{r.senderName}</div><div className="uid">{r.senderUid}</div></div>
-              </div>
-              <div className="actions">
-                <button className="btn" onClick={() => decline(r.id)}>✗</button>
-                <button className="btn btn-primary" onClick={() => accept(r.id)}>✓</button>
-              </div>
+      <div className="requests-list">
+        {requests.map((r) => (
+          <div key={r.id} className="request-item">
+            <div className="meta">
+              <div className="avatar">{r.senderAvatar ? <img src={r.senderAvatar} alt="avatar" /> : r.senderName?.[0]}</div>
+              <div className="text"><div className="name">{r.senderName}</div><div className="uid">{r.senderUid}</div></div>
             </div>
-          ))}
-        </div>
-      )}
+            <div className="actions">
+              <button className="btn" onClick={() => decline(r.id)}>✗</button>
+              <button className="btn btn-primary" onClick={() => accept(r.id)}>✓</button>
+            </div>
+          </div>
+        ))}
+      </div>
     </aside>
   );
 };

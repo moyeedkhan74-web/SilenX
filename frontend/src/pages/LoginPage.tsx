@@ -5,6 +5,7 @@ import { signInWithPopup } from 'firebase/auth';
 import { auth, googleProvider } from '../config/firebase';
 import { useAuthStore } from '../store/authStore';
 import { connectSocket } from '../services/socket';
+import { API_URL } from '../config/webrtc-config';
 import './LoginPage.css';
 
 const LoginPage: React.FC = () => {
@@ -27,26 +28,76 @@ const LoginPage: React.FC = () => {
       const firebaseUser = result.user;
       const token = await firebaseUser.getIdToken();
 
-      login(
-        {
-          id: firebaseUser.uid,
-          uid: firebaseUser.uid,
-          email: firebaseUser.email || '',
-          displayName: firebaseUser.displayName || 'Secure User',
-          avatarUrl: firebaseUser.photoURL || null,
-          status: 'online',
-          lastSeen: new Date().toISOString(),
-          bio: 'Signed in with Google',
-        },
-        token
-      );
-
-      // register socket for real-time events
+      // Call backend to create/find server-side user and receive server token
       try {
-        const socket = connectSocket();
-        socket.emit('register', { userId: firebaseUser.uid });
+        const payload = {
+          googleId: firebaseUser.providerData?.[0]?.uid || firebaseUser.uid,
+          email: firebaseUser.email,
+          displayName: firebaseUser.displayName,
+          avatar: firebaseUser.photoURL,
+        };
+        const resp = await fetch(`${API_URL}/api/auth/google`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        if (resp.ok) {
+          const body = await resp.json();
+          const serverUser = body.user;
+          const serverToken = body.token;
+
+          login(
+            {
+              id: serverUser.id,
+              uid: serverUser.uid || serverUser.id,
+              email: serverUser.email || '',
+              displayName: serverUser.displayName || 'Secure User',
+              avatarUrl: serverUser.avatarUrl || null,
+              status: serverUser.status || 'online',
+              lastSeen: new Date().toISOString(),
+              bio: serverUser.bio || 'Signed in with Google',
+            },
+            serverToken
+          );
+
+          // register socket for server-side user id
+          try {
+            const socket = connectSocket();
+            socket.emit('register', { userId: serverUser.id });
+          } catch (err) {
+            console.warn('Socket registration failed', err);
+          }
+        } else {
+          console.warn('Backend auth failed, falling back to local user');
+          login(
+            {
+              id: firebaseUser.uid,
+              uid: firebaseUser.uid,
+              email: firebaseUser.email || '',
+              displayName: firebaseUser.displayName || 'Secure User',
+              avatarUrl: firebaseUser.photoURL || null,
+              status: 'online',
+              lastSeen: new Date().toISOString(),
+              bio: 'Signed in with Google',
+            },
+            token
+          );
+        }
       } catch (err) {
-        console.warn('Socket registration failed', err);
+        console.error('Backend auth error', err);
+        login(
+          {
+            id: firebaseUser.uid,
+            uid: firebaseUser.uid,
+            email: firebaseUser.email || '',
+            displayName: firebaseUser.displayName || 'Secure User',
+            avatarUrl: firebaseUser.photoURL || null,
+            status: 'online',
+            lastSeen: new Date().toISOString(),
+            bio: 'Signed in with Google',
+          },
+          token
+        );
       }
 
       navigate('/');
