@@ -29,17 +29,19 @@ interface AddContactModalProps {
  *   - "SEC_xxxxxxxxxxxx" (raw UID)
  */
 function parseUidFromScan(data: string): string | null {
-  const deepLinkMatch = data.match(/slienx:\/\/uid\/(SEC_[0-9a-fA-F]+)/);
-  if (deepLinkMatch) return deepLinkMatch[1];
-  const rawMatch = data.match(/^(SEC_[0-9a-fA-F]{8,})$/);
-  if (rawMatch) return rawMatch[1];
+  const deepLinkMatch = data.match(/slienx:\/\/uid\/(.+)/i);
+  if (deepLinkMatch) return deepLinkMatch[1].trim();
+
+  const rawMatch = data.match(/^(SEC_[A-Za-z0-9._-]+|[A-Za-z0-9._-]+)$/);
+  if (rawMatch) return rawMatch[1].trim();
+
   return null;
 }
 
-/** Validate UID format: accept either SEC_ values or simple raw values entered by the user */
+/** Validate UID format: accept SEC_ values and plain IDs entered by the user */
 function isValidUid(uid: string): boolean {
   const normalized = normalizeUid(uid);
-  return /^SEC_[0-9a-fA-F]{8,}$/.test(normalized);
+  return /^SEC_[A-Za-z0-9._-]{3,}$/.test(normalized);
 }
 
 const AddContactModal: React.FC<AddContactModalProps> = ({ isOpen, onClose, onAddComplete }) => {
