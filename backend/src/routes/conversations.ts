@@ -1,13 +1,20 @@
 import { Router, Request, Response } from 'express';
-import { users, conversations, conversationMembers, messages } from '../store/db';
+import { users, conversations, conversationMembers, messages, saveDb } from '../store/db';
 
 const router = Router();
 
+const getCurrentUserId = (req: Request): string => {
+  const fromHeader = req.header('x-user-id');
+  if (fromHeader) return fromHeader;
+  return 'self';
+};
+
 // GET /api/conversations — List conversations
-router.get('/', (_req: Request, res: Response) => {
-  // Find conversations where user 'self' is a member
+router.get('/', (req: Request, res: Response) => {
+  const currentUserId = getCurrentUserId(req);
+  // Find conversations where user currentUserId is a member
   const userConvos = conversations.filter(c => 
-    conversationMembers.some(m => m.conversationId === c.id && m.userId === 'self')
+    conversationMembers.some(m => m.conversationId === c.id && m.userId === currentUserId)
   );
 
   const formatted = userConvos.map(c => {
@@ -61,11 +68,13 @@ router.post('/', (req: Request, res: Response) => {
     return;
   }
 
+  const currentUserId = getCurrentUserId(req);
+
   // Check if conversation already exists (direct chat only)
   if (type === 'direct') {
     const existingMemberRel = conversationMembers.find(m => 
       m.userId === recipient.id && 
-      conversationMembers.some(selfM => selfM.conversationId === m.conversationId && selfM.userId === 'self')
+      conversationMembers.some(selfM => selfM.conversationId === m.conversationId && selfM.userId === currentUserId)
     );
 
     if (existingMemberRel) {
@@ -112,7 +121,7 @@ router.post('/', (req: Request, res: Response) => {
     type: (type || 'direct') as 'direct' | 'group',
     name: null,
     avatarUrl: null,
-    createdBy: 'self',
+    createdBy: currentUserId,
     createdAt: new Date(),
     updatedAt: new Date()
   };
@@ -120,13 +129,17 @@ router.post('/', (req: Request, res: Response) => {
   conversations.push(newConvo);
 
   // Link members
-  const member1 = { id: `m_${newConvoId}_self`, conversationId: newConvoId, userId: 'self', joinedAt: new Date(), leftAt: null, muted: false };
+  const member1 = { id: `m_${newConvoId}_self`, conversationId: newConvoId, userId: currentUserId, joinedAt: new Date(), leftAt: null, muted: false };
   const member2 = { id: `m_${newConvoId}_recipient`, conversationId: newConvoId, userId: recipient.id, joinedAt: new Date(), leftAt: null, muted: false };
   conversationMembers.push(member1, member2);
 
+  // Save changes
+  saveDb();
+
   // Return new
+  const selfUser = users.find(u => u.id === currentUserId) || { id: 'self', uid: 'SEC_8f7d6e5c4b3a', email: 'user@gmail.com', displayName: 'User', avatarUrl: null, status: 'online' as const, lastSeen: '', bio: "Hey there! I'm using SlienX." };
   const detailedMembers = [
-    { id: 'self', uid: 'SEC_8f7d6e5c4b3a', email: 'user@gmail.com', displayName: 'User', avatarUrl: null, status: 'online' as const, lastSeen: '', bio: "Hey there! I'm using SlienX." },
+    { id: selfUser.id, uid: selfUser.uid, email: selfUser.email, displayName: selfUser.displayName, avatarUrl: selfUser.avatarUrl, status: selfUser.status, lastSeen: '', bio: selfUser.bio },
     { id: recipient.id, uid: recipient.uid, email: recipient.email, displayName: recipient.displayName, avatarUrl: recipient.avatarUrl, status: recipient.status, lastSeen: recipient.status === 'offline' ? 'Recently' : '', bio: recipient.bio }
   ];
 
@@ -148,14 +161,15 @@ router.get('/:id/messages', (req: Request, res: Response) => {
   const convoMessages = messages.filter(m => m.conversationId === convoId);
 
   // Format to match frontend Message shape
+  const currentUserId = getCurrentUserId(req);
   const formatted = convoMessages.map(m => ({
     id: m.id,
     conversationId: m.conversationId,
     senderId: m.senderId,
     text: m.encryptedContent,
-    isSelf: m.senderId === 'self',
+    isSelf: m.senderId === currentUserId,
     time: m.createdAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-    isRead: m.senderId === 'self' ? true : m.createdAt.getTime() < Date.now() - 1000,
+    isRead: m.senderId === currentUserId ? true : m.createdAt.getTime() < Date.now() - 1000,
     isEdited: !!m.editedAt,
     isDeleted: !!m.deletedAt
   }));

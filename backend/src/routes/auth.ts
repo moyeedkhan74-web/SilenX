@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { users } from '../store/db';
+import { users, saveDb } from '../store/db';
 
 const router = Router();
 
@@ -14,6 +14,7 @@ router.post('/google', (req: Request, res: Response) => {
 
   const authUserId = firebaseUid || googleId;
   let user = users.find((u: any) => u.googleId === googleId || u.email === email || u.id === authUserId || u.uid === authUserId);
+  let changed = false;
   if (!user) {
     const id = authUserId || `u_${Date.now()}`;
     const uid = `SEC_${id}`;
@@ -33,6 +34,21 @@ router.post('/google', (req: Request, res: Response) => {
       deletedAt: null,
     } as any;
     users.push(user as any);
+    changed = true;
+  } else {
+    // Sync displayName / avatar if they changed
+    if (displayName && user.displayName !== displayName) {
+      user.displayName = displayName;
+      changed = true;
+    }
+    if (avatar && user.avatarUrl !== avatar) {
+      user.avatarUrl = avatar;
+      changed = true;
+    }
+  }
+
+  if (changed) {
+    saveDb();
   }
 
   // Return mock token and user

@@ -1,22 +1,30 @@
 import { Router, Request, Response } from 'express';
 import QRCode from 'qrcode';
-import { users } from '../store/db';
+import { users, saveDb } from '../store/db';
 
 const router = Router();
 
+const getCurrentUserId = (req: Request): string => {
+  const fromHeader = req.header('x-user-id');
+  if (fromHeader) return fromHeader;
+  return 'self';
+};
+
 // GET /api/users/me — Get current user profile
-router.get('/me', (_req: Request, res: Response) => {
-  const selfUser = users.find(u => u.id === 'self');
+router.get('/me', (req: Request, res: Response) => {
+  const currentUserId = getCurrentUserId(req);
+  const selfUser = users.find(u => u.id === currentUserId);
   if (selfUser) {
     res.status(200).json(selfUser);
   } else {
-    res.status(404).json({ message: 'Self user profile not found' });
+    res.status(404).json({ message: 'User profile not found' });
   }
 });
 
 // PUT /api/users/me — Update profile
 router.put('/me', (req: Request, res: Response) => {
-  const selfUser = users.find(u => u.id === 'self');
+  const currentUserId = getCurrentUserId(req);
+  const selfUser = users.find(u => u.id === currentUserId);
   if (selfUser) {
         const { displayName, bio, status, avatarUrl, phone, email } = req.body;
         if (displayName) selfUser.displayName = displayName;
@@ -26,15 +34,17 @@ router.put('/me', (req: Request, res: Response) => {
         if (typeof phone === 'string') (selfUser as any).phone = phone;
         if (typeof email === 'string') selfUser.email = email;
     selfUser.updatedAt = new Date();
+    saveDb();
     res.status(200).json(selfUser);
   } else {
-    res.status(404).json({ message: 'Self user profile not found' });
+    res.status(404).json({ message: 'User profile not found' });
   }
 });
 
 // GET /api/users/me/uid — Get current user's UID
-router.get('/me/uid', (_req: Request, res: Response) => {
-  const selfUser = users.find(u => u.id === 'self');
+router.get('/me/uid', (req: Request, res: Response) => {
+  const currentUserId = getCurrentUserId(req);
+  const selfUser = users.find(u => u.id === currentUserId);
   if (selfUser) {
     res.status(200).json({ uid: selfUser.uid });
   } else {
@@ -43,8 +53,9 @@ router.get('/me/uid', (_req: Request, res: Response) => {
 });
 
 // GET /api/users/me/qr — Get current user's QR code as PNG image
-router.get('/me/qr', async (_req: Request, res: Response) => {
-  const selfUser = users.find(u => u.id === 'self');
+router.get('/me/qr', async (req: Request, res: Response) => {
+  const currentUserId = getCurrentUserId(req);
+  const selfUser = users.find(u => u.id === currentUserId);
   if (!selfUser) {
     res.status(404).json({ message: 'QR not found' });
     return;

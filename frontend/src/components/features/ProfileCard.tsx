@@ -38,7 +38,11 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
   const handleDownloadQr = async () => {
     try {
       const { API_URL } = await import('../../config/webrtc-config');
-      const res = await fetch(`${API_URL}/api/users/me/qr`);
+      const res = await fetch(`${API_URL}/api/users/me/qr`, {
+        headers: {
+          'x-user-id': profile?.id || 'self',
+        }
+      });
       if (!res.ok) throw new Error('Failed to fetch QR');
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);

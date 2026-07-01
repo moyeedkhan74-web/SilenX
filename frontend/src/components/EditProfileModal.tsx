@@ -75,7 +75,10 @@ export const EditProfileModal: React.FC<Props> = ({ isOpen, onClose, profile, on
       const payload: any = { displayName, avatarUrl: finalAvatarUrl, bio };
       const res = await fetch(`${API_URL}/api/users/me`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-user-id': currentUser?.id || 'self',
+        },
         body: JSON.stringify(payload),
       });
       if (res.ok) {

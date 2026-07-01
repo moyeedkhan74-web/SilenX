@@ -32,6 +32,7 @@ const LoginPage: React.FC = () => {
       try {
         const payload = {
           googleId: firebaseUser.providerData?.[0]?.uid || firebaseUser.uid,
+          firebaseUid: firebaseUser.uid,
           email: firebaseUser.email,
           displayName: firebaseUser.displayName,
           avatar: firebaseUser.photoURL,

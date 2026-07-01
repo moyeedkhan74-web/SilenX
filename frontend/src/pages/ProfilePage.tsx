@@ -23,9 +23,14 @@ export const ProfilePage: React.FC = () => {
   const currentUser = useAuthStore((s) => s.user);
 
   const loadProfile = async () => {
+    if (!currentUser?.id) return;
     setIsLoading(true);
     try {
-      const res = await fetch(`${API_URL}/api/users/me`);
+      const res = await fetch(`${API_URL}/api/users/me`, {
+        headers: {
+          'x-user-id': currentUser.id,
+        }
+      });
       if (res.ok) {
         const data = await res.json();
         setProfile(data);
@@ -39,7 +44,7 @@ export const ProfilePage: React.FC = () => {
 
   useEffect(() => {
     loadProfile();
-  }, []);
+  }, [currentUser]);
 
   return (
     <div className="profile-tab" style={{ padding: '24px', overflowY: 'auto', height: '100%', boxSizing: 'border-box' }}>

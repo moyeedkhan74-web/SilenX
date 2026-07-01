@@ -1,0 +1,86 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper function to check if the user is logged in
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Helper to verify the user owns the document/ID
+    function isOwner(uid) {
+      return isAuthenticated() && request.auth.uid == uid;
+    }
+
+    // ==================== USERS COLLECTION ====================
+    match /users/{uid} {
+      // Profile details are readable by other verified users to find contacts
+      allow read: if isAuthenticated();
+      
+      // Users can only write/delete their own profile registration
+      // Validates email matching token constraints to prevent impersonation
+      allow create, update: if isOwner(uid) && (request.resource.data.email == request.auth.token.email || !('email' in request.resource.data));
+      allow delete: if isOwner(uid);
+      
+      // User-specific chat logs (E2E secure storage helper)
+      match /chats/{chatId} {
+        function isParticipant() {
+          let uids = chatId.split('_');
+          return request.auth.uid == uids[0] || request.auth.uid == uids[1];
+        }
+        allow read, write: if isAuthenticated() && isParticipant();
+      }
+      
+      // User-specific signaling channel hooks (restrict to call participants)
+      match /calls/{callId} {
+        function isCallParticipant() {
+          let uids = callId.split('_');
+          return request.auth.uid == uids[0] || request.auth.uid == uids[1];
+        }
+        allow read, write: if isAuthenticated() && isCallParticipant();
+      }
+    }
+
+    // ==================== PROFILES COLLECTION ====================
+    match /profiles/{assignedId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isOwner(assignedId);
+    }
+
+    // ==================== FRIENDSHIPS COLLECTION ====================
+    match /friendships/{friendshipId} {
+      function involvesUser() {
+        let parts = friendshipId.split('_');
+        return request.auth.uid == parts[0] || request.auth.uid == parts[1];
+      }
+      allow read, write: if isAuthenticated() && involvesUser();
+    }
+
+    // ==================== CHATS GLOBAL COLLECTION ====================
+    match /chats/{chatId} {
+      function isChatMember() {
+        let members = chatId.split('_');
+        return request.auth.uid == members[0] || request.auth.uid == members[1];
+      }
+      
+      allow read, write: if isAuthenticated() && isChatMember();
+
+      // Message-level validation: prevents spoofing sender field & editing someone else's messages
+      match /messages/{messageId} {
+        allow read: if isAuthenticated() && isChatMember();
+        allow create: if isAuthenticated() && isChatMember() && request.resource.data.senderId == request.auth.uid;
+        allow update, delete: if isAuthenticated() && isChatMember() && resource.data.senderId == request.auth.uid;
+      }
+    }
+
+    // ==================== CALLS GLOBAL COLLECTION ====================
+    match /calls/{callId} {
+      function isCallMember() {
+        let members = callId.split('_');
+        return request.auth.uid == members[0] || request.auth.uid == members[1];
+      }
+      // Access call signaling only if the user is either the caller or callee
+      allow read, write: if isAuthenticated() && isCallMember();
+    }
+  }
+}
