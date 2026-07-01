@@ -28,7 +28,14 @@ export const WEBRTC_CONFIG = {
   ],
 };
 
-const defaultBackendUrl = import.meta.env.DEV ? 'http://localhost:5000' : '';
+const isLocalhost = typeof window !== 'undefined' &&
+  (window.location.hostname === 'localhost' ||
+   window.location.hostname === '127.0.0.1' ||
+   window.location.hostname.startsWith('192.168.') ||
+   window.location.hostname.startsWith('10.') ||
+   window.location.hostname.endsWith('.local'));
+
+const defaultBackendUrl = isLocalhost ? 'http://localhost:5000' : '';
 export const API_URL = import.meta.env.VITE_API_URL || defaultBackendUrl;
 export const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || defaultBackendUrl;
 
