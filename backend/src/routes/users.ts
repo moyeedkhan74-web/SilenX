@@ -10,6 +10,11 @@ const getCurrentUserId = (req: Request): string => {
   return 'self';
 };
 
+// GET /api/users/debug — List all users in memory (temporary debug)
+router.get('/debug', (_req: Request, res: Response) => {
+  res.status(200).json(users.map(u => ({ id: u.id, uid: u.uid, email: u.email, displayName: u.displayName })));
+});
+
 // GET /api/users/me — Get current user profile
 router.get('/me', (req: Request, res: Response) => {
   const currentUserId = getCurrentUserId(req);
