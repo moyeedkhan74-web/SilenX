@@ -35,5 +35,8 @@ export const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || defaultBackendUrl;
 export const normalizeUid = (value: string | null | undefined): string => {
   const raw = (value || '').trim();
   if (!raw) return '';
-  return raw.startsWith('SEC_') ? raw : `SEC_${raw}`;
+  if (raw.toUpperCase().startsWith('SEC_')) {
+    return 'SEC_' + raw.slice(4);
+  }
+  return `SEC_${raw}`;
 };

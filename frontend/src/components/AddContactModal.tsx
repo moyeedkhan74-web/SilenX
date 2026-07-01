@@ -28,7 +28,7 @@ function parseUidFromScan(data: string): string | null {
   const deepLinkMatch = data.match(/slienx:\/\/uid\/(.+)/i);
   if (deepLinkMatch) return deepLinkMatch[1].trim();
 
-  const rawMatch = data.match(/^(SEC_[A-Za-z0-9._-]+|[A-Za-z0-9._-]+)$/);
+  const rawMatch = data.match(/^(SEC_[A-Za-z0-9._-]+|[A-Za-z0-9._-]+)$/i);
   if (rawMatch) return rawMatch[1].trim();
 
   return null;
