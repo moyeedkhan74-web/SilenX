@@ -1,5 +1,4 @@
 import { initializeApp, type FirebaseApp } from 'firebase/app';
-import { getAnalytics, type Analytics } from 'firebase/analytics';
 import { getAuth, GoogleAuthProvider, type Auth } from 'firebase/auth';
 
 const firebaseConfig = {
@@ -20,20 +19,13 @@ const hasRequiredConfig = Boolean(
 );
 
 let app: FirebaseApp | null = null;
-let analytics: Analytics | null = null;
+const analytics = null;
 let auth: Auth | null = null;
 let googleProvider: GoogleAuthProvider | null = null;
 
 if (hasRequiredConfig) {
   try {
     app = initializeApp(firebaseConfig);
-    if (firebaseConfig.measurementId) {
-      try {
-        analytics = getAnalytics(app);
-      } catch (error) {
-        console.warn('Firebase analytics initialization failed:', error);
-      }
-    }
     auth = getAuth(app);
     googleProvider = new GoogleAuthProvider();
     googleProvider.setCustomParameters({ prompt: 'select_account' });
