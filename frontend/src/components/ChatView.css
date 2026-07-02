@@ -322,6 +322,105 @@
   color: var(--text-primary);
 }
 
+.message-actions-menu {
+  position: absolute;
+  right: 10px;
+  top: 100%;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  display: flex;
+  flex-direction: column;
+  min-width: 150px;
+  z-index: 30;
+  overflow: hidden;
+}
+.message-actions-menu button {
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  text-align: left;
+  padding: 8px 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+.message-actions-menu button:hover { background: var(--bg-secondary); }
+
+.reaction-picker {
+  display: flex;
+  gap: 6px;
+  margin-top: 4px;
+}
+.reaction-pill {
+  border: none;
+  background: rgba(255,255,255,0.18);
+  border-radius: 999px;
+  padding: 4px 8px;
+  cursor: pointer;
+  font-size: 13px;
+}
+.reply-preview-card {
+  background: rgba(0,0,0,0.12);
+  border-left: 3px solid var(--color-primary);
+  padding: 8px 10px;
+  border-radius: 8px;
+  margin-bottom: 8px;
+}
+.reply-preview-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-primary);
+}
+.reply-preview-text {
+  font-size: 12px;
+  opacity: 0.8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.toast-notification {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  background: var(--color-primary);
+  color: #fff;
+  padding: 10px 14px;
+  border-radius: 999px;
+  box-shadow: var(--shadow-md);
+  z-index: 999;
+}
+.confirm-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+.confirm-card {
+  background: var(--bg-primary);
+  border-radius: 16px;
+  padding: 16px;
+  width: min(92vw, 360px);
+  box-shadow: var(--shadow-md);
+}
+.confirm-card h3 { margin: 0 0 8px; }
+.confirm-card p { margin: 0 0 12px; color: var(--text-secondary); }
+.confirm-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.confirm-btn {
+  border: none;
+  padding: 8px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+.confirm-btn.primary { background: var(--color-primary); color: #fff; }
+.confirm-btn.secondary { background: var(--bg-secondary); color: var(--text-primary); }
+.confirm-btn.cancel { background: transparent; color: var(--text-secondary); }
+
 .msg-meta {
   display: flex;
   align-items: center;
