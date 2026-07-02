@@ -113,7 +113,11 @@ function App() {
           );
         }
       } else {
-        logout();
+        // Only logout if not already authenticated (e.g. via dev bypass login)
+        const currentState = useAuthStore.getState();
+        if (!currentState.isAuthenticated) {
+          logout();
+        }
       }
       setInitialized(true);
     });

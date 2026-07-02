@@ -237,7 +237,7 @@ export const AddContactModal: React.FC<AddContactModalProps> = ({ isOpen, onClos
                 onChange={(e) => setUid(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleLookup()}
                 disabled={isSearching}
-                maxLength={20}
+                maxLength={64}
                 placeholder="SEC_xxxxxxxxxxxx"
                 error={error}
               />

@@ -8,6 +8,13 @@ import { connectSocket } from '../services/socket';
 import { API_URL, normalizeUid } from '../config/webrtc-config';
 import './LoginPage.css';
 
+const DEV_USERS = [
+  { id: 'self', uid: 'SEC_8f7d6e5c4b3a', email: 'user@gmail.com', displayName: 'User', bio: "Hey there! I'm using SlienX." },
+  { id: 'u1', uid: 'SEC_a1b2c3d4e5f6', email: 'alice@proton.me', displayName: 'Alice Chen', bio: 'Security researcher' },
+  { id: 'u2', uid: 'SEC_f6e5d4c3b2a1', email: 'bob@signal.org', displayName: 'Bob Martinez', bio: 'Full-stack developer' },
+  { id: 'u6', uid: 'SEC_FjEcUktRBeZlbLxX', email: 'testuser@example.com', displayName: 'Test User', bio: 'Test account for Secure ID lookup' }
+];
+
 const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const login = useAuthStore((state) => state.login);
@@ -110,6 +117,29 @@ const LoginPage: React.FC = () => {
     }
   };
 
+  const handleDevLogin = (devUser: typeof DEV_USERS[0]) => {
+    login(
+      {
+        id: devUser.id,
+        uid: devUser.uid,
+        email: devUser.email,
+        displayName: devUser.displayName,
+        avatarUrl: null,
+        status: 'online',
+        lastSeen: new Date().toISOString(),
+        bio: devUser.bio,
+      },
+      'mock-jwt-token'
+    );
+    try {
+      const socket = connectSocket();
+      socket.emit('register', { userId: devUser.id });
+    } catch (err) {
+      console.warn('Socket registration failed', err);
+    }
+    navigate('/');
+  };
+
   return (
     <div className="login-page">
       <div className="login-particles">
@@ -162,6 +192,43 @@ const LoginPage: React.FC = () => {
         </button>
 
         {error ? <p className="login-error">{error}</p> : null}
+
+        {import.meta.env.DEV && (
+          <div className="dev-login-section" style={{ marginTop: '24px', borderTop: '1px dashed var(--border-color)', paddingTop: '16px' }}>
+            <h3 style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Developer Bypass
+            </h3>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+              {DEV_USERS.map((user) => (
+                <button
+                  key={user.id}
+                  onClick={() => handleDevLogin(user)}
+                  style={{
+                    padding: '8px',
+                    borderRadius: '6px',
+                    border: '1px solid var(--border-color)',
+                    background: 'var(--bg-secondary)',
+                    color: 'var(--text-primary)',
+                    fontSize: '12px',
+                    fontWeight: 500,
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                  }}
+                  onMouseOver={(e) => {
+                    e.currentTarget.style.borderColor = 'var(--primary-main)';
+                    e.currentTarget.style.background = 'rgba(37, 99, 235, 0.05)';
+                  }}
+                  onMouseOut={(e) => {
+                    e.currentTarget.style.borderColor = 'var(--border-color)';
+                    e.currentTarget.style.background = 'var(--bg-secondary)';
+                  }}
+                >
+                  {user.displayName} ({user.id})
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className="login-footer">
           <span>Fast and private</span>
