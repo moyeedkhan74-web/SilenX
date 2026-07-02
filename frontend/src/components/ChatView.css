@@ -3,23 +3,25 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--bg-primary);
+  background: transparent;
   animation: fadeIn 0.4s ease-out;
+  padding: 24px;
 }
 
 .chatview-empty-content {
   text-align: center;
   max-width: 320px;
-  padding: 24px;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+  border: none;
 }
 
-.chatview-empty-icon {
-  margin-bottom: 16px;
-  opacity: 0.35;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--color-primary);
+.chatview-empty-message {
+  margin: 0;
+  color: var(--text-tertiary);
+  font-size: 14px;
+  font-weight: 500;
 }
 
 .chatview {

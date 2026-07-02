@@ -59,9 +59,7 @@ const ChatView: React.FC = () => {
     return (
       <div className="chatview-empty">
         <div className="chatview-empty-content">
-          <div className="chatview-empty-icon"><Lock size={36} /></div>
-          <p style={{ color: 'var(--color-primary)', fontWeight: 600, fontSize: 18, marginTop: 16 }}>Select a Conversation</p>
-          <p style={{ color: 'var(--text-tertiary)', fontSize: 13, marginTop: 4 }}>Choose a secure contact or group chat to begin end-to-end encrypted messaging.</p>
+          <p className="chatview-empty-message">Select a conversation to start chatting</p>
         </div>
       </div>
     );
