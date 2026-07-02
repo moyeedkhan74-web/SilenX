@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Phone, Video, MoreVertical, Lock, Search, Bell, UserX, Flag, Trash2, Check, CheckCheck } from 'lucide-react';
 import { useChatStore } from '../store/chatStore';
+import { useCallStore } from '../store/callStore';
 import { getSocket } from '../services/socket';
 import { Avatar } from './Avatar';
 import { MessageInputBar } from './MessageInputBar';
@@ -10,16 +11,31 @@ const ChatView: React.FC = () => {
   const [inputValue, setInputValue] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);
   const [replyTo, setReplyTo] = useState<{ sender: string; text: string } | undefined>();
+  const [conversationState, setConversationState] = useState<Record<string, { isMuted: boolean; isVerified: boolean; isBlocked: boolean; isReported: boolean }>>({});
+  const [searchTerm, setSearchTerm] = useState('');
+  const [searchMatchIds, setSearchMatchIds] = useState<string[]>([]);
+  const [searchTargetId, setSearchTargetId] = useState<string | null>(null);
   const { conversations, activeConversationId, messages, addMessage, clearConversation } = useChatStore();
+  const initiateCall = useCallStore((s) => s.initiateCall);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
   const activeConvo = conversations.find((c) => c.id === activeConversationId);
   const currentMessages = activeConversationId ? messages[activeConversationId] || [] : [];
+  const activeConversationState = activeConversationId
+    ? conversationState[activeConversationId] || { isMuted: false, isVerified: false, isBlocked: false, isReported: false }
+    : { isMuted: false, isVerified: false, isBlocked: false, isReported: false };
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [currentMessages]);
+
+  useEffect(() => {
+    if (!searchTargetId) return;
+    const target = document.querySelector(`[data-message-id="${searchTargetId}"]`) as HTMLElement | null;
+    target?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    setSearchTargetId(null);
+  }, [searchTargetId, currentMessages]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -33,7 +49,7 @@ const ChatView: React.FC = () => {
 
   const handleSend = (payload?: { text: string; replyTo?: { sender: string; text: string } }) => {
     const value = payload?.text?.trim() || inputValue.trim();
-    if (!value || !activeConversationId) return;
+    if (!value || !activeConversationId || activeConversationState.isBlocked) return;
 
     const socket = getSocket();
     const msg = {
@@ -53,6 +69,93 @@ const ChatView: React.FC = () => {
     socket?.emit('send-message', { conversationId: activeConversationId, encryptedContent: value, tempId: msg.id });
     setInputValue('');
     setReplyTo(undefined);
+  };
+
+  const updateConversationState = (updates: Partial<typeof activeConversationState>) => {
+    if (!activeConversationId) return;
+    setConversationState((prev) => ({
+      ...prev,
+      [activeConversationId]: {
+        ...(prev[activeConversationId] || { isMuted: false, isVerified: false, isBlocked: false, isReported: false }),
+        ...updates,
+      },
+    }));
+  };
+
+  const handleSearchInChat = () => {
+    if (!activeConversationId) return;
+    const confirmed = window.confirm('Search this chat for matching messages?');
+    if (!confirmed) {
+      setMenuOpen(false);
+      return;
+    }
+
+    const query = window.prompt('Search in this chat');
+    if (!query?.trim()) return;
+
+    const normalizedQuery = query.trim().toLowerCase();
+    const matches = currentMessages.filter((msg) => msg.text?.toLowerCase().includes(normalizedQuery));
+
+    if (!matches.length) {
+      window.alert('No matches found in this conversation.');
+      return;
+    }
+
+    setSearchTerm(query.trim());
+    setSearchMatchIds(matches.map((msg) => msg.id));
+    setSearchTargetId(matches[0].id);
+    setMenuOpen(false);
+  };
+
+  const handleMuteNotifications = () => {
+    const confirmed = window.confirm('Mute or unmute notifications for this chat?');
+    if (!confirmed) {
+      setMenuOpen(false);
+      return;
+    }
+    updateConversationState({ isMuted: !activeConversationState.isMuted });
+    setMenuOpen(false);
+  };
+
+  const handleVerifyEncryption = () => {
+    const confirmed = window.confirm('Verify end-to-end encryption for this chat?');
+    if (!confirmed) {
+      setMenuOpen(false);
+      return;
+    }
+    updateConversationState({ isVerified: true });
+    window.alert('End-to-end encryption verified for this conversation.');
+    setMenuOpen(false);
+  };
+
+  const handleBlockContact = () => {
+    const confirmed = window.confirm('Block or unblock this contact for this device?');
+    if (!confirmed) {
+      setMenuOpen(false);
+      return;
+    }
+    const nextBlocked = !activeConversationState.isBlocked;
+    updateConversationState({ isBlocked: nextBlocked });
+    if (nextBlocked) {
+      window.alert('This contact is blocked locally for this device.');
+    }
+    setMenuOpen(false);
+  };
+
+  const handleReport = () => {
+    const confirmed = window.confirm('Report this conversation?');
+    if (!confirmed) {
+      setMenuOpen(false);
+      return;
+    }
+    updateConversationState({ isReported: true });
+    window.alert('This conversation has been reported.');
+    setMenuOpen(false);
+  };
+
+  const handleAudioCall = () => {
+    if (!activeConversationId || !otherUser?.id) return;
+    initiateCall('audio', otherUser.id);
   };
 
   if (!activeConvo) {
@@ -91,7 +194,7 @@ const ChatView: React.FC = () => {
           </div>
         </div>
         <div className="chatview-header-actions">
-          <button className="icon-btn call-btn" title="Audio Call" type="button">
+          <button className="icon-btn call-btn" title="Start audio call" type="button" onClick={handleAudioCall}>
             <Phone size={18} />
           </button>
           <button className="icon-btn" title="Video Call" type="button">
@@ -103,23 +206,23 @@ const ChatView: React.FC = () => {
             </button>
             {menuOpen && (
               <div className="dropdown-menu">
-                <button className="dropdown-item" type="button">
+                <button className="dropdown-item" type="button" onClick={handleSearchInChat}>
                   <Search size={16} />
                   <span>Search in chat</span>
                 </button>
-                <button className="dropdown-item" type="button">
+                <button className="dropdown-item" type="button" onClick={handleMuteNotifications}>
                   <Bell size={16} />
-                  <span>Mute notifications</span>
+                  <span>{activeConversationState.isMuted ? 'Unmute notifications' : 'Mute notifications'}</span>
                 </button>
-                <button className="dropdown-item" type="button">
+                <button className="dropdown-item" type="button" onClick={handleVerifyEncryption}>
                   <Lock size={16} />
                   <span>Verify encryption</span>
                 </button>
-                <button className="dropdown-item" type="button">
+                <button className="dropdown-item" type="button" onClick={handleBlockContact}>
                   <UserX size={16} />
-                  <span>Block contact</span>
+                  <span>{activeConversationState.isBlocked ? 'Unblock contact' : 'Block contact'}</span>
                 </button>
-                <button className="dropdown-item" type="button">
+                <button className="dropdown-item" type="button" onClick={handleReport}>
                   <Flag size={16} />
                   <span>Report</span>
                 </button>
@@ -127,6 +230,11 @@ const ChatView: React.FC = () => {
                   className="dropdown-item danger"
                   type="button"
                   onClick={() => {
+                    const confirmed = window.confirm('Clear this chat for this device?');
+                    if (!confirmed) {
+                      setMenuOpen(false);
+                      return;
+                    }
                     if (activeConversationId) {
                       clearConversation(activeConversationId);
                     }
@@ -143,8 +251,35 @@ const ChatView: React.FC = () => {
       </header>
 
       <div className="chatview-messages">
-        {currentMessages.map((msg) => (
-          <div key={msg.id} className={`msg-wrapper ${msg.isSelf ? 'self' : 'remote'}`}>
+        {searchTerm && (
+          <div className="chatview-inline-banner search">
+            Showing results for “{searchTerm}”
+          </div>
+        )}
+        {activeConversationState.isMuted && (
+          <div className="chatview-inline-banner muted">
+            Notifications are muted for this chat.
+          </div>
+        )}
+        {activeConversationState.isVerified && (
+          <div className="chatview-inline-banner verified">
+            End-to-end encryption has been verified.
+          </div>
+        )}
+        {activeConversationState.isBlocked && (
+          <div className="chatview-inline-banner blocked">
+            This contact is blocked locally on this device.
+          </div>
+        )}
+        {activeConversationState.isReported && (
+          <div className="chatview-inline-banner reported">
+            This conversation has been reported.
+          </div>
+        )}
+        {currentMessages.map((msg) => {
+          const isHighlighted = searchTerm && searchMatchIds.includes(msg.id);
+          return (
+            <div key={msg.id} data-message-id={msg.id} className={`msg-wrapper ${msg.isSelf ? 'self' : 'remote'} ${isHighlighted ? 'highlighted' : ''}`}>
             <div className={`msg-bubble ${msg.isDeleted ? 'deleted' : ''}`}>
               {msg.replyTo && (
                 <div className="reply-preview">
@@ -164,7 +299,8 @@ const ChatView: React.FC = () => {
               )}
             </div>
           </div>
-        ))}
+          );
+        })}
         {activeConversationId === 'conv1' && currentMessages.length <= 6 && (
           <div className="msg-wrapper remote">
             <div className="typing-bubble">
@@ -177,14 +313,20 @@ const ChatView: React.FC = () => {
         <div ref={messagesEndRef} />
       </div>
 
-      <MessageInputBar
-        onSend={(payload) => {
-          setReplyTo(payload.replyTo);
-          handleSend(payload);
-        }}
-        replyTo={replyTo}
-        onCancelReply={() => setReplyTo(undefined)}
-      />
+      {activeConversationState.isBlocked ? (
+        <div className="chatview-blocked-input">
+          Messaging is disabled while this contact is blocked locally.
+        </div>
+      ) : (
+        <MessageInputBar
+          onSend={(payload) => {
+            setReplyTo(payload.replyTo);
+            handleSend(payload);
+          }}
+          replyTo={replyTo}
+          onCancelReply={() => setReplyTo(undefined)}
+        />
+      )}
     </div>
   );
 };
