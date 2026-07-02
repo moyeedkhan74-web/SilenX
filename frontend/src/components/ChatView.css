@@ -214,6 +214,11 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
+  transition: transform 180ms ease, box-shadow 180ms ease;
+}
+.msg-bubble:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.08);
 }
 .msg-wrapper.self .msg-bubble {
   background: var(--color-primary);
@@ -322,32 +327,70 @@
   color: var(--text-primary);
 }
 
-.message-actions-menu {
-  position: absolute;
-  right: 10px;
-  top: 100%;
-  background: var(--bg-primary);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-md);
+.message-actions-pill {
+  position: fixed;
+  z-index: 60;
   display: flex;
-  flex-direction: column;
-  min-width: 150px;
-  z-index: 30;
-  overflow: hidden;
+  align-items: center;
+  gap: 6px;
+  padding: 6px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.95);
+  border: 1px solid rgba(46,91,186,0.14);
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.16);
+  backdrop-filter: blur(10px);
+  animation: menu-pop 180ms ease-out;
 }
-.message-actions-menu button {
+[data-theme="dark"] .message-actions-pill {
+  background: rgba(28, 32, 40, 0.95);
+}
+.message-actions-pill button,
+.message-actions-overflow-menu button {
   border: none;
   background: transparent;
   color: var(--text-primary);
-  text-align: left;
-  padding: 8px 10px;
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 8px;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
   cursor: pointer;
+  transition: background 140ms ease, transform 140ms ease;
 }
-.message-actions-menu button:hover { background: var(--bg-secondary); }
+.message-actions-pill button:hover,
+.message-actions-overflow-menu button:hover {
+  background: rgba(46,91,186,0.12);
+  transform: scale(1.04);
+}
+.message-actions-overflow {
+  position: relative;
+}
+.message-actions-overflow-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  display: flex;
+  flex-direction: column;
+  min-width: 124px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+}
+.message-actions-overflow-menu button {
+  width: 100%;
+  height: auto;
+  justify-content: flex-start;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 0;
+}
+@keyframes menu-pop {
+  from { opacity: 0; transform: translateY(6px) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
 
 .reaction-picker {
   display: flex;

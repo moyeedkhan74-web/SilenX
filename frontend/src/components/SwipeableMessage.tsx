@@ -3,14 +3,18 @@ import React, { useRef, useState } from 'react';
 interface SwipeableMessageProps {
   children: React.ReactNode;
   onSwipeReply: () => void;
+  onLongPress: () => void;
 }
 
-export const SwipeableMessage: React.FC<SwipeableMessageProps> = ({ children, onSwipeReply }) => {
+export const SwipeableMessage: React.FC<SwipeableMessageProps> = ({ children, onSwipeReply, onLongPress }) => {
   const [offset, setOffset] = useState(0);
   const startX = useRef<number | null>(null);
 
   const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
     startX.current = event.clientX;
+    window.setTimeout(() => {
+      onLongPress();
+    }, 220);
   };
 
   const handlePointerMove = (event: React.PointerEvent<HTMLDivElement>) => {

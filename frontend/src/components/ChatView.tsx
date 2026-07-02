@@ -1,11 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Phone, Video, MoreVertical, Lock, Search, Bell, UserX, Flag, Trash2, Check, CheckCheck, Reply, Smile, Copy, Pin, Star, Pencil, Trash, SendHorizontal } from 'lucide-react';
+import { Phone, Video, MoreVertical, Lock, Search, Bell, UserX, Flag, Trash2, Check, CheckCheck } from 'lucide-react';
 import { useChatStore } from '../store/chatStore';
 import { useCallStore } from '../store/callStore';
 import { getSocket } from '../services/socket';
 import type { ChatMessage } from '../types';
 import { Avatar } from './Avatar';
 import { MessageInputBar } from './MessageInputBar';
+import { MessageActionsMenu } from './MessageActionsMenu';
+import { SwipeableMessage } from './SwipeableMessage';
 import './ChatView.css';
 
 const ChatView: React.FC = () => {
@@ -19,11 +21,14 @@ const ChatView: React.FC = () => {
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState('');
   const [typingUsers, setTypingUsers] = useState<string[]>([]);
-  const { conversations, activeConversationId, messages, addMessage, clearConversation, editMessage, deleteMessage, removeMessage } = useChatStore();
+  const [activeMessageId, setActiveMessageId] = useState<string | null>(null);
+  const [menuPosition, setMenuPosition] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
+  const { conversations, activeConversationId, messages, addMessage, clearConversation, editMessage, deleteMessage } = useChatStore();
   const setMessages = useChatStore((s) => s.setMessages);
   const initiateCall = useCallStore((s) => s.initiateCall);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
+  const headerMenuRef = useRef<HTMLDivElement>(null);
+  const messageRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   const activeConvo = conversations.find((c) => c.id === activeConversationId);
   const currentMessages = activeConversationId ? messages[activeConversationId] || [] : [];
@@ -44,7 +49,7 @@ const ChatView: React.FC = () => {
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+      if (headerMenuRef.current && !headerMenuRef.current.contains(event.target as Node)) {
         setMenuOpen(false);
       }
     };
@@ -192,13 +197,6 @@ const ChatView: React.FC = () => {
     setMessages(activeConversationId, updatedMessages);
   };
 
-  const handleEditMessage = (messageId: string) => {
-    const targetMessage = currentMessages.find((msg) => msg.id === messageId);
-    if (!targetMessage) return;
-    setEditingMessageId(messageId);
-    setEditDraft(targetMessage.text);
-  };
-
   const handleSaveEdit = (messageId: string) => {
     if (!editDraft.trim()) return;
     if (activeConversationId) {
@@ -211,11 +209,6 @@ const ChatView: React.FC = () => {
   const handleDeleteMessage = (messageId: string) => {
     if (!activeConversationId) return;
     deleteMessage(activeConversationId, messageId);
-  };
-
-  const handleUnsendMessage = (messageId: string) => {
-    if (!activeConversationId) return;
-    removeMessage(activeConversationId, messageId);
   };
 
   const handleCopyMessage = async (messageId: string) => {
@@ -245,6 +238,17 @@ const ChatView: React.FC = () => {
     if (!activeConversationId) return;
     setTypingUsers(isTyping ? [chatName || 'Someone'] : []);
   };
+
+  const openMessageMenu = (messageId: string, anchorElement?: HTMLElement | null) => {
+    setActiveMessageId(messageId);
+    if (!anchorElement) return;
+    const rect = anchorElement.getBoundingClientRect();
+    const top = Math.max(12, rect.top - 54);
+    const left = Math.max(12, Math.min(window.innerWidth - 220, rect.left + rect.width / 2 - 110));
+    setMenuPosition({ top, left });
+  };
+
+  const closeMessageMenu = () => setActiveMessageId(null);
 
   if (!activeConvo) {
     return (
@@ -288,7 +292,7 @@ const ChatView: React.FC = () => {
           <button className="icon-btn" title="Video Call" type="button">
             <Video size={18} />
           </button>
-          <div className="menu-wrapper" ref={menuRef}>
+          <div className="menu-wrapper" ref={headerMenuRef}>
             <button className="icon-btn" title="More options" onClick={() => setMenuOpen((open) => !open)} type="button">
               <MoreVertical size={18} />
             </button>
@@ -369,44 +373,50 @@ const ChatView: React.FC = () => {
           const isOwn = msg.isSelf;
           return (
             <div key={msg.id} data-message-id={msg.id} className={`msg-wrapper ${isOwn ? 'self' : 'remote'} ${isHighlighted ? 'highlighted' : ''}`}>
-              <div className={`msg-bubble ${msg.isDeleted ? 'deleted' : ''}`}>
-                {msg.isPinned && <div className="msg-pin-pill">📌 Pinned</div>}
-                {msg.replyTo && (
-                  <div className="reply-preview">
-                    <div className="reply-preview-name">{msg.replyTo.sender}</div>
-                    <div className="reply-preview-text">{msg.replyTo.text}</div>
-                  </div>
-                )}
-                {editingMessageId === msg.id ? (
-                  <div className="edit-box">
-                    <textarea value={editDraft} onChange={(e) => setEditDraft(e.target.value)} rows={3} />
-                    <div className="edit-actions">
-                      <button type="button" onClick={() => handleSaveEdit(msg.id)}>Save</button>
-                      <button type="button" onClick={() => { setEditingMessageId(null); setEditDraft(''); }}>Cancel</button>
+              <SwipeableMessage
+                onSwipeReply={() => handleReply(msg.id)}
+                onLongPress={() => openMessageMenu(msg.id, messageRefs.current[msg.id] || undefined)}
+              >
+                <div
+                  ref={(node) => {
+                    messageRefs.current[msg.id] = node;
+                  }}
+                  className={`msg-bubble ${msg.isDeleted ? 'deleted' : ''}`}
+                  onMouseEnter={(event) => openMessageMenu(msg.id, event.currentTarget)}
+                  onMouseLeave={() => window.setTimeout(() => {
+                    if (activeMessageId === msg.id) {
+                      closeMessageMenu();
+                    }
+                  }, 140)}
+                  onContextMenu={(event) => {
+                    event.preventDefault();
+                    openMessageMenu(msg.id, event.currentTarget);
+                  }}
+                >
+                  {msg.isPinned && <div className="msg-pin-pill">📌 Pinned</div>}
+                  {msg.replyTo && (
+                    <div className="reply-preview">
+                      <div className="reply-preview-name">{msg.replyTo.sender}</div>
+                      <div className="reply-preview-text">{msg.replyTo.text}</div>
                     </div>
-                  </div>
-                ) : (
-                  <p className="message-text">{msg.text}</p>
-                )}
-                {msg.isEdited && <span className="msg-edited">edited</span>}
-                {msg.reactions && msg.reactions.length > 0 && (
-                  <div className="msg-reactions">{msg.reactions.map((reaction) => <span key={reaction}>{reaction}</span>)}</div>
-                )}
-                <div className="msg-actions-row">
-                  <button type="button" className="msg-action-btn" onClick={() => handleReply(msg.id)}><Reply size={14} /></button>
-                  <button type="button" className="msg-action-btn" onClick={() => handleReact(msg.id)}><Smile size={14} /></button>
-                  {isOwn && (
-                    <>
-                      <button type="button" className="msg-action-btn" onClick={() => handleEditMessage(msg.id)}><Pencil size={14} /></button>
-                      <button type="button" className="msg-action-btn" onClick={() => handleDeleteMessage(msg.id)}><Trash size={14} /></button>
-                      <button type="button" className="msg-action-btn" onClick={() => handleUnsendMessage(msg.id)}><SendHorizontal size={14} /></button>
-                    </>
                   )}
-                  <button type="button" className="msg-action-btn" onClick={() => handleCopyMessage(msg.id)}><Copy size={14} /></button>
-                  <button type="button" className="msg-action-btn" onClick={() => handlePinMessage(msg.id)}><Pin size={14} /></button>
-                  <button type="button" className="msg-action-btn" onClick={() => handleStarMessage(msg.id)}><Star size={14} /></button>
+                  {editingMessageId === msg.id ? (
+                    <div className="edit-box">
+                      <textarea value={editDraft} onChange={(e) => setEditDraft(e.target.value)} rows={3} />
+                      <div className="edit-actions">
+                        <button type="button" onClick={() => handleSaveEdit(msg.id)}>Save</button>
+                        <button type="button" onClick={() => { setEditingMessageId(null); setEditDraft(''); }}>Cancel</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="message-text">{msg.text}</p>
+                  )}
+                  {msg.isEdited && <span className="msg-edited">edited</span>}
+                  {msg.reactions && msg.reactions.length > 0 && (
+                    <div className="msg-reactions">{msg.reactions.map((reaction) => <span key={reaction}>{reaction}</span>)}</div>
+                  )}
                 </div>
-              </div>
+              </SwipeableMessage>
               <div className="msg-meta">
                 {msg.time}
                 {isOwn && (
@@ -445,6 +455,54 @@ const ChatView: React.FC = () => {
           onTypingChange={handleTypingChange}
         />
       )}
+      <MessageActionsMenu
+        open={Boolean(activeMessageId)}
+        position={menuPosition}
+        onClose={closeMessageMenu}
+        onReply={() => {
+          if (activeMessageId) {
+            handleReply(activeMessageId);
+          }
+          closeMessageMenu();
+        }}
+        onCopy={() => {
+          if (activeMessageId) {
+            handleCopyMessage(activeMessageId);
+          }
+          closeMessageMenu();
+        }}
+        onStar={() => {
+          if (activeMessageId) {
+            handleStarMessage(activeMessageId);
+          }
+          closeMessageMenu();
+        }}
+        onDelete={() => {
+          if (activeMessageId) {
+            handleDeleteMessage(activeMessageId);
+          }
+          closeMessageMenu();
+        }}
+        onForward={() => {
+          if (activeMessageId) {
+            window.alert('Forwarding is ready for the next step.');
+          }
+          closeMessageMenu();
+        }}
+        onReact={() => {
+          if (activeMessageId) {
+            handleReact(activeMessageId);
+          }
+          closeMessageMenu();
+        }}
+        onPin={() => {
+          if (activeMessageId) {
+            handlePinMessage(activeMessageId);
+          }
+          closeMessageMenu();
+        }}
+        isOwn={Boolean(currentMessages.find((message) => message.id === activeMessageId)?.isSelf)}
+      />
     </div>
   );
 };

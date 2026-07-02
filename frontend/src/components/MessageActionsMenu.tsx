@@ -1,8 +1,9 @@
-import React, { useEffect, useRef } from 'react';
-import { Copy, Reply, Star, Trash2, Forward, SmilePlus, Pin, Pencil } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { Copy, Reply, Star, Trash2, Forward, SmilePlus, Pin, Pencil, MoreHorizontal } from 'lucide-react';
 
 interface MessageActionsMenuProps {
   open: boolean;
+  position: { top: number; left: number };
   onClose: () => void;
   onReply: () => void;
   onCopy: () => void;
@@ -10,11 +11,13 @@ interface MessageActionsMenuProps {
   onDelete: () => void;
   onForward: () => void;
   onReact: () => void;
+  onPin: () => void;
   isOwn: boolean;
 }
 
 export const MessageActionsMenu: React.FC<MessageActionsMenuProps> = ({
   open,
+  position,
   onClose,
   onReply,
   onCopy,
@@ -22,12 +25,17 @@ export const MessageActionsMenu: React.FC<MessageActionsMenuProps> = ({
   onDelete,
   onForward,
   onReact,
+  onPin,
   isOwn,
 }) => {
   const menuRef = useRef<HTMLDivElement>(null);
+  const [showOverflow, setShowOverflow] = useState(false);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      setShowOverflow(false);
+      return;
+    }
 
     const onPointerDown = (event: MouseEvent | TouchEvent) => {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
@@ -50,20 +58,34 @@ export const MessageActionsMenu: React.FC<MessageActionsMenuProps> = ({
 
   if (!open) return null;
 
+  const handleAction = (callback: () => void) => {
+    callback();
+    onClose();
+  };
+
   return (
-    <div ref={menuRef} role="menu" aria-label="Message actions" className="message-actions-menu">
-      <button type="button" role="menuitem" onClick={onReply}><Reply size={14} /> Reply</button>
-      <button type="button" role="menuitem" onClick={onCopy}><Copy size={14} /> Copy</button>
-      <button type="button" role="menuitem" onClick={onStar}><Star size={14} /> Star</button>
-      <button type="button" role="menuitem" onClick={onReact}><SmilePlus size={14} /> React</button>
-      <button type="button" role="menuitem" onClick={onForward}><Forward size={14} /> Forward</button>
-      {isOwn && (
-        <button type="button" role="menuitem" onClick={onDelete}><Trash2 size={14} /> Delete</button>
-      )}
-      {isOwn && (
-        <button type="button" role="menuitem" onClick={onDelete}><Pencil size={14} /> Edit</button>
-      )}
-      <button type="button" role="menuitem" onClick={onDelete}><Pin size={14} /> Pin</button>
+    <div
+      ref={menuRef}
+      role="menu"
+      aria-label="Message actions"
+      className="message-actions-pill"
+      style={{ top: position.top, left: position.left }}
+    >
+      <button type="button" role="menuitem" onClick={() => handleAction(onReply)}><Reply size={14} /></button>
+      <button type="button" role="menuitem" onClick={() => handleAction(onReact)}><SmilePlus size={14} /></button>
+      <button type="button" role="menuitem" onClick={() => handleAction(onCopy)}><Copy size={14} /></button>
+      <button type="button" role="menuitem" onClick={() => handleAction(onStar)}><Star size={14} /></button>
+      <div className="message-actions-overflow">
+        <button type="button" className="overflow-trigger" onClick={() => setShowOverflow((value) => !value)}><MoreHorizontal size={14} /></button>
+        {showOverflow && (
+          <div className="message-actions-overflow-menu">
+            <button type="button" onClick={() => handleAction(onPin)}><Pin size={14} /> Pin</button>
+            <button type="button" onClick={() => handleAction(onForward)}><Forward size={14} /> Forward</button>
+            {isOwn && <button type="button" onClick={() => handleAction(onDelete)}><Trash2 size={14} /> Delete</button>}
+            {isOwn && <button type="button" onClick={() => handleAction(onDelete)}><Pencil size={14} /> Edit</button>}
+          </div>
+        )}
+      </div>
     </div>
   );
 };
