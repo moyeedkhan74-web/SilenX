@@ -8,12 +8,13 @@ interface ChatState {
   activeConversationId: string | null;
   messages: Record<string, ChatMessage[]>;
   isLoading: boolean;
-  
+
   // REST API methods
   fetchConversations: () => Promise<void>;
   fetchMessages: (id: string) => Promise<void>;
   createConversation: (recipientUid: string) => Promise<Conversation | null>;
-  
+  hydrateFromStorage: () => void;
+
   // Local modifications (optimistic updates)
   setConversations: (convos: Conversation[]) => void;
   setActiveConversation: (id: string | null) => void;
@@ -22,13 +23,45 @@ interface ChatState {
   markMessageRead: (convId: string, messageId: string) => void;
   editMessage: (convId: string, messageId: string, newText: string) => void;
   deleteMessage: (convId: string, messageId: string) => void;
+  clearConversation: (convId: string) => void;
 }
+
+const getStorageKey = (userId?: string | null) => `slienx-chat-state-${userId || 'guest'}`;
+
+const persistState = (state: Partial<ChatState>) => {
+  const currentUser = useAuthStore.getState().user;
+  const key = getStorageKey(currentUser?.id);
+  const payload = {
+    conversations: state.conversations ?? useChatStore.getState().conversations,
+    messages: state.messages ?? useChatStore.getState().messages,
+    activeConversationId: state.activeConversationId ?? useChatStore.getState().activeConversationId,
+  };
+  localStorage.setItem(key, JSON.stringify(payload));
+};
 
 export const useChatStore = create<ChatState>((set, get) => ({
   conversations: [],
   activeConversationId: null,
   messages: {},
   isLoading: false,
+
+  hydrateFromStorage: () => {
+    try {
+      const currentUser = useAuthStore.getState().user;
+      const key = getStorageKey(currentUser?.id);
+      const raw = localStorage.getItem(key);
+      if (!raw) return;
+
+      const parsed = JSON.parse(raw);
+      set({
+        conversations: parsed.conversations || [],
+        messages: parsed.messages || {},
+        activeConversationId: parsed.activeConversationId || null,
+      });
+    } catch (err) {
+      console.error('Failed to hydrate chat state:', err);
+    }
+  },
 
   fetchConversations: async () => {
     set({ isLoading: true });
@@ -42,6 +75,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       if (res.ok) {
         const data = await res.json();
         set({ conversations: data });
+        persistState({ conversations: data });
       }
     } catch (err) {
       console.error('Failed to fetch conversations from server:', err);
@@ -60,12 +94,22 @@ export const useChatStore = create<ChatState>((set, get) => ({
       });
       if (res.ok) {
         const data = await res.json();
-        set((state) => ({
-          messages: {
-            ...state.messages,
-            [conversationId]: data,
-          },
-        }));
+        set((state) => {
+          const mergedMessages = [...(state.messages[conversationId] || [])];
+          data.forEach((msg: ChatMessage) => {
+            if (!mergedMessages.some((existing) => existing.id === msg.id)) {
+              mergedMessages.push(msg);
+            }
+          });
+          const nextState = {
+            messages: {
+              ...state.messages,
+              [conversationId]: mergedMessages,
+            },
+          };
+          persistState(nextState);
+          return nextState;
+        });
       }
     } catch (err) {
       console.error(`Failed to fetch messages for ${conversationId}:`, err);
@@ -77,7 +121,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       const currentUser = useAuthStore.getState().user;
       const res = await fetch(`${API_URL}/api/conversations`, {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           'x-user-id': currentUser?.id || 'self',
         },
@@ -85,13 +129,14 @@ export const useChatStore = create<ChatState>((set, get) => ({
       });
       if (res.ok) {
         const newConvo: Conversation = await res.json();
-        
-        // Update local list if not already present
+
         const currentConvos = get().conversations;
-        if (!currentConvos.some(c => c.id === newConvo.id)) {
-          set({ conversations: [newConvo, ...currentConvos] });
+        if (!currentConvos.some((c) => c.id === newConvo.id)) {
+          const nextConversations = [newConvo, ...currentConvos];
+          set({ conversations: nextConversations });
+          persistState({ conversations: nextConversations });
         }
-        
+
         return newConvo;
       }
     } catch (err) {
@@ -100,49 +145,86 @@ export const useChatStore = create<ChatState>((set, get) => ({
     return null;
   },
 
-  setConversations: (conversations) => set({ conversations }),
+  setConversations: (conversations) => {
+    set({ conversations });
+    persistState({ conversations });
+  },
   setActiveConversation: (id) => {
     set({ activeConversationId: id });
+    persistState({ activeConversationId: id });
     if (id) {
       get().fetchMessages(id);
     }
   },
   addMessage: (convId, msg) =>
-    set((state) => ({
-      messages: {
-        ...state.messages,
-        [convId]: [...(state.messages[convId] || []), msg],
-      },
-    })),
+    set((state) => {
+      const nextState = {
+        messages: {
+          ...state.messages,
+          [convId]: [...(state.messages[convId] || []), msg],
+        },
+      };
+      persistState(nextState);
+      return nextState;
+    }),
   setMessages: (convId, msgs) =>
-    set((state) => ({
-      messages: { ...state.messages, [convId]: msgs },
-    })),
+    set((state) => {
+      const nextState = { messages: { ...state.messages, [convId]: msgs } };
+      persistState(nextState);
+      return nextState;
+    }),
   markMessageRead: (convId, messageId) =>
-    set((state) => ({
-      messages: {
-        ...state.messages,
-        [convId]: (state.messages[convId] || []).map((m) =>
-          m.id === messageId ? { ...m, isRead: true } : m
-        ),
-      },
-    })),
+    set((state) => {
+      const nextState = {
+        messages: {
+          ...state.messages,
+          [convId]: (state.messages[convId] || []).map((m) =>
+            m.id === messageId ? { ...m, isRead: true } : m
+          ),
+        },
+      };
+      persistState(nextState);
+      return nextState;
+    }),
   editMessage: (convId, messageId, newText) =>
-    set((state) => ({
-      messages: {
-        ...state.messages,
-        [convId]: (state.messages[convId] || []).map((m) =>
-          m.id === messageId ? { ...m, text: newText, isEdited: true } : m
-        ),
-      },
-    })),
+    set((state) => {
+      const nextState = {
+        messages: {
+          ...state.messages,
+          [convId]: (state.messages[convId] || []).map((m) =>
+            m.id === messageId ? { ...m, text: newText, isEdited: true } : m
+          ),
+        },
+      };
+      persistState(nextState);
+      return nextState;
+    }),
   deleteMessage: (convId, messageId) =>
-    set((state) => ({
-      messages: {
-        ...state.messages,
-        [convId]: (state.messages[convId] || []).map((m) =>
-          m.id === messageId ? { ...m, isDeleted: true, text: 'This message was deleted' } : m
+    set((state) => {
+      const nextState = {
+        messages: {
+          ...state.messages,
+          [convId]: (state.messages[convId] || []).map((m) =>
+            m.id === messageId ? { ...m, isDeleted: true, text: 'This message was deleted' } : m
+          ),
+        },
+      };
+      persistState(nextState);
+      return nextState;
+    }),
+  clearConversation: (convId) =>
+    set((state) => {
+      const nextMessages = { ...state.messages };
+      delete nextMessages[convId];
+      const nextState = {
+        messages: nextMessages,
+        conversations: state.conversations.map((conversation) =>
+          conversation.id === convId
+            ? { ...conversation, lastMessage: '', lastMessageTime: '' }
+            : conversation
         ),
-      },
-    })),
+      };
+      persistState(nextState);
+      return nextState;
+    }),
 }));

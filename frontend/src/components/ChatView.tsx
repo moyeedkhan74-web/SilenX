@@ -10,7 +10,7 @@ const ChatView: React.FC = () => {
   const [inputValue, setInputValue] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);
   const [replyTo, setReplyTo] = useState<{ sender: string; text: string } | undefined>();
-  const { conversations, activeConversationId, messages, addMessage } = useChatStore();
+  const { conversations, activeConversationId, messages, addMessage, clearConversation } = useChatStore();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -123,7 +123,16 @@ const ChatView: React.FC = () => {
                   <Flag size={16} />
                   <span>Report</span>
                 </button>
-                <button className="dropdown-item danger" type="button">
+                <button
+                  className="dropdown-item danger"
+                  type="button"
+                  onClick={() => {
+                    if (activeConversationId) {
+                      clearConversation(activeConversationId);
+                    }
+                    setMenuOpen(false);
+                  }}
+                >
                   <Trash2 size={16} />
                   <span>Clear chat</span>
                 </button>

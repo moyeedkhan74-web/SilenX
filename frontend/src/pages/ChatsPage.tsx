@@ -7,10 +7,12 @@ import { useChatStore } from '../store/chatStore';
 export const ChatsPage: React.FC = () => {
   const [isContactSelectorOpen, setIsContactSelectorOpen] = useState(false);
   const fetchConversations = useChatStore((s) => s.fetchConversations);
+  const hydrateFromStorage = useChatStore((s) => s.hydrateFromStorage);
 
   useEffect(() => {
+    hydrateFromStorage();
     fetchConversations();
-  }, [fetchConversations]);
+  }, [hydrateFromStorage, fetchConversations]);
 
   return (
     <div className="dashboard-chat-layout" style={{
