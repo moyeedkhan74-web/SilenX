@@ -122,7 +122,7 @@ router.get('/search', (req: Request, res: Response) => {
   });
 
   if (found) {
-    res.status(200).json({ id: found.id, displayName: found.displayName, avatar: found.avatarUrl, uid: found.uid, bio: found.bio });
+    res.status(200).json({ id: found.id, displayName: found.displayName, avatar: found.avatarUrl, uid: found.uid, bio: found.bio, status: found.status });
   } else {
     res.status(404).json({ message: `No account found for this Secure ID. Please check the ID and try again.` });
   }

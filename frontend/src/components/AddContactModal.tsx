@@ -14,7 +14,7 @@ interface FoundUser {
   uid: string;
   email: string;
   displayName: string;
-  status: string;
+  status?: string;
   bio: string;
 }
 
@@ -252,9 +252,9 @@ export const AddContactModal: React.FC<AddContactModalProps> = ({ isOpen, onClos
       {previewUser && (
         <UserPreviewModal 
           user={{
-            name: previewUser.displayName,
-            avatar: previewUser.displayName[0],
-            status: previewUser.status.charAt(0).toUpperCase() + previewUser.status.slice(1),
+            name: previewUser.displayName?.trim() || previewUser.uid || 'Unknown user',
+            avatar: previewUser.displayName?.trim()?.charAt(0) || previewUser.uid?.charAt(0) || '?',
+            status: (previewUser.status?.trim() || 'offline').charAt(0).toUpperCase() + (previewUser.status?.trim() || 'offline').slice(1),
           }}
           onClose={() => setPreviewUser(null)}
           onAdd={handleAddContact}

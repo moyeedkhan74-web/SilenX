@@ -7,7 +7,7 @@ interface UserPreviewProps {
   user: {
     name: string;
     avatar: string;
-    status: string;
+    status?: string;
   };
   onClose: () => void;
   onAdd: () => void;
@@ -19,8 +19,8 @@ export const UserPreviewModal: React.FC<UserPreviewProps> = ({ user, onClose, on
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px', padding: '10px 0' }}>
         <div className="preview-avatar" style={{ margin: 0 }}>{user.avatar}</div>
         <h2 style={{ margin: 0, fontSize: '20px' }}>{user.name}</h2>
-        <p className={`preview-status ${user.status.toLowerCase()}`} style={{ margin: 0 }}>
-          ● {user.status}
+        <p className={`preview-status ${(user.status || 'offline').toLowerCase()}`} style={{ margin: 0 }}>
+          ● {user.status || 'Offline'}
         </p>
         <div className="preview-actions" style={{ display: 'flex', gap: '12px', width: '100%', marginTop: '12px' }}>
           <Button variant="secondary" onClick={onClose} style={{ flex: 1 }}>
