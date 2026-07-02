@@ -12,12 +12,13 @@ interface MessageInputBarProps {
   onSend?: (payload: { text: string; replyTo?: ReplyTo }) => void;
   replyTo?: ReplyTo;
   onCancelReply?: () => void;
+  onTypingChange?: (isTyping: boolean) => void;
 }
 
 const TABS = ['emoji', 'sticker', 'gif'] as const;
 type PickerTab = (typeof TABS)[number];
 
-export function MessageInputBar({ onSend, replyTo, onCancelReply }: MessageInputBarProps) {
+export function MessageInputBar({ onSend, replyTo, onCancelReply, onTypingChange }: MessageInputBarProps) {
   const [text, setText] = useState('');
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickerTab, setPickerTab] = useState<PickerTab>('emoji');
@@ -32,6 +33,7 @@ export function MessageInputBar({ onSend, replyTo, onCancelReply }: MessageInput
 
   const handleSend = () => {
     if (!text.trim()) return;
+    onTypingChange?.(false);
     onSend?.({ text: text.trim(), replyTo });
     setText('');
     setPickerOpen(false);
@@ -112,10 +114,14 @@ export function MessageInputBar({ onSend, replyTo, onCancelReply }: MessageInput
           <textarea
             ref={textRef}
             value={text}
-            onChange={(event) => setText(event.target.value)}
+            onChange={(event) => {
+              setText(event.target.value);
+              onTypingChange?.(event.target.value.trim().length > 0);
+            }}
             onKeyDown={(event) => {
               if (event.key === 'Enter' && !event.shiftKey) {
                 event.preventDefault();
+                onTypingChange?.(false);
                 handleSend();
               }
             }}

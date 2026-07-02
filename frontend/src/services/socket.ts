@@ -2,6 +2,7 @@ import { io, Socket } from 'socket.io-client';
 import { SOCKET_URL } from '../config/webrtc-config';
 import { useChatStore } from '../store/chatStore';
 import { useAuthStore } from '../store/authStore';
+import type { ChatMessage } from '../types';
 
 let socket: Socket | null = null;
 
@@ -45,7 +46,7 @@ export const connectSocket = (): Socket => {
       const alreadyExists = existingMessages.some((msg) => msg.id === payload?.tempId || msg.id === payload?.id);
       if (alreadyExists) return;
 
-      const incomingMessage = {
+      const incomingMessage: ChatMessage = {
         id: payload?.tempId || payload?.id || crypto.randomUUID(),
         conversationId,
         senderId: payload?.senderId || 'remote',
@@ -55,6 +56,10 @@ export const connectSocket = (): Socket => {
         isRead: false,
         isEdited: false,
         isDeleted: false,
+        deliveryStatus: 'received',
+        reactions: [],
+        isPinned: false,
+        isStarred: false,
       };
 
       useChatStore.getState().addMessage(conversationId, incomingMessage);

@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Phone, Video, MoreVertical, Lock, Search, Bell, UserX, Flag, Trash2, Check, CheckCheck } from 'lucide-react';
+import { Phone, Video, MoreVertical, Lock, Search, Bell, UserX, Flag, Trash2, Check, CheckCheck, Reply, Smile, Copy, Pin, Star, Pencil, Trash, SendHorizontal } from 'lucide-react';
 import { useChatStore } from '../store/chatStore';
 import { useCallStore } from '../store/callStore';
 import { getSocket } from '../services/socket';
+import type { ChatMessage } from '../types';
 import { Avatar } from './Avatar';
 import { MessageInputBar } from './MessageInputBar';
 import './ChatView.css';
@@ -15,7 +16,11 @@ const ChatView: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [searchMatchIds, setSearchMatchIds] = useState<string[]>([]);
   const [searchTargetId, setSearchTargetId] = useState<string | null>(null);
-  const { conversations, activeConversationId, messages, addMessage, clearConversation } = useChatStore();
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+  const [editDraft, setEditDraft] = useState('');
+  const [typingUsers, setTypingUsers] = useState<string[]>([]);
+  const { conversations, activeConversationId, messages, addMessage, clearConversation, editMessage, deleteMessage, removeMessage } = useChatStore();
+  const setMessages = useChatStore((s) => s.setMessages);
   const initiateCall = useCallStore((s) => s.initiateCall);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -47,12 +52,22 @@ const ChatView: React.FC = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  useEffect(() => {
+    if (!activeConversationId) {
+      setTypingUsers([]);
+      return;
+    }
+
+    const timer = window.setTimeout(() => setTypingUsers([]), 1800);
+    return () => window.clearTimeout(timer);
+  }, [currentMessages, activeConversationId]);
+
   const handleSend = (payload?: { text: string; replyTo?: { sender: string; text: string } }) => {
     const value = payload?.text?.trim() || inputValue.trim();
     if (!value || !activeConversationId || activeConversationState.isBlocked) return;
 
     const socket = getSocket();
-    const msg = {
+    const msg: ChatMessage = {
       id: crypto.randomUUID(),
       conversationId: activeConversationId,
       senderId: 'self',
@@ -62,6 +77,10 @@ const ChatView: React.FC = () => {
       isRead: false,
       isEdited: false,
       isDeleted: false,
+      deliveryStatus: 'sent' as const,
+      reactions: [],
+      isPinned: false,
+      isStarred: false,
       replyTo: payload?.replyTo,
     };
 
@@ -156,6 +175,75 @@ const ChatView: React.FC = () => {
   const handleAudioCall = () => {
     if (!activeConversationId || !otherUser?.id) return;
     initiateCall('audio', otherUser.id);
+  };
+
+  const handleReply = (messageId: string) => {
+    const targetMessage = currentMessages.find((msg) => msg.id === messageId);
+    if (!targetMessage) return;
+    setReplyTo({ sender: targetMessage.isSelf ? 'You' : chatName, text: targetMessage.text });
+  };
+
+  const handleReact = (messageId: string) => {
+    const reaction = window.prompt('Add a reaction emoji');
+    if (!reaction?.trim() || !activeConversationId) return;
+    const updatedMessages = (messages[activeConversationId] || []).map((msg) =>
+      msg.id === messageId ? { ...msg, reactions: [...(msg.reactions || []), reaction.trim()] } : msg
+    );
+    setMessages(activeConversationId, updatedMessages);
+  };
+
+  const handleEditMessage = (messageId: string) => {
+    const targetMessage = currentMessages.find((msg) => msg.id === messageId);
+    if (!targetMessage) return;
+    setEditingMessageId(messageId);
+    setEditDraft(targetMessage.text);
+  };
+
+  const handleSaveEdit = (messageId: string) => {
+    if (!editDraft.trim()) return;
+    if (activeConversationId) {
+      editMessage(activeConversationId, messageId, editDraft.trim());
+    }
+    setEditingMessageId(null);
+    setEditDraft('');
+  };
+
+  const handleDeleteMessage = (messageId: string) => {
+    if (!activeConversationId) return;
+    deleteMessage(activeConversationId, messageId);
+  };
+
+  const handleUnsendMessage = (messageId: string) => {
+    if (!activeConversationId) return;
+    removeMessage(activeConversationId, messageId);
+  };
+
+  const handleCopyMessage = async (messageId: string) => {
+    const targetMessage = currentMessages.find((msg) => msg.id === messageId);
+    if (!targetMessage?.text) return;
+    await navigator.clipboard.writeText(targetMessage.text);
+    window.alert('Message copied');
+  };
+
+  const handlePinMessage = (messageId: string) => {
+    if (!activeConversationId) return;
+    const updatedMessages = (messages[activeConversationId] || []).map((msg) =>
+      msg.id === messageId ? { ...msg, isPinned: !msg.isPinned } : msg
+    );
+    setMessages(activeConversationId, updatedMessages);
+  };
+
+  const handleStarMessage = (messageId: string) => {
+    if (!activeConversationId) return;
+    const updatedMessages = (messages[activeConversationId] || []).map((msg) =>
+      msg.id === messageId ? { ...msg, isStarred: !msg.isStarred } : msg
+    );
+    setMessages(activeConversationId, updatedMessages);
+  };
+
+  const handleTypingChange = (isTyping: boolean) => {
+    if (!activeConversationId) return;
+    setTypingUsers(isTyping ? [chatName || 'Someone'] : []);
   };
 
   if (!activeConvo) {
@@ -278,30 +366,59 @@ const ChatView: React.FC = () => {
         )}
         {currentMessages.map((msg) => {
           const isHighlighted = searchTerm && searchMatchIds.includes(msg.id);
+          const isOwn = msg.isSelf;
           return (
-            <div key={msg.id} data-message-id={msg.id} className={`msg-wrapper ${msg.isSelf ? 'self' : 'remote'} ${isHighlighted ? 'highlighted' : ''}`}>
-            <div className={`msg-bubble ${msg.isDeleted ? 'deleted' : ''}`}>
-              {msg.replyTo && (
-                <div className="reply-preview">
-                  <div className="reply-preview-name">{msg.replyTo.sender}</div>
-                  <div className="reply-preview-text">{msg.replyTo.text}</div>
+            <div key={msg.id} data-message-id={msg.id} className={`msg-wrapper ${isOwn ? 'self' : 'remote'} ${isHighlighted ? 'highlighted' : ''}`}>
+              <div className={`msg-bubble ${msg.isDeleted ? 'deleted' : ''}`}>
+                {msg.isPinned && <div className="msg-pin-pill">📌 Pinned</div>}
+                {msg.replyTo && (
+                  <div className="reply-preview">
+                    <div className="reply-preview-name">{msg.replyTo.sender}</div>
+                    <div className="reply-preview-text">{msg.replyTo.text}</div>
+                  </div>
+                )}
+                {editingMessageId === msg.id ? (
+                  <div className="edit-box">
+                    <textarea value={editDraft} onChange={(e) => setEditDraft(e.target.value)} rows={3} />
+                    <div className="edit-actions">
+                      <button type="button" onClick={() => handleSaveEdit(msg.id)}>Save</button>
+                      <button type="button" onClick={() => { setEditingMessageId(null); setEditDraft(''); }}>Cancel</button>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="message-text">{msg.text}</p>
+                )}
+                {msg.isEdited && <span className="msg-edited">edited</span>}
+                {msg.reactions && msg.reactions.length > 0 && (
+                  <div className="msg-reactions">{msg.reactions.map((reaction) => <span key={reaction}>{reaction}</span>)}</div>
+                )}
+                <div className="msg-actions-row">
+                  <button type="button" className="msg-action-btn" onClick={() => handleReply(msg.id)}><Reply size={14} /></button>
+                  <button type="button" className="msg-action-btn" onClick={() => handleReact(msg.id)}><Smile size={14} /></button>
+                  {isOwn && (
+                    <>
+                      <button type="button" className="msg-action-btn" onClick={() => handleEditMessage(msg.id)}><Pencil size={14} /></button>
+                      <button type="button" className="msg-action-btn" onClick={() => handleDeleteMessage(msg.id)}><Trash size={14} /></button>
+                      <button type="button" className="msg-action-btn" onClick={() => handleUnsendMessage(msg.id)}><SendHorizontal size={14} /></button>
+                    </>
+                  )}
+                  <button type="button" className="msg-action-btn" onClick={() => handleCopyMessage(msg.id)}><Copy size={14} /></button>
+                  <button type="button" className="msg-action-btn" onClick={() => handlePinMessage(msg.id)}><Pin size={14} /></button>
+                  <button type="button" className="msg-action-btn" onClick={() => handleStarMessage(msg.id)}><Star size={14} /></button>
                 </div>
-              )}
-              <p className="message-text">{msg.text}</p>
-              {msg.isEdited && <span className="msg-edited">edited</span>}
+              </div>
+              <div className="msg-meta">
+                {msg.time}
+                {isOwn && (
+                  <span className={`msg-receipt ${msg.deliveryStatus === 'read' ? 'read' : msg.deliveryStatus === 'delivered' ? 'delivered' : ''}`} title={msg.deliveryStatus === 'read' ? 'Read' : msg.deliveryStatus === 'delivered' ? 'Delivered' : 'Sent'}>
+                    {msg.deliveryStatus === 'read' ? <CheckCheck size={14} /> : msg.deliveryStatus === 'delivered' ? <CheckCheck size={14} /> : <Check size={14} />}
+                  </span>
+                )}
+              </div>
             </div>
-            <div className="msg-meta">
-              {msg.time}
-              {msg.isSelf && (
-                <span className={`msg-receipt ${msg.isRead ? 'read' : ''}`} title={msg.isRead ? 'Read' : 'Delivered'}>
-                  {msg.isRead ? <CheckCheck size={14} /> : <Check size={14} />}
-                </span>
-              )}
-            </div>
-          </div>
           );
         })}
-        {activeConversationId === 'conv1' && currentMessages.length <= 6 && (
+        {typingUsers.length > 0 && (
           <div className="msg-wrapper remote">
             <div className="typing-bubble">
               <span />
@@ -325,6 +442,7 @@ const ChatView: React.FC = () => {
           }}
           replyTo={replyTo}
           onCancelReply={() => setReplyTo(undefined)}
+          onTypingChange={handleTypingChange}
         />
       )}
     </div>

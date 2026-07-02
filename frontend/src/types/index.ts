@@ -35,6 +35,10 @@ export interface ChatMessage {
   isRead: boolean;
   isEdited: boolean;
   isDeleted: boolean;
+  deliveryStatus?: 'sent' | 'delivered' | 'read' | 'received';
+  reactions?: string[];
+  isPinned?: boolean;
+  isStarred?: boolean;
   replyTo?: {
     sender: string;
     text: string;

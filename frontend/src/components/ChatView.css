@@ -197,7 +197,7 @@
 .msg-wrapper {
   display: flex;
   flex-direction: column;
-  max-width: 65%;
+  max-width: 72%;
   animation: scaleIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 .msg-wrapper.self { align-self: flex-end; align-items: flex-end; }
@@ -211,6 +211,9 @@
   position: relative;
   cursor: default;
   user-select: text;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 .msg-wrapper.self .msg-bubble {
   background: var(--color-primary);
@@ -227,6 +230,13 @@
 [data-theme="dark"] .msg-wrapper.remote .msg-bubble { background: #2a2a2a; }
 
 .message-text { margin: 0; word-break: break-word; }
+.msg-pin-pill {
+  font-size: 10px;
+  font-weight: 700;
+  opacity: 0.8;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
 .reply-preview {
   border-left: 3px solid rgba(255,255,255,0.5);
   padding: 4px 8px;
@@ -251,6 +261,66 @@
 }
 
 .msg-edited { font-size: 10px; opacity: 0.5; margin-left: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+.msg-reactions {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-top: 2px;
+}
+.msg-reactions span {
+  background: rgba(255,255,255,0.18);
+  border-radius: 999px;
+  padding: 2px 6px;
+  font-size: 11px;
+}
+.msg-actions-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+  flex-wrap: wrap;
+}
+.msg-action-btn {
+  border: none;
+  background: rgba(0,0,0,0.06);
+  color: inherit;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.msg-action-btn:hover { background: rgba(0,0,0,0.12); }
+.edit-box {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.edit-box textarea {
+  width: 100%;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  resize: vertical;
+  min-height: 60px;
+  font: inherit;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+.edit-actions {
+  display: flex;
+  gap: 6px;
+}
+.edit-actions button {
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 4px 8px;
+  cursor: pointer;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
 
 .msg-meta {
   display: flex;
@@ -261,6 +331,7 @@
 }
 .msg-meta .msg-receipt { color: rgba(255,255,255,0.5); }
 .msg-meta .msg-receipt.read { color: var(--color-secondary); }
+.msg-meta .msg-receipt.delivered { color: #7ad7ff; }
 .msg-wrapper.remote .msg-meta { color: var(--text-tertiary); }
 
 .chatview-blocked-input {

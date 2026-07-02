@@ -23,6 +23,7 @@ interface ChatState {
   markMessageRead: (convId: string, messageId: string) => void;
   editMessage: (convId: string, messageId: string, newText: string) => void;
   deleteMessage: (convId: string, messageId: string) => void;
+  removeMessage: (convId: string, messageId: string) => void;
   clearConversation: (convId: string) => void;
 }
 
@@ -158,7 +159,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
   addMessage: (convId, msg) =>
     set((state) => {
-      const nextState = {
+      const nextState: Partial<ChatState> = {
         messages: {
           ...state.messages,
           [convId]: [...(state.messages[convId] || []), msg],
@@ -169,17 +170,17 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }),
   setMessages: (convId, msgs) =>
     set((state) => {
-      const nextState = { messages: { ...state.messages, [convId]: msgs } };
+      const nextState: Partial<ChatState> = { messages: { ...state.messages, [convId]: msgs } };
       persistState(nextState);
       return nextState;
     }),
   markMessageRead: (convId, messageId) =>
     set((state) => {
-      const nextState = {
+      const nextState: Partial<ChatState> = {
         messages: {
           ...state.messages,
           [convId]: (state.messages[convId] || []).map((m) =>
-            m.id === messageId ? { ...m, isRead: true } : m
+            m.id === messageId ? { ...m, isRead: true, deliveryStatus: 'read' } : m
           ),
         },
       };
@@ -188,7 +189,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }),
   editMessage: (convId, messageId, newText) =>
     set((state) => {
-      const nextState = {
+      const nextState: Partial<ChatState> = {
         messages: {
           ...state.messages,
           [convId]: (state.messages[convId] || []).map((m) =>
@@ -201,7 +202,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }),
   deleteMessage: (convId, messageId) =>
     set((state) => {
-      const nextState = {
+      const nextState: Partial<ChatState> = {
         messages: {
           ...state.messages,
           [convId]: (state.messages[convId] || []).map((m) =>
@@ -212,11 +213,22 @@ export const useChatStore = create<ChatState>((set, get) => ({
       persistState(nextState);
       return nextState;
     }),
+  removeMessage: (convId, messageId) =>
+    set((state) => {
+      const nextState: Partial<ChatState> = {
+        messages: {
+          ...state.messages,
+          [convId]: (state.messages[convId] || []).filter((m) => m.id !== messageId),
+        },
+      };
+      persistState(nextState);
+      return nextState;
+    }),
   clearConversation: (convId) =>
     set((state) => {
       const nextMessages = { ...state.messages };
       delete nextMessages[convId];
-      const nextState = {
+      const nextState: Partial<ChatState> = {
         messages: nextMessages,
         conversations: state.conversations.map((conversation) =>
           conversation.id === convId
