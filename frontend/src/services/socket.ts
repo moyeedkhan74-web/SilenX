@@ -1,7 +1,16 @@
 import { io, Socket } from 'socket.io-client';
 import { SOCKET_URL } from '../config/webrtc-config';
+import { useChatStore } from '../store/chatStore';
+import { useAuthStore } from '../store/authStore';
 
 let socket: Socket | null = null;
+
+const registerCurrentUser = () => {
+  const currentUser = useAuthStore.getState().user;
+  if (socket?.connected && currentUser?.id) {
+    socket.emit('register', { userId: currentUser.id });
+  }
+};
 
 export const connectSocket = (): Socket => {
   if (!socket) {
@@ -15,6 +24,7 @@ export const connectSocket = (): Socket => {
 
     socket.on('connect', () => {
       console.log(`[Socket] Connected: ${socket?.id}`);
+      registerCurrentUser();
     });
 
     socket.on('disconnect', (reason) => {
@@ -23,6 +33,31 @@ export const connectSocket = (): Socket => {
 
     socket.on('connect_error', (error) => {
       console.error(`[Socket] Connection Error: ${error.message}`);
+    });
+
+    socket.on('receive-message', (payload: any) => {
+      const conversationId = payload?.conversationId;
+      const text = payload?.encryptedContent || payload?.text || '';
+      if (!conversationId || !text) return;
+
+      const currentState = useChatStore.getState();
+      const existingMessages = currentState.messages[conversationId] || [];
+      const alreadyExists = existingMessages.some((msg) => msg.id === payload?.tempId || msg.id === payload?.id);
+      if (alreadyExists) return;
+
+      const incomingMessage = {
+        id: payload?.tempId || payload?.id || crypto.randomUUID(),
+        conversationId,
+        senderId: payload?.senderId || 'remote',
+        text,
+        isSelf: false,
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        isRead: false,
+        isEdited: false,
+        isDeleted: false,
+      };
+
+      useChatStore.getState().addMessage(conversationId, incomingMessage);
     });
   }
 

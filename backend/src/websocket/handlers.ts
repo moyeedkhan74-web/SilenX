@@ -28,10 +28,11 @@ export function registerSocketHandlers(io: Server): void {
 
     socket.on('send-message', (data: SendMessagePayload) => {
       console.log(`[Socket] Message from ${socket.id} in conversation ${data.conversationId}`);
+      const senderUserId = (socket as Socket & { data?: { userId?: string } }).data?.userId || socket.id;
       // In production, validate membership and persist to DB
       socket.broadcast.emit('receive-message', {
         ...data,
-        senderId: socket.id,
+        senderId: senderUserId,
         createdAt: new Date().toISOString(),
       });
     });
