@@ -13,6 +13,10 @@
   --color-text-secondary: #64748B;
   --color-text-tertiary: #94A3B8;
   --color-text-placeholder: #94A3B8;
+  --text-primary: var(--color-text-primary);
+  --text-secondary: var(--color-text-secondary);
+  --text-tertiary: var(--color-text-tertiary);
+  --text-placeholder: var(--color-text-placeholder);
   --color-bubble-sent: rgba(13, 148, 136, 0.14);
   --color-bubble-received: #F8FAFC;
   --color-surface: #FFFFFF;
@@ -148,6 +152,10 @@
   --color-text-secondary: #94A3B8;
   --color-text-tertiary: #64748B;
   --color-text-placeholder: #64748B;
+  --text-primary: var(--color-text-primary);
+  --text-secondary: var(--color-text-secondary);
+  --text-tertiary: var(--color-text-tertiary);
+  --text-placeholder: var(--color-text-placeholder);
   --color-surface: #131C2E;
   --color-surface-soft: #172438;
   --color-surface-elevated: #1E293B;
