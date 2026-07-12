@@ -1,5 +1,5 @@
 
-const COLORS = ['#2E5BBA', '#4ECDC4', '#FF9800', '#9C27B0', '#E91E63', '#00BCD4', '#8BC34A', '#FF5722', '#607D8B'];
+const COLORS = ['var(--color-accent)', 'var(--color-accent-hover)', 'var(--text-secondary)', 'var(--text-primary)'];
 
 function hashColor(name = '') {
   let hash = 0;
@@ -27,7 +27,7 @@ export function Avatar({ name = '', size = 40, online }: AvatarProps) {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          color: '#fff',
+          color: 'var(--color-on-accent)',
           fontSize: size * 0.38,
           fontWeight: 700,
           userSelect: 'none',
@@ -45,8 +45,8 @@ export function Avatar({ name = '', size = 40, online }: AvatarProps) {
             width: Math.max(size * 0.26, 10),
             height: Math.max(size * 0.26, 10),
             borderRadius: '50%',
-            background: online ? '#4CAF50' : '#BDBDBD',
-            border: '2px solid var(--bg-primary)',
+            background: online ? 'var(--color-accent)' : 'var(--text-tertiary)',
+            border: '2px solid var(--color-bg)',
           }}
         />
       )}

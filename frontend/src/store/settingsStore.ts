@@ -1,13 +1,11 @@
 import { create } from 'zustand';
 
 interface SettingsState {
-  isDarkMode: boolean;
   messageNotifications: boolean;
   callNotifications: boolean;
   showOnlineStatus: boolean;
   readReceipts: boolean;
   
-  setDarkMode: (value: boolean) => void;
   setMessageNotifications: (value: boolean) => void;
   setCallNotifications: (value: boolean) => void;
   setShowOnlineStatus: (value: boolean) => void;
@@ -20,17 +18,11 @@ const getStoredBool = (key: string, defaultValue: boolean): boolean => {
 };
 
 export const useSettingsStore = create<SettingsState>((set) => ({
-  isDarkMode: getStoredBool('slienx_dark_mode', true),
   messageNotifications: getStoredBool('slienx_msg_notif', true),
   callNotifications: getStoredBool('slienx_call_notif', true),
   showOnlineStatus: getStoredBool('slienx_online_status', true),
   readReceipts: getStoredBool('slienx_read_receipts', true),
 
-  setDarkMode: (value) => {
-    localStorage.setItem('slienx_dark_mode', String(value));
-    document.documentElement.setAttribute('data-theme', value ? 'dark' : 'light');
-    set({ isDarkMode: value });
-  },
   setMessageNotifications: (value) => {
     localStorage.setItem('slienx_msg_notif', String(value));
     set({ messageNotifications: value });

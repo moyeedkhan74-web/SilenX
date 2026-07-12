@@ -1,5 +1,7 @@
 import React from 'react';
 import { useSettingsStore } from '../../store/settingsStore';
+import { useTheme } from '../../theme/useTheme';
+import ThemeToggle from '../ThemeToggle';
 import '../../components/SettingsTab.css';
 
 interface SettingsPanelProps {
@@ -8,32 +10,29 @@ interface SettingsPanelProps {
 
 export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onDeleteAccountClick }) => {
   const {
-    isDarkMode,
     messageNotifications,
     callNotifications,
     showOnlineStatus,
     readReceipts,
-    setDarkMode,
     setMessageNotifications,
     setCallNotifications,
     setShowOnlineStatus,
     setReadReceipts,
   } = useSettingsStore();
+  const { theme } = useTheme();
 
   return (
     <div className="settings-card">
       <div className="settings-group">
         <h3>Appearance</h3>
         <div className="settings-row">
-          <span>Dark Mode</span>
-          <label className="toggle">
-            <input 
-              type="checkbox" 
-              checked={isDarkMode} 
-              onChange={(e) => setDarkMode(e.target.checked)} 
-            />
-            <span className="toggle-slider"></span>
-          </label>
+          <span>Theme</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span style={{ color: 'var(--text-secondary)', fontWeight: 600, fontSize: '13px' }}>
+              {theme === 'dark' ? 'Dark' : 'Light'}
+            </span>
+            <ThemeToggle />
+          </div>
         </div>
       </div>
 

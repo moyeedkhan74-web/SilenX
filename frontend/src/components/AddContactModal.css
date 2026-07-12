@@ -20,8 +20,8 @@
 .modal-tab {
   flex: 1;
   padding: 10px 16px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(var(--color-surface-rgb), 0.04);
+  border: 1px solid rgba(var(--color-surface-rgb), 0.08);
   border-radius: 10px;
   color: var(--text-secondary);
   font-weight: 500;
@@ -31,12 +31,12 @@
 }
 
 .modal-tab:hover {
-  background: rgba(59, 130, 246, 0.08);
-  border-color: rgba(59, 130, 246, 0.2);
+  background: rgba(var(--color-accent-rgb), 0.08);
+  border-color: rgba(var(--color-accent-rgb), 0.2);
 }
 
 .modal-tab.active {
-  background: rgba(59, 130, 246, 0.12);
+  background: rgba(var(--color-accent-rgb), 0.12);
   border-color: var(--primary-light);
   color: var(--primary-light);
 }
@@ -56,9 +56,9 @@
 .scan-start-area {
   text-align: center;
   padding: 40px 20px;
-  border: 2px dashed rgba(59, 130, 246, 0.2);
+  border: 2px dashed rgba(var(--color-accent-rgb), 0.2);
   border-radius: 12px;
-  background: rgba(59, 130, 246, 0.04);
+  background: rgba(var(--color-accent-rgb), 0.04);
 }
 
 .scan-controls {
@@ -67,12 +67,12 @@
 }
 
 .scan-error {
-  color: #ef4444;
+  color: var(--danger-main);
   font-size: 0.82rem;
   text-align: center;
   margin: 8px 0;
   padding: 8px 12px;
-  background: rgba(239, 68, 68, 0.08);
+  background: var(--danger-light);
   border-radius: 8px;
 }
 
@@ -96,8 +96,8 @@
 .input-uid {
   width: 100%;
   padding: 12px 16px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(var(--color-surface-rgb), 0.04);
+  border: 1px solid rgba(var(--color-surface-rgb), 0.1);
   border-radius: 10px;
   color: var(--text-primary);
   font-family: 'JetBrains Mono', 'Fira Code', monospace;
@@ -110,7 +110,7 @@
 
 .input-uid:focus {
   border-color: var(--primary-light);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+  box-shadow: 0 0 0 3px rgba(var(--color-accent-rgb), 0.12);
 }
 
 .input-uid::placeholder {

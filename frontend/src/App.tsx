@@ -13,6 +13,7 @@ import { useAuthStore } from './store/authStore';
 import { API_URL, normalizeUid } from './config/webrtc-config';
 import { connectSocket } from './services/socket';
 import './App.css';
+import { ThemeProvider } from './theme/ThemeContext';
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { isAuthenticated, initialized } = useAuthStore();
@@ -34,9 +35,6 @@ function App() {
   const setInitialized = useAuthStore((state) => state.setInitialized);
 
   useEffect(() => {
-    const savedTheme = localStorage.getItem('theme') || 'dark';
-    document.documentElement.setAttribute('data-theme', savedTheme);
-
     if (!auth) {
       setInitialized(true);
       return;
@@ -126,29 +124,31 @@ function App() {
   }, [login, logout, setInitialized]);
 
   return (
-    <BrowserRouter>
-      <div className="app-container">
-        <Routes>
-          <Route path="/login" element={<LoginPage />} />
-          <Route
-            path="/"
-            element={
-              <ProtectedRoute>
-                <DashboardPage />
-              </ProtectedRoute>
-            }
-          >
-            <Route index element={<Navigate to="/chats" replace />} />
-            <Route path="chats" element={<ChatsPage />} />
-            <Route path="contacts" element={<ContactsPage />} />
-            <Route path="profile" element={<ProfilePage />} />
-            <Route path="settings" element={<SettingsPage />} />
-          </Route>
-        </Routes>
+    <ThemeProvider>
+      <BrowserRouter>
+        <div className="app-container">
+          <Routes>
+            <Route path="/login" element={<LoginPage />} />
+            <Route
+              path="/"
+              element={
+                <ProtectedRoute>
+                  <DashboardPage />
+                </ProtectedRoute>
+              }
+            >
+              <Route index element={<Navigate to="/chats" replace />} />
+              <Route path="chats" element={<ChatsPage />} />
+              <Route path="contacts" element={<ContactsPage />} />
+              <Route path="profile" element={<ProfilePage />} />
+              <Route path="settings" element={<SettingsPage />} />
+            </Route>
+          </Routes>
 
-        <CallOverlay />
-      </div>
-    </BrowserRouter>
+          <CallOverlay />
+        </div>
+      </BrowserRouter>
+    </ThemeProvider>
   );
 }
 

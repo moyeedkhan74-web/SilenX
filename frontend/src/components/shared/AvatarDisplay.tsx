@@ -1,6 +1,6 @@
 import React from 'react';
 
-const COLORS = ['#2E5BBA', '#4ECDC4', '#FF9800', '#9C27B0', '#E91E63', '#00BCD4', '#8BC34A', '#FF5722', '#607D8B'];
+const COLORS = ['var(--avatar-color-1)', 'var(--avatar-color-2)', 'var(--avatar-color-3)', 'var(--avatar-color-4)', 'var(--avatar-color-5)', 'var(--avatar-color-6)', 'var(--avatar-color-7)', 'var(--avatar-color-8)', 'var(--avatar-color-9)'];
 
 function hashColor(name = '') {
   let hash = 0;
@@ -56,7 +56,7 @@ export const AvatarDisplay: React.FC<AvatarDisplayProps> = ({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            color: '#fff',
+            color: 'var(--color-on-accent)',
             fontSize: size * 0.38,
             fontWeight: 700,
             userSelect: 'none',
@@ -77,8 +77,8 @@ export const AvatarDisplay: React.FC<AvatarDisplayProps> = ({
             width: Math.max(size * 0.26, 10),
             height: Math.max(size * 0.26, 10),
             borderRadius: '50%',
-            background: isOnline ? '#4CAF50' : '#BDBDBD',
-            border: '2px solid var(--bg-primary)',
+            background: isOnline ? 'var(--color-accent)' : 'var(--text-tertiary)',
+            border: '2px solid var(--color-bg)',
           }}
         />
       )}

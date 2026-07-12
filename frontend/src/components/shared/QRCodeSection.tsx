@@ -16,6 +16,14 @@ export const QRCodeSection: React.FC<QRCodeSectionProps> = ({
 
   const deepLink = `slienx://uid/${uid}`;
 
+  const getCssVar = (name: string, fallback = '') => {
+    if (typeof window === 'undefined') return fallback;
+    return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
+  };
+
+  const qrBgColor = getCssVar('--color-surface');
+  const qrFgColor = getCssVar('--text-primary');
+
   const handleDownload = () => {
     const canvas = qrRef.current?.querySelector('canvas');
     if (!canvas) return;
@@ -48,7 +56,7 @@ export const QRCodeSection: React.FC<QRCodeSectionProps> = ({
     }}>
       <div ref={qrRef} className="qr-canvas-wrapper" style={{
         padding: '12px',
-        backgroundColor: '#fff',
+        backgroundColor: qrBgColor,
         borderRadius: '8px',
         display: 'inline-block'
       }}>
@@ -57,8 +65,8 @@ export const QRCodeSection: React.FC<QRCodeSectionProps> = ({
           size={size}
           level="H"
           includeMargin={true}
-          bgColor="#ffffff"
-          fgColor="#212121"
+          bgColor={qrBgColor}
+          fgColor={qrFgColor}
         />
       </div>
 

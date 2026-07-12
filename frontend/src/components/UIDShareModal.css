@@ -19,10 +19,10 @@
 }
 
 .qr-canvas-wrapper {
-  background: #ffffff;
+  background: var(--color-surface);
   border-radius: 16px;
   padding: 16px;
-  box-shadow: 0 4px 24px rgba(59, 130, 246, 0.15);
+  box-shadow: 0 4px 24px rgba(var(--color-accent-rgb), 0.15);
   display: inline-block;
 }
 
@@ -35,8 +35,8 @@
   font-family: 'JetBrains Mono', 'Fira Code', monospace;
   font-size: 1rem;
   color: var(--primary-light);
-  background: rgba(59, 130, 246, 0.08);
-  border: 1px solid rgba(59, 130, 246, 0.2);
+  background: rgba(var(--color-accent-rgb), 0.08);
+  border: 1px solid rgba(var(--color-accent-rgb), 0.2);
   border-radius: 8px;
   padding: 10px 18px;
   display: inline-block;

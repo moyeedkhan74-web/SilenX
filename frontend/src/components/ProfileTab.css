@@ -29,14 +29,14 @@
   height: 110px;
   border-radius: var(--radius-full);
   background: linear-gradient(135deg, var(--primary-main) 0%, var(--primary-dark) 100%);
-  color: white;
+  color: var(--color-on-accent);
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 44px;
   font-weight: 700;
   margin: 0 auto 20px;
-  box-shadow: 0 4px 20px rgba(59, 130, 246, 0.25);
+  box-shadow: 0 4px 20px rgba(var(--color-accent-rgb), 0.25);
   border: 2px solid var(--border-subtle);
 }
 
@@ -65,8 +65,8 @@
 }
 .profile-status.online {
   color: var(--success-main);
-  background: rgba(34, 197, 94, 0.08);
-  border: 1px solid rgba(34, 197, 94, 0.15);
+  background: var(--success-light);
+  border: 1px solid rgba(var(--color-success-rgb), 0.15);
 }
 
 .profile-uid-section {
@@ -97,10 +97,10 @@
   font-weight: 700;
   color: var(--primary-light);
   user-select: all;
-  background: rgba(59, 130, 246, 0.06);
+  background: rgba(var(--color-info-rgb), 0.06);
   padding: 6px 12px;
   border-radius: var(--radius-sm);
-  border: 1px solid rgba(59, 130, 246, 0.15);
+  border: 1px solid rgba(var(--color-info-rgb), 0.15);
 }
 
 .profile-uid-actions {

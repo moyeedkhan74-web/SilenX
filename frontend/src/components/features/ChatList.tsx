@@ -150,7 +150,7 @@ export const ChatList: React.FC<ChatListProps> = ({ onNewChatClick }) => {
                 {convo.unreadCount > 0 && (
                   <span className="convo-unread" style={{
                     backgroundColor: 'var(--color-primary)',
-                    color: '#fff',
+                    color: 'var(--color-on-accent)',
                     borderRadius: '10px',
                     padding: '2px 6px',
                     fontSize: '10px',
