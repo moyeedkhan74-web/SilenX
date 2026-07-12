@@ -177,4 +177,40 @@ router.get('/:id/messages', (req: Request, res: Response) => {
   res.status(200).json(formatted);
 });
 
+// DELETE /api/conversations/:id — Delete a conversation
+router.delete('/:id', (req: Request, res: Response) => {
+  const convoId = req.params.id;
+  const currentUserId = getCurrentUserId(req);
+
+  // Verify user is a member
+  const isMember = conversationMembers.some(
+    m => m.conversationId === convoId && m.userId === currentUserId
+  );
+  if (!isMember) {
+    res.status(403).json({ message: 'Not a member of this conversation' });
+    return;
+  }
+
+  // Remove conversation
+  const convoIdx = conversations.findIndex(c => c.id === convoId);
+  if (convoIdx !== -1) conversations.splice(convoIdx, 1);
+
+  // Remove members
+  for (let i = conversationMembers.length - 1; i >= 0; i--) {
+    if (conversationMembers[i].conversationId === convoId) {
+      conversationMembers.splice(i, 1);
+    }
+  }
+
+  // Remove messages
+  for (let i = messages.length - 1; i >= 0; i--) {
+    if (messages[i].conversationId === convoId) {
+      messages.splice(i, 1);
+    }
+  }
+
+  saveDb();
+  res.status(200).json({ message: 'Conversation deleted' });
+});
+
 export default router;

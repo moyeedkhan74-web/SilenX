@@ -1,0 +1,86 @@
+.chat-context-menu {
+  position: fixed;
+  z-index: 1000;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-lg, 0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.3));
+  border-radius: var(--radius-md, 8px);
+  padding: 4px;
+  width: 180px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  animation: context-menu-fade 0.15s ease-out;
+  backdrop-filter: blur(10px);
+}
+
+@keyframes context-menu-fade {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.menu-item {
+  width: 100%;
+  border: none;
+  background: transparent;
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  border-radius: var(--radius-sm, 6px);
+  text-align: left;
+  transition: background var(--transition-fast, 0.15s);
+  font-family: inherit;
+}
+
+.menu-item:hover {
+  background: var(--input-bg, rgba(255, 255, 255, 0.05));
+  color: var(--text-primary);
+}
+
+.menu-item svg {
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.menu-item:hover svg {
+  color: var(--text-primary);
+}
+
+.menu-divider {
+  height: 1px;
+  background: var(--border-color);
+  margin: 4px 0;
+}
+
+.menu-item.text-warning {
+  color: var(--color-warning, #f59e0b);
+}
+.menu-item.text-warning svg {
+  color: var(--color-warning, #f59e0b);
+}
+.menu-item.text-warning:hover {
+  background: rgba(245, 158, 11, 0.1);
+  color: var(--color-warning, #f59e0b);
+}
+
+.menu-item.text-danger {
+  color: var(--color-error, #ef4444);
+}
+.menu-item.text-danger svg {
+  color: var(--color-error, #ef4444);
+}
+.menu-item.text-danger:hover {
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--color-error, #ef4444);
+}

@@ -23,6 +23,8 @@ export interface Conversation {
   lastMessageTime: string | null;
   unreadCount: number;
   members: User[];
+  isPinned?: boolean;
+  isMuted?: boolean;
 }
 
 export interface ChatMessage {

@@ -25,6 +25,12 @@ interface ChatState {
   deleteMessage: (convId: string, messageId: string) => void;
   removeMessage: (convId: string, messageId: string) => void;
   clearConversation: (convId: string) => void;
+
+  // Context menu actions
+  deleteConversation: (convId: string) => Promise<void>;
+  pinConversation: (convId: string) => void;
+  muteConversation: (convId: string) => void;
+  markAsRead: (convId: string) => void;
 }
 
 const getStorageKey = (userId?: string | null) => `slienx-chat-state-${userId || 'guest'}`;
@@ -239,4 +245,63 @@ export const useChatStore = create<ChatState>((set, get) => ({
       persistState(nextState);
       return nextState;
     }),
+  deleteConversation: async (convId) => {
+    try {
+      const currentUser = useAuthStore.getState().user;
+      const res = await fetch(`${API_URL}/api/conversations/${encodeURIComponent(convId)}`, {
+        method: 'DELETE',
+        headers: {
+          'x-user-id': currentUser?.id || 'self',
+        },
+      });
+
+      if (res.ok) {
+        set((state) => {
+          const nextConvos = state.conversations.filter((c) => c.id !== convId);
+          const nextMessages = { ...state.messages };
+          delete nextMessages[convId];
+          const activeId = state.activeConversationId === convId ? null : state.activeConversationId;
+          const nextState = {
+            conversations: nextConvos,
+            messages: nextMessages,
+            activeConversationId: activeId,
+          };
+          persistState(nextState);
+          return nextState;
+        });
+      }
+    } catch (err) {
+      console.error('Failed to delete conversation:', err);
+    }
+  },
+  pinConversation: (convId) => {
+    set((state) => {
+      const nextConvos = state.conversations.map((c) =>
+        c.id === convId ? { ...c, isPinned: !c.isPinned } : c
+      );
+      const nextState = { conversations: nextConvos };
+      persistState(nextState);
+      return nextState;
+    });
+  },
+  muteConversation: (convId) => {
+    set((state) => {
+      const nextConvos = state.conversations.map((c) =>
+        c.id === convId ? { ...c, isMuted: !c.isMuted } : c
+      );
+      const nextState = { conversations: nextConvos };
+      persistState(nextState);
+      return nextState;
+    });
+  },
+  markAsRead: (convId) => {
+    set((state) => {
+      const nextConvos = state.conversations.map((c) =>
+        c.id === convId ? { ...c, unreadCount: 0 } : c
+      );
+      const nextState = { conversations: nextConvos };
+      persistState(nextState);
+      return nextState;
+    });
+  },
 }));
