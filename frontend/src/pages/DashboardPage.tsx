@@ -2,7 +2,6 @@ import React from 'react';
 import { Outlet } from 'react-router-dom';
 import Sidebar from '../components/layout/Sidebar';
 import MainContent from '../components/layout/MainContent';
-import NotificationsPanel from '../components/NotificationsPanel';
 import './DashboardPage.css';
 
 export const DashboardPage: React.FC = () => {
@@ -12,7 +11,6 @@ export const DashboardPage: React.FC = () => {
       <MainContent>
         <Outlet />
       </MainContent>
-      <NotificationsPanel />
     </div>
   );
 };

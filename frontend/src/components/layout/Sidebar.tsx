@@ -1,20 +1,71 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { MessageCircle, Users, User, Settings, LogOut } from 'lucide-react';
+import { useAuthStore } from '../../store/authStore';
+import { connectSocket, getSocket } from '../../services/socket';
+import { API_URL } from '../../config/webrtc-config';
 import '../Sidebar.css';
 
 interface SidebarProps {}
 
-const tabs = [
-  { path: '/chats', label: 'Chats', icon: <MessageCircle size={20} /> },
-  { path: '/contacts', label: 'Contacts', icon: <Users size={20} /> },
-  { path: '/profile', label: 'Profile', icon: <User size={20} /> },
-  { path: '/settings', label: 'Settings', icon: <Settings size={20} /> },
-];
-
 export const Sidebar: React.FC<SidebarProps> = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const currentUser = useAuthStore((s) => s.user);
+  const [pendingCount, setPendingCount] = useState(0);
+
+  // Fetch pending request count & listen for live updates
+  useEffect(() => {
+    const fetchCount = async () => {
+      try {
+        const res = await fetch(`${API_URL}/api/requests`, {
+          headers: { 'x-user-id': currentUser?.id || 'self' },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const pending = data.filter(
+            (r: any) =>
+              r.status === 'pending' &&
+              (r.toUserId === currentUser?.id || r.receiverId === currentUser?.id)
+          );
+          setPendingCount(pending.length);
+        }
+      } catch (err) {
+        console.error('Failed to fetch request count', err);
+      }
+    };
+
+    fetchCount();
+
+    const socket = connectSocket();
+    if (currentUser?.id) socket.emit('register', { userId: currentUser.id });
+
+    socket.on('request:new', () => {
+      setPendingCount((c) => c + 1);
+    });
+    socket.on('request:accepted', () => {
+      setPendingCount((c) => Math.max(0, c - 1));
+    });
+    socket.on('request:declined', () => {
+      setPendingCount((c) => Math.max(0, c - 1));
+    });
+
+    return () => {
+      const s = getSocket();
+      s?.off('request:new');
+      s?.off('request:accepted');
+      s?.off('request:declined');
+    };
+  }, [currentUser]);
+
+  // Re-fetch count when navigating away from contacts (in case user accepted/declined inline)
+  useEffect(() => {
+    if (location.pathname !== '/contacts') return;
+    const handleVisibility = () => {
+      // Refetch when user leaves contacts page
+    };
+    return handleVisibility;
+  }, [location.pathname]);
 
   const handleLogout = () => {
     console.log('[Auth] Clearing session and logging out');
@@ -22,6 +73,13 @@ export const Sidebar: React.FC<SidebarProps> = () => {
   };
 
   const currentPath = location.pathname;
+
+  const tabs = [
+    { path: '/chats', label: 'Chats', icon: <MessageCircle size={20} />, badge: 0 },
+    { path: '/contacts', label: 'Contacts', icon: <Users size={20} />, badge: pendingCount },
+    { path: '/profile', label: 'Profile', icon: <User size={20} />, badge: 0 },
+    { path: '/settings', label: 'Settings', icon: <Settings size={20} />, badge: 0 },
+  ];
 
   return (
     <aside className="sidebar">
@@ -54,8 +112,12 @@ export const Sidebar: React.FC<SidebarProps> = () => {
               onClick={() => navigate(tab.path)}
               data-tooltip={tab.label}
               type="button"
+              style={{ position: 'relative' }}
             >
               {tab.icon}
+              {tab.badge > 0 && (
+                <span className="nav-badge">{tab.badge > 9 ? '9+' : tab.badge}</span>
+              )}
             </button>
           );
         })}
