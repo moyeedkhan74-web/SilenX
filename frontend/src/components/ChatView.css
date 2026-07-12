@@ -296,7 +296,7 @@
   justify-content: center;
   cursor: pointer;
 }
-..msg-action-btn:hover { background: rgba(var(--color-bg-rgb), 0.12); }
+.msg-action-btn:hover { background: rgba(var(--color-bg-rgb), 0.12); }
 .edit-box {
   display: flex;
   flex-direction: column;
