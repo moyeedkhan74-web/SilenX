@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Phone, Video, MoreVertical, Lock, Search, Bell, UserX, Flag, Trash2, Check, CheckCheck } from 'lucide-react';
 import { useChatStore } from '../store/chatStore';
 import { useCallStore } from '../store/callStore';
@@ -8,6 +8,7 @@ import { Avatar } from './Avatar';
 import { MessageInputBar } from './MessageInputBar';
 import { MessageActionsMenu } from './MessageActionsMenu';
 import { SwipeableMessage } from './SwipeableMessage';
+import { ToastNotification } from './ToastNotification';
 import './ChatView.css';
 
 const ChatView: React.FC = () => {
@@ -23,7 +24,12 @@ const ChatView: React.FC = () => {
   const [typingUsers, setTypingUsers] = useState<string[]>([]);
   const [activeMessageId, setActiveMessageId] = useState<string | null>(null);
   const [menuPosition, setMenuPosition] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
+  const [toast, setToast] = useState<{ message: string; visible: boolean }>({ message: '', visible: false });
   const closeTimer = useRef<number | null>(null);
+
+  const showToast = useCallback((message: string) => {
+    setToast({ message, visible: true });
+  }, []);
   const { conversations, activeConversationId, messages, addMessage, clearConversation, editMessage, deleteMessage } = useChatStore();
   const setMessages = useChatStore((s) => s.setMessages);
   const initiateCall = useCallStore((s) => s.initiateCall);
@@ -189,11 +195,10 @@ const ChatView: React.FC = () => {
     setReplyTo({ sender: targetMessage.isSelf ? 'You' : chatName, text: targetMessage.text });
   };
 
-  const handleReact = (messageId: string) => {
-    const reaction = window.prompt('Add a reaction emoji');
-    if (!reaction?.trim() || !activeConversationId) return;
+  const handleReact = (messageId: string, emoji: string) => {
+    if (!activeConversationId) return;
     const updatedMessages = (messages[activeConversationId] || []).map((msg) =>
-      msg.id === messageId ? { ...msg, reactions: [...(msg.reactions || []), reaction.trim()] } : msg
+      msg.id === messageId ? { ...msg, reactions: [...(msg.reactions || []), emoji] } : msg
     );
     setMessages(activeConversationId, updatedMessages);
   };
@@ -215,24 +220,32 @@ const ChatView: React.FC = () => {
   const handleCopyMessage = async (messageId: string) => {
     const targetMessage = currentMessages.find((msg) => msg.id === messageId);
     if (!targetMessage?.text) return;
-    await navigator.clipboard.writeText(targetMessage.text);
-    window.alert('Message copied');
+    try {
+      await navigator.clipboard.writeText(targetMessage.text);
+      showToast('Message copied');
+    } catch {
+      showToast('Copy failed — please copy manually');
+    }
   };
 
   const handlePinMessage = (messageId: string) => {
     if (!activeConversationId) return;
+    const target = currentMessages.find((msg) => msg.id === messageId);
     const updatedMessages = (messages[activeConversationId] || []).map((msg) =>
       msg.id === messageId ? { ...msg, isPinned: !msg.isPinned } : msg
     );
     setMessages(activeConversationId, updatedMessages);
+    showToast(target?.isPinned ? 'Message unpinned' : 'Message pinned');
   };
 
   const handleStarMessage = (messageId: string) => {
     if (!activeConversationId) return;
+    const target = currentMessages.find((msg) => msg.id === messageId);
     const updatedMessages = (messages[activeConversationId] || []).map((msg) =>
       msg.id === messageId ? { ...msg, isStarred: !msg.isStarred } : msg
     );
     setMessages(activeConversationId, updatedMessages);
+    showToast(target?.isStarred ? 'Message unstarred' : 'Message starred ⭐');
   };
 
   const handleTypingChange = (isTyping: boolean) => {
@@ -249,9 +262,10 @@ const ChatView: React.FC = () => {
 
   const scheduleCloseMenu = () => {
     cancelCloseMenu();
+    // 350ms gives enough time to move from bubble → pill edge → overflow sub-menu
     closeTimer.current = window.setTimeout(() => {
       setActiveMessageId(null);
-    }, 250) as unknown as number;
+    }, 350) as unknown as number;
   };
 
   const openMessageMenu = (messageId: string, anchorElement?: HTMLElement | null) => {
@@ -506,9 +520,9 @@ const ChatView: React.FC = () => {
           }
           closeMessageMenu();
         }}
-        onReact={() => {
+        onReact={(emoji) => {
           if (activeMessageId) {
-            handleReact(activeMessageId);
+            handleReact(activeMessageId, emoji);
           }
           closeMessageMenu();
         }}
@@ -519,6 +533,11 @@ const ChatView: React.FC = () => {
           closeMessageMenu();
         }}
         isOwn={Boolean(currentMessages.find((message) => message.id === activeMessageId)?.isSelf)}
+      />
+      <ToastNotification
+        message={toast.message}
+        visible={toast.visible}
+        onClose={() => setToast((t) => ({ ...t, visible: false }))}
       />
     </div>
   );
