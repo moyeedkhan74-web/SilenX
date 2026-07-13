@@ -13,6 +13,8 @@ interface MessageActionsMenuProps {
   onReact: () => void;
   onPin: () => void;
   isOwn: boolean;
+  onMouseEnter?: () => void;
+  onMouseLeave?: () => void;
 }
 
 export const MessageActionsMenu: React.FC<MessageActionsMenuProps> = ({
@@ -27,6 +29,8 @@ export const MessageActionsMenu: React.FC<MessageActionsMenuProps> = ({
   onReact,
   onPin,
   isOwn,
+  onMouseEnter,
+  onMouseLeave,
 }) => {
   const menuRef = useRef<HTMLDivElement>(null);
   const [showOverflow, setShowOverflow] = useState(false);
@@ -70,6 +74,8 @@ export const MessageActionsMenu: React.FC<MessageActionsMenuProps> = ({
       aria-label="Message actions"
       className="message-actions-pill"
       style={{ top: position.top, left: position.left }}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
     >
       <button type="button" role="menuitem" onClick={() => handleAction(onReply)}><Reply size={14} /></button>
       <button type="button" role="menuitem" onClick={() => handleAction(onReact)}><SmilePlus size={14} /></button>

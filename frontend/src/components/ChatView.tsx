@@ -23,6 +23,7 @@ const ChatView: React.FC = () => {
   const [typingUsers, setTypingUsers] = useState<string[]>([]);
   const [activeMessageId, setActiveMessageId] = useState<string | null>(null);
   const [menuPosition, setMenuPosition] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
+  const closeTimer = useRef<number | null>(null);
   const { conversations, activeConversationId, messages, addMessage, clearConversation, editMessage, deleteMessage } = useChatStore();
   const setMessages = useChatStore((s) => s.setMessages);
   const initiateCall = useCallStore((s) => s.initiateCall);
@@ -239,7 +240,22 @@ const ChatView: React.FC = () => {
     setTypingUsers(isTyping ? [chatName || 'Someone'] : []);
   };
 
+  const cancelCloseMenu = () => {
+    if (closeTimer.current !== null) {
+      window.clearTimeout(closeTimer.current);
+      closeTimer.current = null;
+    }
+  };
+
+  const scheduleCloseMenu = () => {
+    cancelCloseMenu();
+    closeTimer.current = window.setTimeout(() => {
+      setActiveMessageId(null);
+    }, 250) as unknown as number;
+  };
+
   const openMessageMenu = (messageId: string, anchorElement?: HTMLElement | null) => {
+    cancelCloseMenu();
     setActiveMessageId(messageId);
     if (!anchorElement) return;
     const rect = anchorElement.getBoundingClientRect();
@@ -248,7 +264,10 @@ const ChatView: React.FC = () => {
     setMenuPosition({ top, left });
   };
 
-  const closeMessageMenu = () => setActiveMessageId(null);
+  const closeMessageMenu = () => {
+    cancelCloseMenu();
+    setActiveMessageId(null);
+  };
 
   if (!activeConvo) {
     return (
@@ -383,11 +402,7 @@ const ChatView: React.FC = () => {
                   }}
                   className={`msg-bubble ${msg.isDeleted ? 'deleted' : ''}`}
                   onMouseEnter={(event) => openMessageMenu(msg.id, event.currentTarget)}
-                  onMouseLeave={() => window.setTimeout(() => {
-                    if (activeMessageId === msg.id) {
-                      closeMessageMenu();
-                    }
-                  }, 140)}
+                  onMouseLeave={scheduleCloseMenu}
                   onContextMenu={(event) => {
                     event.preventDefault();
                     openMessageMenu(msg.id, event.currentTarget);
@@ -459,6 +474,8 @@ const ChatView: React.FC = () => {
         open={Boolean(activeMessageId)}
         position={menuPosition}
         onClose={closeMessageMenu}
+        onMouseEnter={cancelCloseMenu}
+        onMouseLeave={scheduleCloseMenu}
         onReply={() => {
           if (activeMessageId) {
             handleReply(activeMessageId);
