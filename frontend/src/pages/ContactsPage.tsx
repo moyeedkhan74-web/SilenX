@@ -54,6 +54,8 @@ export const ContactsPage: React.FC = () => {
   }, [currentUser]);
 
   const handleAccept = async (id: string) => {
+    // Optimistic UI: remove from list immediately
+    setRequests((prev) => prev.filter((r) => r.id !== id));
     try {
       const res = await fetch(`${API_URL}/api/requests/${encodeURIComponent(id)}/accept`, { 
         method: 'POST',
@@ -62,11 +64,24 @@ export const ContactsPage: React.FC = () => {
         }
       });
       if (res.ok) {
+        const data = await res.json();
         await fetchConversations();
+        loadRequests();
+        
+        // Auto-redirect to the chat with the added user
+        if (data?.conversation?.id) {
+          setActiveConversation(data.conversation.id);
+          window.location.hash = '#/chats';
+          window.history.pushState({}, '', '/chats');
+          window.dispatchEvent(new PopStateEvent('popstate'));
+        }
+      } else {
+        // Rollback on server error
         loadRequests();
       }
     } catch (err) {
       console.error('Accept failed:', err);
+      loadRequests();
     }
   };
 
@@ -140,11 +155,13 @@ export const ContactsPage: React.FC = () => {
               {pendingRequests.map((r) => {
                 const name = r.fromDisplayName || 'Unknown';
                 const uid = r.fromUid || 'SEC_UNKNOWN';
+                const avatar = (r as any).fromAvatarUrl || null;
                 return (
                   <ContactCard
                     key={r.id}
                     displayName={name}
                     uid={uid}
+                    avatarUrl={avatar}
                     actions={
                       <>
                         <button className="btn" onClick={() => handleDecline(r.id)} style={{ padding: '6px 12px', fontSize: '13px' }}>

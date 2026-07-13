@@ -62,7 +62,20 @@ router.post('/', (req: Request, res: Response) => {
 router.get('/', (req: Request, res: Response) => {
   const currentUserId = getCurrentUserId(req);
   const incoming = friendRequests.filter((r: any) => (r.toUserId === currentUserId || r.receiverId === currentUserId));
-  res.status(200).json(incoming);
+  
+  // Enrich requests with sender's public info (name, uid, avatar)
+  const enriched = incoming.map((r: any) => {
+    const senderId = r.senderId || r.fromUserId;
+    const sender = users.find(u => u.id === senderId);
+    return {
+      ...r,
+      fromDisplayName: sender?.displayName || r.fromDisplayName || 'Unknown User',
+      fromUid: sender?.uid || r.fromUid || 'SEC_UNKNOWN',
+      fromAvatarUrl: sender?.avatarUrl || r.fromAvatarUrl || null,
+    };
+  });
+  
+  res.status(200).json(enriched);
 });
 
 // POST /api/requests/send — send by receiverId
@@ -163,6 +176,19 @@ router.post('/:id/accept', (req: Request, res: Response) => {
   const member1 = { id: `m_${newConvoId}_self`, conversationId: newConvoId, userId: currentUserId, joinedAt: new Date(), leftAt: null, muted: false };
   const member2 = { id: `m_${newConvoId}_other`, conversationId: newConvoId, userId: recipient.id, joinedAt: new Date(), leftAt: null, muted: false };
   conversationMembers.push(member1, member2);
+
+  // Add system message
+  const systemMsg = {
+    id: `msg_sys_${Date.now()}`,
+    conversationId: newConvoId,
+    senderId: 'system',
+    encryptedContent: `Secure chat with ${recipient.displayName} (${recipient.uid}) established.`,
+    contentType: 'system' as const,
+    createdAt: new Date(),
+    editedAt: null,
+    deletedAt: null
+  };
+  messages.push(systemMsg);
 
   res.status(200).json({ status: 'accepted', conversation: newConvo });
 });

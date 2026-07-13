@@ -171,7 +171,8 @@ router.get('/:id/messages', (req: Request, res: Response) => {
     time: m.createdAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     isRead: m.senderId === currentUserId ? true : m.createdAt.getTime() < Date.now() - 1000,
     isEdited: !!m.editedAt,
-    isDeleted: !!m.deletedAt
+    isDeleted: !!m.deletedAt,
+    isSystem: m.contentType === 'system'
   }));
 
   res.status(200).json(formatted);

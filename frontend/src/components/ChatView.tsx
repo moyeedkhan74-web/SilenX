@@ -411,6 +411,36 @@ const ChatView: React.FC = () => {
         {currentMessages.map((msg) => {
           const isHighlighted = searchTerm && searchMatchIds.includes(msg.id);
           const isOwn = msg.isSelf;
+
+          if (msg.isSystem) {
+            return (
+              <div
+                key={msg.id}
+                className="msg-system"
+                style={{
+                  textAlign: 'center',
+                  margin: '16px auto',
+                  padding: '8px 16px',
+                  backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                  border: '1px solid var(--border-color)',
+                  color: 'var(--text-secondary)',
+                  fontSize: '13px',
+                  borderRadius: '10px',
+                  maxWidth: '85%',
+                  width: 'fit-content',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  justifyContent: 'center',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+                }}
+              >
+                <Lock size={12} style={{ color: 'var(--primary-light)' }} />
+                <span>{msg.text}</span>
+              </div>
+            );
+          }
+
           return (
             <div key={msg.id} data-message-id={msg.id} className={`msg-wrapper ${isOwn ? 'self' : 'remote'} ${isHighlighted ? 'highlighted' : ''}`}>
               <SwipeableMessage

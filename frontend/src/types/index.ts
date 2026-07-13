@@ -41,6 +41,7 @@ export interface ChatMessage {
   reactions?: string[];
   isPinned?: boolean;
   isStarred?: boolean;
+  isSystem?: boolean;
   replyTo?: {
     sender: string;
     text: string;
