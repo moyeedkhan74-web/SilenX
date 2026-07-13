@@ -13,29 +13,43 @@ interface AvatarProps {
   name?: string;
   size?: number;
   online?: boolean;
+  avatarUrl?: string | null;
 }
 
-export function Avatar({ name = '', size = 40, online }: AvatarProps) {
+export function Avatar({ name = '', size = 40, online, avatarUrl }: AvatarProps) {
   return (
     <div style={{ position: 'relative', display: 'inline-flex', flexShrink: 0 }}>
-      <div
-        style={{
-          width: size,
-          height: size,
-          borderRadius: '50%',
-          background: hashColor(name),
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          color: 'var(--color-on-accent)',
-          fontSize: size * 0.38,
-          fontWeight: 700,
-          userSelect: 'none',
-          letterSpacing: '-0.5px',
-        }}
-      >
-        {name.charAt(0).toUpperCase()}
-      </div>
+      {avatarUrl ? (
+        <img
+          src={avatarUrl}
+          alt={name}
+          style={{
+            width: size,
+            height: size,
+            borderRadius: '50%',
+            objectFit: 'cover',
+          }}
+        />
+      ) : (
+        <div
+          style={{
+            width: size,
+            height: size,
+            borderRadius: '50%',
+            background: hashColor(name),
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: 'var(--color-on-accent)',
+            fontSize: size * 0.38,
+            fontWeight: 700,
+            userSelect: 'none',
+            letterSpacing: '-0.5px',
+          }}
+        >
+          {name.charAt(0).toUpperCase()}
+        </div>
+      )}
       {online !== undefined && (
         <span
           style={{

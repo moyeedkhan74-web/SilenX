@@ -201,7 +201,21 @@
   animation: scaleIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 .msg-wrapper.self { align-self: flex-end; align-items: flex-end; }
-.msg-wrapper.remote { align-self: flex-start; align-items: flex-start; }
+.msg-wrapper.remote { align-self: flex-start; align-items: flex-start; flex-direction: row; }
+.msg-content-col {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.msg-wrapper.self .msg-content-col { align-items: flex-end; }
+.msg-wrapper.remote .msg-content-col { align-items: flex-start; }
+.msg-sender-name {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-accent);
+  margin-bottom: 2px;
+  padding-left: 4px;
+}
 
 .msg-bubble {
   max-width: 100%;

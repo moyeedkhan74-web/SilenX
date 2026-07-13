@@ -441,64 +441,78 @@ const ChatView: React.FC = () => {
             );
           }
 
+          const msgSender = !isOwn ? activeConvo.members.find((m) => m.id === msg.senderId) || otherUser : null;
+
           return (
             <div key={msg.id} data-message-id={msg.id} className={`msg-wrapper ${isOwn ? 'self' : 'remote'} ${isHighlighted ? 'highlighted' : ''}`}>
-              <SwipeableMessage
-                onSwipeReply={() => handleReply(msg.id)}
-                onLongPress={() => openMessageMenu(msg.id, messageRefs.current[msg.id] || undefined)}
-              >
-                <div
-                  ref={(node) => {
-                    messageRefs.current[msg.id] = node;
-                  }}
-                  className={`msg-bubble ${msg.isDeleted ? 'deleted' : ''}`}
-                  onMouseEnter={(event) => openMessageMenu(msg.id, event.currentTarget)}
-                  onMouseLeave={scheduleCloseMenu}
-                  onContextMenu={(event) => {
-                    event.preventDefault();
-                    openMessageMenu(msg.id, event.currentTarget);
-                  }}
-                >
-                  {msg.isPinned && <div className="msg-pin-pill">📌 Pinned</div>}
-                  {msg.replyTo && (
-                    <div className="reply-preview">
-                      <div className="reply-preview-name">{msg.replyTo.sender}</div>
-                      <div className="reply-preview-text">{msg.replyTo.text}</div>
-                    </div>
-                  )}
-                  {editingMessageId === msg.id ? (
-                    <div className="edit-box">
-                      <textarea value={editDraft} onChange={(e) => setEditDraft(e.target.value)} rows={3} />
-                      <div className="edit-actions">
-                        <button type="button" onClick={() => handleSaveEdit(msg.id)}>Save</button>
-                        <button type="button" onClick={() => { setEditingMessageId(null); setEditDraft(''); }}>Cancel</button>
-                      </div>
-                    </div>
-                  ) : (
-                    <p className="message-text">{msg.text}</p>
-                  )}
-                  {msg.isEdited && <span className="msg-edited">edited</span>}
-                  {msg.reactions && msg.reactions.length > 0 && (
-                    <div className="msg-reactions">{msg.reactions.map((reaction) => <span key={reaction}>{reaction}</span>)}</div>
-                  )}
+              {!isOwn && (
+                <div className="msg-avatar" style={{ alignSelf: 'flex-end', marginRight: 8, flexShrink: 0 }}>
+                  <Avatar name={msgSender?.displayName || 'User'} size={28} avatarUrl={msgSender?.avatarUrl} />
                 </div>
-              </SwipeableMessage>
-              <div className="msg-meta">
-                {msg.isStarred && (
-                  <Star
-                    size={11}
-                    fill="var(--color-warning, #eab308)"
-                    color="var(--color-warning, #eab308)"
-                    className="msg-star-icon"
-                    style={{ marginRight: 3 }}
-                  />
-                )}
-                {msg.time}
-                {isOwn && (
-                  <span className={`msg-receipt ${msg.deliveryStatus === 'read' ? 'read' : msg.deliveryStatus === 'delivered' ? 'delivered' : ''}`} title={msg.deliveryStatus === 'read' ? 'Read' : msg.deliveryStatus === 'delivered' ? 'Delivered' : 'Sent'}>
-                    {msg.deliveryStatus === 'read' ? <CheckCheck size={14} /> : msg.deliveryStatus === 'delivered' ? <CheckCheck size={14} /> : <Check size={14} />}
+              )}
+              <div className="msg-content-col">
+                {!isOwn && activeConvo.type === 'group' && (
+                  <span className="msg-sender-name" style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-accent)', marginBottom: 2, paddingLeft: 4 }}>
+                    {msgSender?.displayName || 'Unknown'}
                   </span>
                 )}
+                <SwipeableMessage
+                  onSwipeReply={() => handleReply(msg.id)}
+                  onLongPress={() => openMessageMenu(msg.id, messageRefs.current[msg.id] || undefined)}
+                >
+                  <div
+                    ref={(node) => {
+                      messageRefs.current[msg.id] = node;
+                    }}
+                    className={`msg-bubble ${msg.isDeleted ? 'deleted' : ''}`}
+                    onMouseEnter={(event) => openMessageMenu(msg.id, event.currentTarget)}
+                    onMouseLeave={scheduleCloseMenu}
+                    onContextMenu={(event) => {
+                      event.preventDefault();
+                      openMessageMenu(msg.id, event.currentTarget);
+                    }}
+                  >
+                    {msg.isPinned && <div className="msg-pin-pill">📌 Pinned</div>}
+                    {msg.replyTo && (
+                      <div className="reply-preview">
+                        <div className="reply-preview-name">{msg.replyTo.sender}</div>
+                        <div className="reply-preview-text">{msg.replyTo.text}</div>
+                      </div>
+                    )}
+                    {editingMessageId === msg.id ? (
+                      <div className="edit-box">
+                        <textarea value={editDraft} onChange={(e) => setEditDraft(e.target.value)} rows={3} />
+                        <div className="edit-actions">
+                          <button type="button" onClick={() => handleSaveEdit(msg.id)}>Save</button>
+                          <button type="button" onClick={() => { setEditingMessageId(null); setEditDraft(''); }}>Cancel</button>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="message-text">{msg.text}</p>
+                    )}
+                    {msg.isEdited && <span className="msg-edited">edited</span>}
+                    {msg.reactions && msg.reactions.length > 0 && (
+                      <div className="msg-reactions">{msg.reactions.map((reaction) => <span key={reaction}>{reaction}</span>)}</div>
+                    )}
+                  </div>
+                </SwipeableMessage>
+                <div className="msg-meta">
+                  {msg.isStarred && (
+                    <Star
+                      size={11}
+                      fill="var(--color-warning, #eab308)"
+                      color="var(--color-warning, #eab308)"
+                      className="msg-star-icon"
+                      style={{ marginRight: 3 }}
+                    />
+                  )}
+                  {msg.time}
+                  {isOwn && (
+                    <span className={`msg-receipt ${msg.deliveryStatus === 'read' ? 'read' : msg.deliveryStatus === 'delivered' ? 'delivered' : ''}`} title={msg.deliveryStatus === 'read' ? 'Read' : msg.deliveryStatus === 'delivered' ? 'Delivered' : 'Sent'}>
+                      {msg.deliveryStatus === 'read' ? <CheckCheck size={14} /> : msg.deliveryStatus === 'delivered' ? <CheckCheck size={14} /> : <Check size={14} />}
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
           );
@@ -598,9 +612,5 @@ const ChatView: React.FC = () => {
 };
 
 export default ChatView;
-
-
-
-
 
 

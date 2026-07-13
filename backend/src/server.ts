@@ -1,5 +1,6 @@
 import express, { Request, Response } from 'express';
 import http from 'http';
+import path from 'path';
 import { Server } from 'socket.io';
 import cors from 'cors';
 import { config } from './config';
@@ -44,6 +45,15 @@ app.use('/api/users', userRoutes);
 app.use('/api/conversations', conversationRoutes);
 app.use('/api/calls', callRoutes);
 app.use('/api/requests', requestRoutes);
+
+// ─── Serve Frontend (production) ───────────────────────────
+const frontendDist = path.join(__dirname, '../../frontend/dist');
+app.use(express.static(frontendDist));
+
+// SPA catch-all: any non-API GET returns index.html
+app.get('*', (_req: Request, res: Response) => {
+  res.sendFile(path.join(frontendDist, 'index.html'));
+});
 
 // ─── WebSocket ─────────────────────────────────────────────
 registerSocketHandlers(io);
