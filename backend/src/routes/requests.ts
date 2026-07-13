@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { users, conversations, conversationMembers, contactRequests, friendRequests, friends } from '../store/db';
+import { users, conversations, conversationMembers, messages, contactRequests, friendRequests, friends, saveDb } from '../store/db';
 import { io } from '../server';
 import { getSocketIdForUser } from '../websocket/socketStore';
 
@@ -92,16 +92,26 @@ router.post('/send', (req: Request, res: Response) => {
     return;
   }
 
+  const sender = users.find(u => u.id === currentUserId);
+
   const newReq = {
     id: `fr_${Date.now()}`,
     senderId: currentUserId,
     receiverId: receiver.id,
+    fromUserId: currentUserId,
+    toUserId: receiver.id,
+    fromDisplayName: sender?.displayName || 'Unknown User',
+    fromUid: sender?.uid || `SEC_${currentUserId}`,
+    fromAvatarUrl: sender?.avatarUrl || null,
+    toDisplayName: receiver.displayName,
+    toUid: receiver.uid,
     status: 'pending' as const,
     createdAt: new Date(),
     updatedAt: null,
   };
 
   friendRequests.push(newReq as any);
+  saveDb();
 
   // Emit to receiver
   const recipientSocketId = getSocketIdForUser(receiver.id);
@@ -109,9 +119,9 @@ router.post('/send', (req: Request, res: Response) => {
     io.to(recipientSocketId).emit('request:new', {
       id: newReq.id,
       senderId: newReq.senderId,
-      senderName: users.find(u => u.id === newReq.senderId)?.displayName,
-      senderUid: users.find(u => u.id === newReq.senderId)?.uid,
-      senderAvatar: users.find(u => u.id === newReq.senderId)?.avatarUrl,
+      senderName: newReq.fromDisplayName,
+      senderUid: newReq.fromUid,
+      senderAvatar: newReq.fromAvatarUrl,
       createdAt: newReq.createdAt,
     });
   }
@@ -189,6 +199,7 @@ router.post('/:id/accept', (req: Request, res: Response) => {
     deletedAt: null
   };
   messages.push(systemMsg);
+  saveDb();
 
   res.status(200).json({ status: 'accepted', conversation: newConvo });
 });
