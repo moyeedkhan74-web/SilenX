@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Phone, Video, MoreVertical, Lock, Search, Bell, UserX, Flag, Trash2, Check, CheckCheck } from 'lucide-react';
+import { Phone, Video, MoreVertical, Lock, Search, Bell, UserX, Flag, Trash2, Check, CheckCheck, Star } from 'lucide-react';
 import { useChatStore } from '../store/chatStore';
 import { useCallStore } from '../store/callStore';
 import { getSocket } from '../services/socket';
@@ -201,6 +201,13 @@ const ChatView: React.FC = () => {
       msg.id === messageId ? { ...msg, reactions: [...(msg.reactions || []), emoji] } : msg
     );
     setMessages(activeConversationId, updatedMessages);
+  };
+
+  const handleStartEdit = (messageId: string) => {
+    const msg = currentMessages.find((m) => m.id === messageId);
+    if (!msg) return;
+    setEditingMessageId(messageId);
+    setEditDraft(msg.text || '');
   };
 
   const handleSaveEdit = (messageId: string) => {
@@ -447,6 +454,15 @@ const ChatView: React.FC = () => {
                 </div>
               </SwipeableMessage>
               <div className="msg-meta">
+                {msg.isStarred && (
+                  <Star
+                    size={11}
+                    fill="var(--color-warning, #eab308)"
+                    color="var(--color-warning, #eab308)"
+                    className="msg-star-icon"
+                    style={{ marginRight: 3 }}
+                  />
+                )}
                 {msg.time}
                 {isOwn && (
                   <span className={`msg-receipt ${msg.deliveryStatus === 'read' ? 'read' : msg.deliveryStatus === 'delivered' ? 'delivered' : ''}`} title={msg.deliveryStatus === 'read' ? 'Read' : msg.deliveryStatus === 'delivered' ? 'Delivered' : 'Sent'}>
@@ -532,7 +548,15 @@ const ChatView: React.FC = () => {
           }
           closeMessageMenu();
         }}
+        onEdit={() => {
+          if (activeMessageId) {
+            handleStartEdit(activeMessageId);
+          }
+          closeMessageMenu();
+        }}
         isOwn={Boolean(currentMessages.find((message) => message.id === activeMessageId)?.isSelf)}
+        isStarred={Boolean(currentMessages.find((message) => message.id === activeMessageId)?.isStarred)}
+        isPinned={Boolean(currentMessages.find((message) => message.id === activeMessageId)?.isPinned)}
       />
       <ToastNotification
         message={toast.message}
@@ -544,3 +568,9 @@ const ChatView: React.FC = () => {
 };
 
 export default ChatView;
+
+
+
+
+
+

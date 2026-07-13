@@ -12,7 +12,10 @@ interface MessageActionsMenuProps {
   onForward: () => void;
   onReact: (emoji: string) => void;
   onPin: () => void;
+  onEdit: () => void;
   isOwn: boolean;
+  isStarred: boolean;
+  isPinned: boolean;
   onMouseEnter?: () => void;
   onMouseLeave?: () => void;
 }
@@ -30,7 +33,10 @@ export const MessageActionsMenu: React.FC<MessageActionsMenuProps> = ({
   onForward,
   onReact,
   onPin,
+  onEdit,
   isOwn,
+  isStarred,
+  isPinned,
   onMouseEnter,
   onMouseLeave,
 }) => {
@@ -78,8 +84,6 @@ export const MessageActionsMenu: React.FC<MessageActionsMenuProps> = ({
       aria-label="Message actions"
       className="message-actions-pill"
       style={{ top: position.top, left: position.left }}
-      /* Cancel the schedule-close timer when cursor is anywhere inside the pill container,
-         including the overflow sub-menu which renders inside this div. */
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
     >
@@ -123,8 +127,18 @@ export const MessageActionsMenu: React.FC<MessageActionsMenuProps> = ({
           <button type="button" role="menuitem" onClick={() => handleAction(onCopy)} title="Copy">
             <Copy size={14} />
           </button>
-          <button type="button" role="menuitem" onClick={() => handleAction(onStar)} title="Star / Unstar">
-            <Star size={14} />
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => handleAction(onStar)}
+            title={isStarred ? "Unstar" : "Star"}
+            className={isStarred ? "starred-active" : ""}
+          >
+            <Star
+              size={14}
+              fill={isStarred ? "var(--color-warning, #eab308)" : "none"}
+              color={isStarred ? "var(--color-warning, #eab308)" : "currentColor"}
+            />
           </button>
           <div className="message-actions-overflow">
             <button
@@ -138,7 +152,7 @@ export const MessageActionsMenu: React.FC<MessageActionsMenuProps> = ({
             {showOverflow && (
               <div className="message-actions-overflow-menu">
                 <button type="button" onClick={() => handleAction(onPin)}>
-                  <Pin size={14} /> Pin
+                  <Pin size={14} fill={isPinned ? "currentColor" : "none"} /> {isPinned ? "Unpin" : "Pin"}
                 </button>
                 <button type="button" onClick={() => handleAction(onForward)}>
                   <Forward size={14} /> Forward
@@ -149,7 +163,7 @@ export const MessageActionsMenu: React.FC<MessageActionsMenuProps> = ({
                   </button>
                 )}
                 {isOwn && (
-                  <button type="button" onClick={() => handleAction(() => {})}>
+                  <button type="button" onClick={() => handleAction(onEdit)}>
                     <Pencil size={14} /> Edit
                   </button>
                 )}
