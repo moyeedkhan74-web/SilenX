@@ -92,6 +92,10 @@ export interface SendMessagePayload {
   conversationId: string;
   encryptedContent: string;
   tempId: string;
+  replyTo?: {
+    sender: string;
+    text: string;
+  };
 }
 
 export interface TypingPayload {

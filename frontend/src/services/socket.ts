@@ -60,6 +60,7 @@ export const connectSocket = (): Socket => {
         reactions: [],
         isPinned: false,
         isStarred: false,
+        replyTo: payload?.replyTo,
       };
 
       useChatStore.getState().addMessage(conversationId, incomingMessage);

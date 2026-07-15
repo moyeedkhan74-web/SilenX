@@ -145,7 +145,7 @@ const ChatView: React.FC = () => {
     };
 
     addMessage(activeConversationId, msg);
-    socket?.emit('send-message', { conversationId: activeConversationId, encryptedContent: value, tempId: msg.id });
+    socket?.emit('send-message', { conversationId: activeConversationId, encryptedContent: value, tempId: msg.id, replyTo: payload?.replyTo });
     setInputValue('');
     setReplyTo(undefined);
   };
