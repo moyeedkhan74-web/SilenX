@@ -174,7 +174,8 @@ router.get('/:id/messages', (req: Request, res: Response) => {
     isRead: m.senderId === currentUserId ? true : m.createdAt.getTime() < Date.now() - 1000,
     isEdited: !!m.editedAt,
     isDeleted: !!m.deletedAt,
-    isSystem: m.contentType === 'system'
+    isSystem: m.contentType === 'system',
+    replyTo: m.replyTo
   }));
 
   res.status(200).json(formatted);

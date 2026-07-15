@@ -56,6 +56,10 @@ export interface Message {
   createdAt: Date;
   editedAt: Date | null;
   deletedAt: Date | null;
+  replyTo?: {
+    sender: string;
+    text: string;
+  };
 }
 
 export interface MessageRead {

@@ -1,5 +1,6 @@
 import { Server, Socket } from 'socket.io';
 import { setUserSocket, removeSocketById, getSocketIdForUser } from './socketStore';
+import { messages, saveDb } from '../store/db';
 import type {
   SendMessagePayload,
   TypingPayload,
@@ -29,11 +30,25 @@ export function registerSocketHandlers(io: Server): void {
     socket.on('send-message', (data: SendMessagePayload) => {
       console.log(`[Socket] Message from ${socket.id} in conversation ${data.conversationId}`);
       const senderUserId = (socket as Socket & { data?: { userId?: string } }).data?.userId || socket.id;
-      // In production, validate membership and persist to DB
+      
+      const newMsg = {
+        id: data.tempId || crypto.randomUUID(),
+        conversationId: data.conversationId,
+        senderId: senderUserId,
+        encryptedContent: data.encryptedContent,
+        contentType: 'text' as const,
+        createdAt: new Date(),
+        editedAt: null,
+        deletedAt: null,
+        replyTo: data.replyTo
+      };
+      messages.push(newMsg);
+      saveDb();
+
       socket.broadcast.emit('receive-message', {
         ...data,
         senderId: senderUserId,
-        createdAt: new Date().toISOString(),
+        createdAt: newMsg.createdAt.toISOString(),
       });
     });
 
