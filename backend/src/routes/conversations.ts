@@ -5,8 +5,10 @@ const router = Router();
 
 const getCurrentUserId = (req: Request): string => {
   const fromHeader = req.header('x-user-id');
-  if (fromHeader) return fromHeader;
-  return 'self';
+  if (!fromHeader) return 'self';
+
+  const existingUser = users.find((u: any) => u.id === fromHeader || u.uid === fromHeader || u.email === fromHeader);
+  return existingUser ? existingUser.id : 'self';
 };
 
 // GET /api/conversations — List conversations

@@ -1,13 +1,15 @@
 import { Router, Request, Response } from 'express';
 import QRCode from 'qrcode';
-import { users, saveDb } from '../store/db';
+import { users, conversations, conversationMembers, messages, saveDb } from '../store/db';
 
 const router = Router();
 
 const getCurrentUserId = (req: Request): string => {
   const fromHeader = req.header('x-user-id');
-  if (fromHeader) return fromHeader;
-  return 'self';
+  if (!fromHeader) return 'self';
+
+  const existingUser = users.find((u: any) => u.id === fromHeader || u.uid === fromHeader || u.email === fromHeader);
+  return existingUser ? existingUser.id : 'self';
 };
 
 // GET /api/users/debug — List all users in memory (temporary debug)
@@ -44,6 +46,40 @@ router.put('/me', (req: Request, res: Response) => {
   } else {
     res.status(404).json({ message: 'User profile not found' });
   }
+});
+
+// DELETE /api/users/me — Delete current user's account
+router.delete('/me', (req: Request, res: Response) => {
+  const currentUserId = getCurrentUserId(req);
+  const userIndex = users.findIndex((u: any) => u.id === currentUserId);
+
+  if (userIndex === -1) {
+    res.status(404).json({ message: 'User profile not found' });
+    return;
+  }
+
+  for (let i = conversationMembers.length - 1; i >= 0; i--) {
+    if (conversationMembers[i].userId === currentUserId) {
+      conversationMembers.splice(i, 1);
+    }
+  }
+
+  for (let i = messages.length - 1; i >= 0; i--) {
+    if (messages[i].senderId === currentUserId) {
+      messages.splice(i, 1);
+    }
+  }
+
+  const remainingConversationIds = new Set(conversationMembers.map((member) => member.conversationId));
+  for (let i = conversations.length - 1; i >= 0; i--) {
+    if (!remainingConversationIds.has(conversations[i].id)) {
+      conversations.splice(i, 1);
+    }
+  }
+
+  users.splice(userIndex, 1);
+  saveDb();
+  res.status(200).json({ message: 'Account deleted' });
 });
 
 // GET /api/users/me/uid — Get current user's UID

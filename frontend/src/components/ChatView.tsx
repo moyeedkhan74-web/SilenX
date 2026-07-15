@@ -9,6 +9,7 @@ import { MessageInputBar } from './MessageInputBar';
 import { MessageActionsMenu } from './MessageActionsMenu';
 import { SwipeableMessage } from './SwipeableMessage';
 import { ToastNotification } from './ToastNotification';
+import { useAuthStore } from '../store/authStore';
 import './ChatView.css';
 
 const ChatView: React.FC = () => {
@@ -33,6 +34,7 @@ const ChatView: React.FC = () => {
   const { conversations, activeConversationId, messages, addMessage, clearConversation, editMessage, deleteMessage } = useChatStore();
   const setMessages = useChatStore((s) => s.setMessages);
   const initiateCall = useCallStore((s) => s.initiateCall);
+  const currentUser = useAuthStore((s) => s.user);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const headerMenuRef = useRef<HTMLDivElement>(null);
   const messageRefs = useRef<Record<string, HTMLDivElement | null>>({});
@@ -82,7 +84,7 @@ const ChatView: React.FC = () => {
     const msg: ChatMessage = {
       id: crypto.randomUUID(),
       conversationId: activeConversationId,
-      senderId: 'self',
+      senderId: currentUser?.id || 'self',
       text: value,
       isSelf: true,
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
@@ -300,7 +302,7 @@ const ChatView: React.FC = () => {
     );
   }
 
-  const otherUser = activeConvo.members.find((m) => m.id !== 'self');
+  const otherUser = activeConvo.members.find((m) => m.id !== (currentUser?.id || 'self'));
   const chatName = activeConvo.type === 'group' ? (activeConvo.name || 'Group Chat') : (otherUser?.displayName || 'Unknown');
   const status = activeConvo.type === 'direct' && otherUser ? otherUser.status : null;
   const statusText = activeConvo.type === 'group' 

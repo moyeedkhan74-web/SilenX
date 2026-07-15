@@ -1,21 +1,6 @@
 {
   "users": [
     {
-      "id": "self",
-      "uid": "SEC_8f7d6e5c4b3a",
-      "email": "user@gmail.com",
-      "phone": "+1-555-0100",
-      "googleId": "google_self_123",
-      "displayName": "User",
-      "avatarUrl": null,
-      "status": "online",
-      "lastSeen": "2026-07-02T09:47:42.005Z",
-      "bio": "Hey there! I'm using SlienX.",
-      "createdAt": "2026-07-02T09:47:42.005Z",
-      "updatedAt": "2026-07-02T09:47:42.005Z",
-      "deletedAt": null
-    },
-    {
       "id": "u1",
       "uid": "SEC_a1b2c3d4e5f6",
       "email": "alice@proton.me",
@@ -24,10 +9,10 @@
       "displayName": "Alice Chen",
       "avatarUrl": null,
       "status": "online",
-      "lastSeen": "2026-07-02T09:47:42.005Z",
+      "lastSeen": "2026-07-15T19:18:22.579Z",
       "bio": "Security researcher",
-      "createdAt": "2026-07-02T09:47:42.005Z",
-      "updatedAt": "2026-07-02T09:47:42.005Z",
+      "createdAt": "2026-07-15T19:18:22.579Z",
+      "updatedAt": "2026-07-15T19:18:22.579Z",
       "deletedAt": null
     },
     {
@@ -39,10 +24,10 @@
       "displayName": "Bob Martinez",
       "avatarUrl": null,
       "status": "online",
-      "lastSeen": "2026-07-02T09:47:42.005Z",
+      "lastSeen": "2026-07-15T19:18:22.579Z",
       "bio": "Full-stack developer",
-      "createdAt": "2026-07-02T09:47:42.005Z",
-      "updatedAt": "2026-07-02T09:47:42.005Z",
+      "createdAt": "2026-07-15T19:18:22.579Z",
+      "updatedAt": "2026-07-15T19:18:22.579Z",
       "deletedAt": null
     },
     {
@@ -54,10 +39,10 @@
       "displayName": "Carol White",
       "avatarUrl": null,
       "status": "away",
-      "lastSeen": "2026-07-02T07:47:42.005Z",
+      "lastSeen": "2026-07-15T17:18:22.579Z",
       "bio": "Product designer",
-      "createdAt": "2026-07-02T09:47:42.005Z",
-      "updatedAt": "2026-07-02T09:47:42.005Z",
+      "createdAt": "2026-07-15T19:18:22.579Z",
+      "updatedAt": "2026-07-15T19:18:22.579Z",
       "deletedAt": null
     },
     {
@@ -69,10 +54,10 @@
       "displayName": "Dave Kim",
       "avatarUrl": null,
       "status": "offline",
-      "lastSeen": "2026-07-01T09:47:42.005Z",
+      "lastSeen": "2026-07-14T19:18:22.579Z",
       "bio": "DevOps engineer",
-      "createdAt": "2026-07-02T09:47:42.005Z",
-      "updatedAt": "2026-07-02T09:47:42.005Z",
+      "createdAt": "2026-07-15T19:18:22.579Z",
+      "updatedAt": "2026-07-15T19:18:22.579Z",
       "deletedAt": null
     },
     {
@@ -84,10 +69,10 @@
       "displayName": "Eva López",
       "avatarUrl": null,
       "status": "online",
-      "lastSeen": "2026-07-02T09:47:42.005Z",
+      "lastSeen": "2026-07-15T19:18:22.579Z",
       "bio": "Crypto enthusiast",
-      "createdAt": "2026-07-02T09:47:42.005Z",
-      "updatedAt": "2026-07-02T09:47:42.005Z",
+      "createdAt": "2026-07-15T19:18:22.579Z",
+      "updatedAt": "2026-07-15T19:18:22.579Z",
       "deletedAt": null
     },
     {
@@ -99,38 +84,10 @@
       "displayName": "Test User",
       "avatarUrl": null,
       "status": "online",
-      "lastSeen": "2026-07-02T09:47:42.005Z",
+      "lastSeen": "2026-07-15T19:18:22.579Z",
       "bio": "Test account for Secure ID lookup",
-      "createdAt": "2026-07-02T09:47:42.005Z",
-      "updatedAt": "2026-07-02T09:47:42.005Z",
-      "deletedAt": null
-    },
-    {
-      "id": "FjEcUktRBeZlbLxXbdbXzFdVOa82",
-      "uid": "SEC_FjEcUktRBeZlbLxXbdbXzFdVOa82",
-      "email": "moyeedkhan74@gmail.com",
-      "googleId": "101613362981422664192",
-      "displayName": "Moyeed Khan",
-      "avatarUrl": "https://lh3.googleusercontent.com/a/ACg8ocKQFVs3_qpVATyDbrL8F6qnztgnbaGw721yxLa9vhD1tY3W-ReD=s96-c",
-      "status": "online",
-      "lastSeen": "2026-07-02T09:55:01.096Z",
-      "bio": "",
-      "createdAt": "2026-07-02T09:55:01.096Z",
-      "updatedAt": "2026-07-02T09:55:01.096Z",
-      "deletedAt": null
-    },
-    {
-      "id": "CGmnFr3IfXQ9zEQElfZRK1vW2qp2",
-      "uid": "SEC_CGmnFr3IfXQ9zEQElfZRK1vW2qp2",
-      "email": "officialsilenx@gmail.com",
-      "googleId": "104445039545829297077",
-      "displayName": "SilenX",
-      "avatarUrl": "https://lh3.googleusercontent.com/a/ACg8ocINiGM2U1nk-cfGP8w81A5wHazXP0ABXcWqgLkiKaIAnKFZqm4=s96-c",
-      "status": "online",
-      "lastSeen": "2026-07-02T09:56:03.553Z",
-      "bio": "",
-      "createdAt": "2026-07-02T09:56:03.553Z",
-      "updatedAt": "2026-07-02T09:56:03.553Z",
+      "createdAt": "2026-07-15T19:18:22.579Z",
+      "updatedAt": "2026-07-15T19:18:22.579Z",
       "deletedAt": null
     }
   ],
@@ -141,8 +98,8 @@
       "name": null,
       "avatarUrl": null,
       "createdBy": "self",
-      "createdAt": "2026-07-02T09:47:42.005Z",
-      "updatedAt": "2026-07-02T09:47:42.005Z"
+      "createdAt": "2026-07-15T19:18:22.579Z",
+      "updatedAt": "2026-07-15T19:18:22.579Z"
     },
     {
       "id": "conv2",
@@ -150,8 +107,8 @@
       "name": null,
       "avatarUrl": null,
       "createdBy": "self",
-      "createdAt": "2026-07-02T09:47:42.005Z",
-      "updatedAt": "2026-07-02T09:47:42.005Z"
+      "createdAt": "2026-07-15T19:18:22.579Z",
+      "updatedAt": "2026-07-15T19:18:22.579Z"
     },
     {
       "id": "conv3",
@@ -159,8 +116,8 @@
       "name": null,
       "avatarUrl": null,
       "createdBy": "self",
-      "createdAt": "2026-07-02T09:47:42.005Z",
-      "updatedAt": "2026-07-02T09:47:42.005Z"
+      "createdAt": "2026-07-15T19:18:22.579Z",
+      "updatedAt": "2026-07-15T19:18:22.579Z"
     },
     {
       "id": "conv4",
@@ -168,8 +125,8 @@
       "name": "SlienX Team",
       "avatarUrl": null,
       "createdBy": "self",
-      "createdAt": "2026-07-02T09:47:42.005Z",
-      "updatedAt": "2026-07-02T09:47:42.005Z"
+      "createdAt": "2026-07-15T19:18:22.579Z",
+      "updatedAt": "2026-07-15T19:18:22.579Z"
     },
     {
       "id": "conv5",
@@ -177,32 +134,16 @@
       "name": null,
       "avatarUrl": null,
       "createdBy": "self",
-      "createdAt": "2026-07-02T09:47:42.005Z",
-      "updatedAt": "2026-07-02T09:47:42.005Z"
+      "createdAt": "2026-07-15T19:18:22.579Z",
+      "updatedAt": "2026-07-15T19:18:22.579Z"
     }
   ],
   "conversationMembers": [
     {
-      "id": "m1_1",
-      "conversationId": "conv1",
-      "userId": "self",
-      "joinedAt": "2026-07-02T09:47:42.005Z",
-      "leftAt": null,
-      "muted": false
-    },
-    {
       "id": "m1_2",
       "conversationId": "conv1",
       "userId": "u1",
-      "joinedAt": "2026-07-02T09:47:42.006Z",
-      "leftAt": null,
-      "muted": false
-    },
-    {
-      "id": "m2_1",
-      "conversationId": "conv2",
-      "userId": "self",
-      "joinedAt": "2026-07-02T09:47:42.006Z",
+      "joinedAt": "2026-07-15T19:18:22.579Z",
       "leftAt": null,
       "muted": false
     },
@@ -210,15 +151,7 @@
       "id": "m2_2",
       "conversationId": "conv2",
       "userId": "u2",
-      "joinedAt": "2026-07-02T09:47:42.006Z",
-      "leftAt": null,
-      "muted": false
-    },
-    {
-      "id": "m3_1",
-      "conversationId": "conv3",
-      "userId": "self",
-      "joinedAt": "2026-07-02T09:47:42.006Z",
+      "joinedAt": "2026-07-15T19:18:22.579Z",
       "leftAt": null,
       "muted": false
     },
@@ -226,15 +159,7 @@
       "id": "m3_2",
       "conversationId": "conv3",
       "userId": "u3",
-      "joinedAt": "2026-07-02T09:47:42.006Z",
-      "leftAt": null,
-      "muted": false
-    },
-    {
-      "id": "m4_1",
-      "conversationId": "conv4",
-      "userId": "self",
-      "joinedAt": "2026-07-02T09:47:42.006Z",
+      "joinedAt": "2026-07-15T19:18:22.579Z",
       "leftAt": null,
       "muted": false
     },
@@ -242,7 +167,7 @@
       "id": "m4_2",
       "conversationId": "conv4",
       "userId": "u1",
-      "joinedAt": "2026-07-02T09:47:42.006Z",
+      "joinedAt": "2026-07-15T19:18:22.579Z",
       "leftAt": null,
       "muted": false
     },
@@ -250,7 +175,7 @@
       "id": "m4_3",
       "conversationId": "conv4",
       "userId": "u2",
-      "joinedAt": "2026-07-02T09:47:42.006Z",
+      "joinedAt": "2026-07-15T19:18:22.579Z",
       "leftAt": null,
       "muted": false
     },
@@ -258,15 +183,7 @@
       "id": "m4_4",
       "conversationId": "conv4",
       "userId": "u4",
-      "joinedAt": "2026-07-02T09:47:42.006Z",
-      "leftAt": null,
-      "muted": false
-    },
-    {
-      "id": "m5_1",
-      "conversationId": "conv5",
-      "userId": "self",
-      "joinedAt": "2026-07-02T09:47:42.006Z",
+      "joinedAt": "2026-07-15T19:18:22.579Z",
       "leftAt": null,
       "muted": false
     },
@@ -274,7 +191,7 @@
       "id": "m5_2",
       "conversationId": "conv5",
       "userId": "u5",
-      "joinedAt": "2026-07-02T09:47:42.006Z",
+      "joinedAt": "2026-07-15T19:18:22.579Z",
       "leftAt": null,
       "muted": false
     }
@@ -286,17 +203,7 @@
       "senderId": "u1",
       "encryptedContent": "Hey! How's the E2E encryption implementation going?",
       "contentType": "text",
-      "createdAt": "2026-07-02T09:33:42.006Z",
-      "editedAt": null,
-      "deletedAt": null
-    },
-    {
-      "id": "m2",
-      "conversationId": "conv1",
-      "senderId": "self",
-      "encryptedContent": "Going great! Just finished the X25519 key exchange 🔑",
-      "contentType": "text",
-      "createdAt": "2026-07-02T09:35:42.006Z",
+      "createdAt": "2026-07-15T19:04:22.579Z",
       "editedAt": null,
       "deletedAt": null
     },
@@ -306,17 +213,7 @@
       "senderId": "u1",
       "encryptedContent": "Nice! Did you use TweetNaCl for the box implementation?",
       "contentType": "text",
-      "createdAt": "2026-07-02T09:38:42.006Z",
-      "editedAt": null,
-      "deletedAt": null
-    },
-    {
-      "id": "m4",
-      "conversationId": "conv1",
-      "senderId": "self",
-      "encryptedContent": "Yes, it's perfect for our use case. The nonce generation is handled via crypto.getRandomValues()",
-      "contentType": "text",
-      "createdAt": "2026-07-02T09:41:42.006Z",
+      "createdAt": "2026-07-15T19:09:22.579Z",
       "editedAt": null,
       "deletedAt": null
     },
@@ -326,7 +223,7 @@
       "senderId": "u1",
       "encryptedContent": "That's exactly what I was hoping for. Let me review the PR.",
       "contentType": "text",
-      "createdAt": "2026-07-02T09:43:42.006Z",
+      "createdAt": "2026-07-15T19:14:22.579Z",
       "editedAt": null,
       "deletedAt": null
     },
@@ -336,17 +233,7 @@
       "senderId": "u1",
       "encryptedContent": "The encryption layer looks solid 🔐",
       "contentType": "text",
-      "createdAt": "2026-07-02T09:45:42.006Z",
-      "editedAt": null,
-      "deletedAt": null
-    },
-    {
-      "id": "m7",
-      "conversationId": "conv2",
-      "senderId": "self",
-      "encryptedContent": "Bob, can you take a look at the WebRTC signaling server?",
-      "contentType": "text",
-      "createdAt": "2026-07-02T09:03:42.006Z",
+      "createdAt": "2026-07-15T19:16:22.579Z",
       "editedAt": null,
       "deletedAt": null
     },
@@ -356,7 +243,7 @@
       "senderId": "u2",
       "encryptedContent": "On it! The STUN/TURN configuration might need adjustment",
       "contentType": "text",
-      "createdAt": "2026-07-02T09:18:42.006Z",
+      "createdAt": "2026-07-15T18:49:22.579Z",
       "editedAt": null,
       "deletedAt": null
     },
@@ -366,7 +253,7 @@
       "senderId": "u2",
       "encryptedContent": "Sure, I'll push the commit now",
       "contentType": "text",
-      "createdAt": "2026-07-02T09:28:42.006Z",
+      "createdAt": "2026-07-15T18:59:22.579Z",
       "editedAt": null,
       "deletedAt": null
     },
@@ -376,17 +263,7 @@
       "senderId": "u3",
       "encryptedContent": "I redesigned the chat bubble components with the new design system",
       "contentType": "text",
-      "createdAt": "2026-07-02T08:43:42.006Z",
-      "editedAt": null,
-      "deletedAt": null
-    },
-    {
-      "id": "m11",
-      "conversationId": "conv3",
-      "senderId": "self",
-      "encryptedContent": "Looks amazing! Love the glassmorphism effect",
-      "contentType": "text",
-      "createdAt": "2026-07-02T08:48:42.006Z",
+      "createdAt": "2026-07-15T18:14:22.579Z",
       "editedAt": null,
       "deletedAt": null
     },
@@ -396,7 +273,7 @@
       "senderId": "u3",
       "encryptedContent": "Check the new mockups I sent",
       "contentType": "text",
-      "createdAt": "2026-07-02T08:55:42.006Z",
+      "createdAt": "2026-07-15T18:26:22.579Z",
       "editedAt": null,
       "deletedAt": null
     }
