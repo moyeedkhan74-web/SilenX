@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { MessageCircle, Lock, Plus, Search, Pin, VolumeX } from 'lucide-react';
 import { useChatStore } from '../../store/chatStore';
+import { useAuthStore } from '../../store/authStore';
 import EmptyState from '../ui/EmptyState';
 import AvatarDisplay from '../shared/AvatarDisplay';
 import ChatContextMenu from './ChatContextMenu';
@@ -11,6 +12,7 @@ interface ChatListProps {
 }
 
 export const ChatList: React.FC<ChatListProps> = ({ onNewChatClick }) => {
+  const currentUser = useAuthStore((state) => state.user);
   const {
     conversations,
     activeConversationId,
@@ -36,7 +38,7 @@ export const ChatList: React.FC<ChatListProps> = ({ onNewChatClick }) => {
 
   // Filter conversations by search term
   const filtered = conversations.filter((convo) => {
-    const other = convo.members.find((m) => m.id !== 'self');
+    const other = convo.members.find((m) => m.id !== (currentUser?.id || 'self'));
     const displayName = convo.type === 'group' ? (convo.name || 'Unknown Group') : (other?.displayName || 'Unknown');
     return displayName.toLowerCase().includes(searchQuery.toLowerCase());
   });
@@ -170,7 +172,7 @@ export const ChatList: React.FC<ChatListProps> = ({ onNewChatClick }) => {
         )}
 
         {sortedConversations.map((convo) => {
-          const other = convo.members.find((m) => m.id !== 'self');
+          const other = convo.members.find((m) => m.id !== (currentUser?.id || 'self'));
           const displayName = convo.type === 'group' ? convo.name : other?.displayName || 'Unknown';
           const isActive = convo.id === activeConversationId;
           const status = convo.type === 'direct' && other ? other.status : undefined;
