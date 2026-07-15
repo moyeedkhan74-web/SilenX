@@ -26,6 +26,7 @@ const ChatView: React.FC = () => {
   const [activeMessageId, setActiveMessageId] = useState<string | null>(null);
   const [menuPosition, setMenuPosition] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
   const [toast, setToast] = useState<{ message: string; visible: boolean }>({ message: '', visible: false });
+  const typingTimers = useRef<Record<string, NodeJS.Timeout>>({});
   const closeTimer = useRef<number | null>(null);
 
   const showToast = useCallback((message: string) => {
@@ -66,15 +67,60 @@ const ChatView: React.FC = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // Listen for socket-based typing events from other users
   useEffect(() => {
-    if (!activeConversationId) {
+    const socket = getSocket();
+    if (!socket || !activeConversationId) {
       setTypingUsers([]);
       return;
     }
 
-    const timer = window.setTimeout(() => setTypingUsers([]), 1800);
-    return () => window.clearTimeout(timer);
-  }, [currentMessages, activeConversationId]);
+    const handleUserTyping = (data: { conversationId: string; userId: string }) => {
+      if (data.conversationId === activeConversationId && data.userId !== currentUser?.id) {
+        const user = activeConvo?.members.find((m) => m.id === data.userId);
+        if (user) {
+          setTypingUsers((prev) => {
+            if (prev.includes(user.displayName)) return prev;
+            return [...prev, user.displayName];
+          });
+
+          // Cancel existing safety timer for this user
+          if (typingTimers.current[user.id]) {
+            clearTimeout(typingTimers.current[user.id]);
+          }
+          // Set new safety timer (clears typing status automatically after 3 seconds)
+          typingTimers.current[user.id] = setTimeout(() => {
+            setTypingUsers((prev) => prev.filter((name) => name !== user.displayName));
+            delete typingTimers.current[user.id];
+          }, 3000);
+        }
+      }
+    };
+
+    const handleUserTypingStopped = (data: { conversationId: string; userId: string }) => {
+      if (data.conversationId === activeConversationId && data.userId !== currentUser?.id) {
+        const user = activeConvo?.members.find((m) => m.id === data.userId);
+        if (user) {
+          setTypingUsers((prev) => prev.filter((name) => name !== user.displayName));
+          if (typingTimers.current[user.id]) {
+            clearTimeout(typingTimers.current[user.id]);
+            delete typingTimers.current[user.id];
+          }
+        }
+      }
+    };
+
+    socket.on('user-typing', handleUserTyping);
+    socket.on('user-typing-stopped', handleUserTypingStopped);
+
+    return () => {
+      socket.off('user-typing', handleUserTyping);
+      socket.off('user-typing-stopped', handleUserTypingStopped);
+      // Clean up all safety timers
+      Object.values(typingTimers.current).forEach(clearTimeout);
+      typingTimers.current = {};
+    };
+  }, [activeConversationId, activeConvo, currentUser]);
 
   const handleSend = (payload?: { text: string; replyTo?: { sender: string; text: string } }) => {
     const value = payload?.text?.trim() || inputValue.trim();
@@ -259,7 +305,14 @@ const ChatView: React.FC = () => {
 
   const handleTypingChange = (isTyping: boolean) => {
     if (!activeConversationId) return;
-    setTypingUsers(isTyping ? [chatName || 'Someone'] : []);
+    const socket = getSocket();
+    if (socket) {
+      if (isTyping) {
+        socket.emit('typing', { conversationId: activeConversationId, userId: currentUser?.id });
+      } else {
+        socket.emit('typing-stopped', { conversationId: activeConversationId, userId: currentUser?.id });
+      }
+    }
   };
 
   const cancelCloseMenu = () => {
@@ -313,7 +366,12 @@ const ChatView: React.FC = () => {
     <div className="chatview">
       <header className="chatview-header">
         <div className="chatview-header-info">
-          <Avatar name={chatName || 'SlienX'} size={40} online={status === 'online'} />
+          <Avatar
+            name={chatName || 'SlienX'}
+            size={40}
+            online={status === 'online'}
+            avatarUrl={otherUser?.avatarUrl || activeConvo.avatarUrl || null}
+          />
           <div className="chatview-header-meta">
             <h3 className="chatview-header-name">
               {chatName}
