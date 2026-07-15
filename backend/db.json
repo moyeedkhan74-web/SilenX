@@ -1,283 +1,37 @@
 {
   "users": [
     {
-      "id": "u1",
-      "uid": "SEC_a1b2c3d4e5f6",
-      "email": "alice@proton.me",
-      "phone": "+1-555-0101",
-      "googleId": "google_alice_123",
-      "displayName": "Alice Chen",
-      "avatarUrl": null,
+      "id": "FjEcUktRBeZlbLxXbdbXzFdVOa82",
+      "uid": "SEC_FjEcUktRBeZlbLxXbdbXzFdVOa82",
+      "email": "moyeedkhan74@gmail.com",
+      "googleId": "101613362981422664192",
+      "displayName": "Moyeed Khan",
+      "avatarUrl": "https://lh3.googleusercontent.com/a/ACg8ocKQFVs3_qpVATyDbrL8F6qnztgnbaGw721yxLa9vhD1tY3W-ReD=s96-c",
       "status": "online",
-      "lastSeen": "2026-07-15T19:18:22.579Z",
-      "bio": "Security researcher",
-      "createdAt": "2026-07-15T19:18:22.579Z",
-      "updatedAt": "2026-07-15T19:18:22.579Z",
+      "lastSeen": "2026-07-02T09:55:01.096Z",
+      "bio": "",
+      "createdAt": "2026-07-02T09:55:01.096Z",
+      "updatedAt": "2026-07-02T09:55:01.096Z",
       "deletedAt": null
     },
     {
-      "id": "u2",
-      "uid": "SEC_f6e5d4c3b2a1",
-      "email": "bob@signal.org",
-      "phone": "+1-555-0102",
-      "googleId": "google_bob_123",
-      "displayName": "Bob Martinez",
-      "avatarUrl": null,
+      "id": "CGmnFr3IfXQ9zEQElfZRK1vW2qp2",
+      "uid": "SEC_CGmnFr3IfXQ9zEQElfZRK1vW2qp2",
+      "email": "officialsilenx@gmail.com",
+      "googleId": "104445039545829297077",
+      "displayName": "SilenX",
+      "avatarUrl": "https://lh3.googleusercontent.com/a/ACg8ocINiGM2U1nk-cfGP8w81A5wHazXP0ABXcWqgLkiKaIAnKFZqm4=s96-c",
       "status": "online",
-      "lastSeen": "2026-07-15T19:18:22.579Z",
-      "bio": "Full-stack developer",
-      "createdAt": "2026-07-15T19:18:22.579Z",
-      "updatedAt": "2026-07-15T19:18:22.579Z",
-      "deletedAt": null
-    },
-    {
-      "id": "u3",
-      "uid": "SEC_1a2b3c4d5e6f",
-      "email": "carol@pm.me",
-      "phone": "+1-555-0103",
-      "googleId": "google_carol_123",
-      "displayName": "Carol White",
-      "avatarUrl": null,
-      "status": "away",
-      "lastSeen": "2026-07-15T17:18:22.579Z",
-      "bio": "Product designer",
-      "createdAt": "2026-07-15T19:18:22.579Z",
-      "updatedAt": "2026-07-15T19:18:22.579Z",
-      "deletedAt": null
-    },
-    {
-      "id": "u4",
-      "uid": "SEC_6f5e4d3c2b1a",
-      "email": "dave@tutanota.com",
-      "phone": "+1-555-0104",
-      "googleId": "google_dave_123",
-      "displayName": "Dave Kim",
-      "avatarUrl": null,
-      "status": "offline",
-      "lastSeen": "2026-07-14T19:18:22.579Z",
-      "bio": "DevOps engineer",
-      "createdAt": "2026-07-15T19:18:22.579Z",
-      "updatedAt": "2026-07-15T19:18:22.579Z",
-      "deletedAt": null
-    },
-    {
-      "id": "u5",
-      "uid": "SEC_ab12cd34ef56",
-      "email": "eva@proton.me",
-      "phone": "+1-555-0105",
-      "googleId": "google_eva_123",
-      "displayName": "Eva López",
-      "avatarUrl": null,
-      "status": "online",
-      "lastSeen": "2026-07-15T19:18:22.579Z",
-      "bio": "Crypto enthusiast",
-      "createdAt": "2026-07-15T19:18:22.579Z",
-      "updatedAt": "2026-07-15T19:18:22.579Z",
-      "deletedAt": null
-    },
-    {
-      "id": "u6",
-      "uid": "SEC_FjEcUktRBeZlbLxX",
-      "email": "testuser@example.com",
-      "phone": "+1-555-0199",
-      "googleId": "google_testuser_123",
-      "displayName": "Test User",
-      "avatarUrl": null,
-      "status": "online",
-      "lastSeen": "2026-07-15T19:18:22.579Z",
-      "bio": "Test account for Secure ID lookup",
-      "createdAt": "2026-07-15T19:18:22.579Z",
-      "updatedAt": "2026-07-15T19:18:22.579Z",
+      "lastSeen": "2026-07-02T09:56:03.553Z",
+      "bio": "",
+      "createdAt": "2026-07-02T09:56:03.553Z",
+      "updatedAt": "2026-07-02T09:56:03.553Z",
       "deletedAt": null
     }
   ],
-  "conversations": [
-    {
-      "id": "conv1",
-      "type": "direct",
-      "name": null,
-      "avatarUrl": null,
-      "createdBy": "self",
-      "createdAt": "2026-07-15T19:18:22.579Z",
-      "updatedAt": "2026-07-15T19:18:22.579Z"
-    },
-    {
-      "id": "conv2",
-      "type": "direct",
-      "name": null,
-      "avatarUrl": null,
-      "createdBy": "self",
-      "createdAt": "2026-07-15T19:18:22.579Z",
-      "updatedAt": "2026-07-15T19:18:22.579Z"
-    },
-    {
-      "id": "conv3",
-      "type": "direct",
-      "name": null,
-      "avatarUrl": null,
-      "createdBy": "self",
-      "createdAt": "2026-07-15T19:18:22.579Z",
-      "updatedAt": "2026-07-15T19:18:22.579Z"
-    },
-    {
-      "id": "conv4",
-      "type": "group",
-      "name": "SlienX Team",
-      "avatarUrl": null,
-      "createdBy": "self",
-      "createdAt": "2026-07-15T19:18:22.579Z",
-      "updatedAt": "2026-07-15T19:18:22.579Z"
-    },
-    {
-      "id": "conv5",
-      "type": "direct",
-      "name": null,
-      "avatarUrl": null,
-      "createdBy": "self",
-      "createdAt": "2026-07-15T19:18:22.579Z",
-      "updatedAt": "2026-07-15T19:18:22.579Z"
-    }
-  ],
-  "conversationMembers": [
-    {
-      "id": "m1_2",
-      "conversationId": "conv1",
-      "userId": "u1",
-      "joinedAt": "2026-07-15T19:18:22.579Z",
-      "leftAt": null,
-      "muted": false
-    },
-    {
-      "id": "m2_2",
-      "conversationId": "conv2",
-      "userId": "u2",
-      "joinedAt": "2026-07-15T19:18:22.579Z",
-      "leftAt": null,
-      "muted": false
-    },
-    {
-      "id": "m3_2",
-      "conversationId": "conv3",
-      "userId": "u3",
-      "joinedAt": "2026-07-15T19:18:22.579Z",
-      "leftAt": null,
-      "muted": false
-    },
-    {
-      "id": "m4_2",
-      "conversationId": "conv4",
-      "userId": "u1",
-      "joinedAt": "2026-07-15T19:18:22.579Z",
-      "leftAt": null,
-      "muted": false
-    },
-    {
-      "id": "m4_3",
-      "conversationId": "conv4",
-      "userId": "u2",
-      "joinedAt": "2026-07-15T19:18:22.579Z",
-      "leftAt": null,
-      "muted": false
-    },
-    {
-      "id": "m4_4",
-      "conversationId": "conv4",
-      "userId": "u4",
-      "joinedAt": "2026-07-15T19:18:22.579Z",
-      "leftAt": null,
-      "muted": false
-    },
-    {
-      "id": "m5_2",
-      "conversationId": "conv5",
-      "userId": "u5",
-      "joinedAt": "2026-07-15T19:18:22.579Z",
-      "leftAt": null,
-      "muted": false
-    }
-  ],
-  "messages": [
-    {
-      "id": "m1",
-      "conversationId": "conv1",
-      "senderId": "u1",
-      "encryptedContent": "Hey! How's the E2E encryption implementation going?",
-      "contentType": "text",
-      "createdAt": "2026-07-15T19:04:22.579Z",
-      "editedAt": null,
-      "deletedAt": null
-    },
-    {
-      "id": "m3",
-      "conversationId": "conv1",
-      "senderId": "u1",
-      "encryptedContent": "Nice! Did you use TweetNaCl for the box implementation?",
-      "contentType": "text",
-      "createdAt": "2026-07-15T19:09:22.579Z",
-      "editedAt": null,
-      "deletedAt": null
-    },
-    {
-      "id": "m5",
-      "conversationId": "conv1",
-      "senderId": "u1",
-      "encryptedContent": "That's exactly what I was hoping for. Let me review the PR.",
-      "contentType": "text",
-      "createdAt": "2026-07-15T19:14:22.579Z",
-      "editedAt": null,
-      "deletedAt": null
-    },
-    {
-      "id": "m6",
-      "conversationId": "conv1",
-      "senderId": "u1",
-      "encryptedContent": "The encryption layer looks solid 🔐",
-      "contentType": "text",
-      "createdAt": "2026-07-15T19:16:22.579Z",
-      "editedAt": null,
-      "deletedAt": null
-    },
-    {
-      "id": "m8",
-      "conversationId": "conv2",
-      "senderId": "u2",
-      "encryptedContent": "On it! The STUN/TURN configuration might need adjustment",
-      "contentType": "text",
-      "createdAt": "2026-07-15T18:49:22.579Z",
-      "editedAt": null,
-      "deletedAt": null
-    },
-    {
-      "id": "m9",
-      "conversationId": "conv2",
-      "senderId": "u2",
-      "encryptedContent": "Sure, I'll push the commit now",
-      "contentType": "text",
-      "createdAt": "2026-07-15T18:59:22.579Z",
-      "editedAt": null,
-      "deletedAt": null
-    },
-    {
-      "id": "m10",
-      "conversationId": "conv3",
-      "senderId": "u3",
-      "encryptedContent": "I redesigned the chat bubble components with the new design system",
-      "contentType": "text",
-      "createdAt": "2026-07-15T18:14:22.579Z",
-      "editedAt": null,
-      "deletedAt": null
-    },
-    {
-      "id": "m12",
-      "conversationId": "conv3",
-      "senderId": "u3",
-      "encryptedContent": "Check the new mockups I sent",
-      "contentType": "text",
-      "createdAt": "2026-07-15T18:26:22.579Z",
-      "editedAt": null,
-      "deletedAt": null
-    }
-  ],
+  "conversations": [],
+  "conversationMembers": [],
+  "messages": [],
   "friendRequests": [],
   "friends": []
 }
