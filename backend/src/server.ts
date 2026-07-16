@@ -10,6 +10,7 @@ import userRoutes from './routes/users';
 import conversationRoutes from './routes/conversations';
 import callRoutes from './routes/calls';
 import requestRoutes from './routes/requests';
+import { connectDb } from './store/db';
 
 const app = express();
 app.use(
@@ -60,7 +61,12 @@ registerSocketHandlers(io);
 
 const port = Number(process.env.PORT) || 5000;
 
-const startServer = () => {
+const startServer = async () => {
+  try {
+    await connectDb();
+  } catch (err) {
+    console.error('[Server] MongoDB connection failed:', err);
+  }
   server.listen(port, () => {
     console.log(`[Server] SlienX backend listening on port ${port}`);
   });
