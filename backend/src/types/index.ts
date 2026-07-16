@@ -60,6 +60,10 @@ export interface Message {
     sender: string;
     text: string;
   };
+  reactions?: {
+    userId: string;
+    emoji: string;
+  }[];
 }
 
 export interface MessageRead {

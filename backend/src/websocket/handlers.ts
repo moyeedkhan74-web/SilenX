@@ -68,6 +68,36 @@ export function registerSocketHandlers(io: Server): void {
       });
     });
 
+    socket.on('message-reaction', (data: { messageId: string; conversationId: string; emoji: string }) => {
+      console.log(`[Socket] Message reaction ${data.emoji} on ${data.messageId}`);
+      const senderUserId = (socket as Socket & { data?: { userId?: string } }).data?.userId || socket.id;
+
+      const msg = messages.find(m => m.id === data.messageId);
+      if (msg) {
+        if (!msg.reactions) {
+          msg.reactions = [];
+        }
+        const existingReactionIndex = msg.reactions.findIndex(r => r.userId === senderUserId);
+        if (existingReactionIndex > -1) {
+          if (msg.reactions[existingReactionIndex].emoji === data.emoji || !data.emoji) {
+            msg.reactions.splice(existingReactionIndex, 1);
+          } else {
+            msg.reactions[existingReactionIndex].emoji = data.emoji;
+          }
+        } else if (data.emoji) {
+          msg.reactions.push({ userId: senderUserId, emoji: data.emoji });
+        }
+        saveDb();
+
+        socket.broadcast.emit('receive-message-reaction', {
+          messageId: data.messageId,
+          conversationId: data.conversationId,
+          userId: senderUserId,
+          emoji: data.emoji
+        });
+      }
+    });
+
     // ─── Read Receipts ─────────────────────────────────────
 
     socket.on('read-receipt', (data: ReadReceiptPayload) => {

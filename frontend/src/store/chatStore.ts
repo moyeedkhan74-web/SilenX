@@ -25,6 +25,7 @@ interface ChatState {
   deleteMessage: (convId: string, messageId: string) => void;
   removeMessage: (convId: string, messageId: string) => void;
   clearConversation: (convId: string) => void;
+  reactToMessage: (convId: string, messageId: string, userId: string, emoji: string) => void;
 
   // Context menu actions
   deleteConversation: (convId: string) => Promise<void>;
@@ -177,6 +178,29 @@ export const useChatStore = create<ChatState>((set, get) => ({
   setMessages: (convId, msgs) =>
     set((state) => {
       const nextState: Partial<ChatState> = { messages: { ...state.messages, [convId]: msgs } };
+      persistState(nextState);
+      return nextState;
+    }),
+  reactToMessage: (convId, messageId, userId, emoji) =>
+    set((state) => {
+      const updatedMessages = (state.messages[convId] || []).map((m) => {
+        if (m.id !== messageId) return m;
+        const reactions = m.reactions ? [...m.reactions] : [];
+        const existingIdx = reactions.findIndex((r) => r.userId === userId);
+        if (existingIdx > -1) {
+          if (reactions[existingIdx].emoji === emoji || !emoji) {
+            reactions.splice(existingIdx, 1);
+          } else {
+            reactions[existingIdx] = { userId, emoji };
+          }
+        } else if (emoji) {
+          reactions.push({ userId, emoji });
+        }
+        return { ...m, reactions };
+      });
+      const nextState: Partial<ChatState> = {
+        messages: { ...state.messages, [convId]: updatedMessages }
+      };
       persistState(nextState);
       return nextState;
     }),

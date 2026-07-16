@@ -35,15 +35,7 @@ async function performSync() {
   hasPendingChanges = false;
 
   try {
-    // Sync to MongoDB
-    await syncCollection(UserModel, users);
-    await syncCollection(ConversationModel, conversations);
-    await syncCollection(ConversationMemberModel, conversationMembers);
-    await syncCollection(MessageModel, messages);
-    await syncCollection(FriendRequestModel, friendRequests);
-    await syncCollection(FriendModel, friends);
-
-    // Save to local file backup
+    // 1. Always save to local file backup first so we don't lose local state
     const data = {
       users,
       conversations,
@@ -53,9 +45,20 @@ async function performSync() {
       friends
     };
     fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2), 'utf8');
-    console.log('[DB] Synchronized memory store with MongoDB');
+    console.log('[DB] Saved backup to db.json');
+
+    // 2. Sync to MongoDB only if it is connected
+    if (mongoose.connection.readyState === 1) {
+      await syncCollection(UserModel, users);
+      await syncCollection(ConversationModel, conversations);
+      await syncCollection(ConversationMemberModel, conversationMembers);
+      await syncCollection(MessageModel, messages);
+      await syncCollection(FriendRequestModel, friendRequests);
+      await syncCollection(FriendModel, friends);
+      console.log('[DB] Synchronized memory store with MongoDB');
+    }
   } catch (err) {
-    console.error('[DB] Synchronization to MongoDB failed:', err);
+    console.error('[DB] Synchronization failed:', err);
   } finally {
     isSyncing = false;
     if (hasPendingChanges) {

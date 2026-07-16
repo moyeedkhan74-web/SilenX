@@ -175,7 +175,8 @@ router.get('/:id/messages', (req: Request, res: Response) => {
     isEdited: !!m.editedAt,
     isDeleted: !!m.deletedAt,
     isSystem: m.contentType === 'system',
-    replyTo: m.replyTo
+    replyTo: m.replyTo,
+    reactions: m.reactions || []
   }));
 
   res.status(200).json(formatted);

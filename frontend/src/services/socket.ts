@@ -65,6 +65,12 @@ export const connectSocket = (): Socket => {
 
       useChatStore.getState().addMessage(conversationId, incomingMessage);
     });
+
+    socket.on('receive-message-reaction', (payload: any) => {
+      const { conversationId, messageId, userId, emoji } = payload || {};
+      if (!conversationId || !messageId || !userId) return;
+      useChatStore.getState().reactToMessage(conversationId, messageId, userId, emoji);
+    });
   }
 
   return socket;

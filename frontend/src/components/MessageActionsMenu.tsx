@@ -21,6 +21,12 @@ interface MessageActionsMenuProps {
 }
 
 const QUICK_EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
+const ALL_EMOJIS = [
+  '👍', '❤️', '😂', '😮', '😢', '🙏',
+  '🔥', '🎉', '👏', '✨', '💖', '👀',
+  '💯', '🤔', '🥺', '😭', '💀', '🤡',
+  '💩', '😡', '🥳', '😎', '💡', '✅'
+];
 
 export const MessageActionsMenu: React.FC<MessageActionsMenuProps> = ({
   open,
@@ -43,11 +49,13 @@ export const MessageActionsMenu: React.FC<MessageActionsMenuProps> = ({
   const menuRef = useRef<HTMLDivElement>(null);
   const [showOverflow, setShowOverflow] = useState(false);
   const [showEmojiRow, setShowEmojiRow] = useState(false);
+  const [showAllGrid, setShowAllGrid] = useState(false);
 
   useEffect(() => {
     if (!open) {
       setShowOverflow(false);
       setShowEmojiRow(false);
+      setShowAllGrid(false);
       return;
     }
 
@@ -87,7 +95,32 @@ export const MessageActionsMenu: React.FC<MessageActionsMenuProps> = ({
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
     >
-      {showEmojiRow ? (
+      {showAllGrid ? (
+        <div className="emoji-grid-container" style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '4px' }}>
+          <div className="emoji-full-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '4px' }}>
+            {ALL_EMOJIS.map((emoji) => (
+              <button
+                key={emoji}
+                type="button"
+                className="emoji-quick-btn"
+                onClick={() => handleAction(() => onReact(emoji))}
+                title={`React with ${emoji}`}
+              >
+                {emoji}
+              </button>
+            ))}
+          </div>
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => setShowAllGrid(false)}
+            title="Back"
+            style={{ fontSize: 11, width: 24, height: 24, borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,0.1)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-primary)' }}
+          >
+            ✕
+          </button>
+        </div>
+      ) : showEmojiRow ? (
         <>
           {QUICK_EMOJIS.map((emoji) => (
             <button
@@ -102,11 +135,22 @@ export const MessageActionsMenu: React.FC<MessageActionsMenuProps> = ({
             </button>
           ))}
           <button
+            key="plus-btn"
+            type="button"
+            role="menuitem"
+            className="emoji-quick-btn plus-btn"
+            onClick={() => setShowAllGrid(true)}
+            title="More emojis"
+            style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '15px' }}
+          >
+            ➕
+          </button>
+          <button
             type="button"
             role="menuitem"
             onClick={() => setShowEmojiRow(false)}
             title="Back"
-            style={{ fontSize: 11 }}
+            style={{ fontSize: 11, marginLeft: 4 }}
           >
             ✕
           </button>

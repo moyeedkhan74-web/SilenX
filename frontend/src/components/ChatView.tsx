@@ -32,7 +32,7 @@ const ChatView: React.FC = () => {
   const showToast = useCallback((message: string) => {
     setToast({ message, visible: true });
   }, []);
-  const { conversations, activeConversationId, messages, addMessage, clearConversation, editMessage, deleteMessage } = useChatStore();
+  const { conversations, activeConversationId, messages, addMessage, clearConversation, editMessage, deleteMessage, reactToMessage } = useChatStore();
   const setMessages = useChatStore((s) => s.setMessages);
   const initiateCall = useCallStore((s) => s.initiateCall);
   const currentUser = useAuthStore((s) => s.user);
@@ -245,10 +245,18 @@ const ChatView: React.FC = () => {
 
   const handleReact = (messageId: string, emoji: string) => {
     if (!activeConversationId) return;
-    const updatedMessages = (messages[activeConversationId] || []).map((msg) =>
-      msg.id === messageId ? { ...msg, reactions: [...(msg.reactions || []), emoji] } : msg
-    );
-    setMessages(activeConversationId, updatedMessages);
+    const socket = getSocket();
+    const currentUserId = currentUser?.id || 'self';
+    
+    // Update local state optimistically
+    reactToMessage(activeConversationId, messageId, currentUserId, emoji);
+    
+    // Emit socket event to notify other users
+    socket?.emit('message-reaction', {
+      conversationId: activeConversationId,
+      messageId,
+      emoji
+    });
   };
 
   const handleStartEdit = (messageId: string) => {
@@ -551,9 +559,44 @@ const ChatView: React.FC = () => {
                       <p className="message-text">{msg.text}</p>
                     )}
                     {msg.isEdited && <span className="msg-edited">edited</span>}
-                    {msg.reactions && msg.reactions.length > 0 && (
-                      <div className="msg-reactions">{msg.reactions.map((reaction) => <span key={reaction}>{reaction}</span>)}</div>
-                    )}
+                    {msg.reactions && msg.reactions.length > 0 && (() => {
+                      const validReactions = msg.reactions.filter(r => r && r.emoji);
+                      const uniqueEmojis = Array.from(new Set(validReactions.map((r) => r.emoji)));
+                      const totalCount = validReactions.length;
+                      if (totalCount === 0) return null;
+                      
+                      const myReaction = validReactions.find((r) => r.userId === (currentUser?.id || 'self'));
+                      
+                      return (
+                        <div 
+                          className={`msg-reactions-pill ${myReaction ? 'has-my-reaction' : ''}`}
+                          style={{
+                            position: 'absolute',
+                            bottom: '-9px',
+                            right: isOwn ? '12px' : 'auto',
+                            left: isOwn ? 'auto' : '12px',
+                            transform: 'translateY(0)'
+                          }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleReact(msg.id, myReaction ? myReaction.emoji : '');
+                          }}
+                          title={validReactions.map(r => {
+                            const sender = r.userId === (currentUser?.id || 'self') 
+                              ? 'You' 
+                              : (activeConvo.members.find(m => m.id === r.userId)?.displayName || 'Other');
+                            return `${sender}: ${r.emoji}`;
+                          }).join('\n')}
+                        >
+                          <span className="msg-reactions-emojis" style={{ display: 'flex', gap: '1px' }}>
+                            {uniqueEmojis.map((emoji) => (
+                              <span key={emoji} className="msg-reaction-emoji">{emoji}</span>
+                            ))}
+                          </span>
+                          {totalCount > 1 && <span className="msg-reactions-count">{totalCount}</span>}
+                        </div>
+                      );
+                    })()}
                   </div>
                 </SwipeableMessage>
                 <div className="msg-meta">

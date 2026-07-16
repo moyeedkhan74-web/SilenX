@@ -38,7 +38,10 @@ export interface ChatMessage {
   isEdited: boolean;
   isDeleted: boolean;
   deliveryStatus?: 'sent' | 'delivered' | 'read' | 'received';
-  reactions?: string[];
+  reactions?: {
+    userId: string;
+    emoji: string;
+  }[];
   isPinned?: boolean;
   isStarred?: boolean;
   isSystem?: boolean;

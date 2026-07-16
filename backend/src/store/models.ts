@@ -52,6 +52,10 @@ const MessageSchema = new Schema({
     sender: { type: String },
     text: { type: String },
   },
+  reactions: [{
+    userId: { type: String, required: true },
+    emoji: { type: String, required: true },
+  }],
 });
 
 // FriendRequest Schema
