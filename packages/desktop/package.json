@@ -1,0 +1,26 @@
+{
+  "name": "@silenx/desktop",
+  "version": "1.0.0",
+  "description": "SilenX Desktop (Electron) - SQLite storage adapter",
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc --watch",
+    "clean": "rm -rf lib"
+  },
+  "keywords": ["silenx", "desktop", "electron", "sqlite"],
+  "author": "SilenX Team",
+  "license": "MIT",
+  "peerDependencies": {
+    "@silenx/core": "^1.0.0"
+  },
+  "devDependencies": {
+    "@silenx/core": "workspace:*",
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "better-sqlite3": "^9.0.0"
+  }
+}

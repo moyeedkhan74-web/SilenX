@@ -1,0 +1,20 @@
+{
+  "name": "@silenx/core",
+  "version": "1.0.0",
+  "description": "SilenX Core - Shared library for Desktop, Web, and Mobile",
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc --watch",
+    "clean": "rm -rf lib"
+  },
+  "keywords": ["silenx", "messaging", "local-first", "offline"],
+  "author": "SilenX Team",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {}
+}
