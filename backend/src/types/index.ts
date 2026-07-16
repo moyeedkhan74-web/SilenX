@@ -100,6 +100,7 @@ export interface SendMessagePayload {
   conversationId: string;
   encryptedContent: string;
   tempId: string;
+  recipientId?: string;
   replyTo?: {
     sender: string;
     text: string;

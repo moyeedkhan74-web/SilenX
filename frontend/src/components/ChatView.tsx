@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Phone, Video, MoreVertical, Lock, Search, Bell, UserX, Flag, Trash2, Check, CheckCheck, Star } from 'lucide-react';
 import { useChatStore } from '../store/chatStore';
 import { useCallStore } from '../store/callStore';
-import { getSocket } from '../services/socket';
+import { connectSocket } from '../services/socket';
 import type { ChatMessage } from '../types';
 import { Avatar } from './Avatar';
 import { MessageInputBar } from './MessageInputBar';
@@ -69,7 +69,7 @@ const ChatView: React.FC = () => {
 
   // Listen for socket-based typing events from other users
   useEffect(() => {
-    const socket = getSocket();
+    const socket = connectSocket();
     if (!socket || !activeConversationId) {
       setTypingUsers([]);
       return;
@@ -126,7 +126,8 @@ const ChatView: React.FC = () => {
     const value = payload?.text?.trim() || inputValue.trim();
     if (!value || !activeConversationId || activeConversationState.isBlocked) return;
 
-    const socket = getSocket();
+    const socket = connectSocket();
+    const recipientId = activeConvo?.members?.find((member) => member.id !== currentUser?.id)?.id;
     const msg: ChatMessage = {
       id: crypto.randomUUID(),
       conversationId: activeConversationId,
@@ -145,7 +146,13 @@ const ChatView: React.FC = () => {
     };
 
     addMessage(activeConversationId, msg);
-    socket?.emit('send-message', { conversationId: activeConversationId, encryptedContent: value, tempId: msg.id, replyTo: payload?.replyTo });
+    socket?.emit('send-message', {
+      conversationId: activeConversationId,
+      encryptedContent: value,
+      tempId: msg.id,
+      recipientId,
+      replyTo: payload?.replyTo,
+    });
     setInputValue('');
     setReplyTo(undefined);
   };
@@ -245,7 +252,7 @@ const ChatView: React.FC = () => {
 
   const handleReact = (messageId: string, emoji: string) => {
     if (!activeConversationId) return;
-    const socket = getSocket();
+    const socket = connectSocket();
     const currentUserId = currentUser?.id || 'self';
     
     // Update local state optimistically
@@ -313,7 +320,7 @@ const ChatView: React.FC = () => {
 
   const handleTypingChange = (isTyping: boolean) => {
     if (!activeConversationId) return;
-    const socket = getSocket();
+    const socket = connectSocket();
     if (socket) {
       if (isTyping) {
         socket.emit('typing', { conversationId: activeConversationId, userId: currentUser?.id });

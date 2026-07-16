@@ -20,6 +20,10 @@ export function registerSocketHandlers(io: Server): void {
 
     socket.on('register', (data: { userId: string }) => {
       if (data?.userId) {
+        (socket as Socket & { data?: { userId?: string } }).data = {
+          ...(socket as Socket & { data?: { userId?: string } }).data,
+          userId: data.userId,
+        };
         setUserSocket(data.userId, socket.id);
         console.log(`[Socket] Registered user ${data.userId} -> ${socket.id}`);
       }
@@ -45,11 +49,21 @@ export function registerSocketHandlers(io: Server): void {
       messages.push(newMsg);
       saveDb();
 
-      socket.broadcast.emit('receive-message', {
-        ...data,
-        senderId: senderUserId,
-        createdAt: newMsg.createdAt.toISOString(),
-      });
+      const recipientSocketId = data.recipientId ? getSocketIdForUser(data.recipientId) : null;
+
+      if (recipientSocketId) {
+        socket.to(recipientSocketId).emit('receive-message', {
+          ...data,
+          senderId: senderUserId,
+          createdAt: newMsg.createdAt.toISOString(),
+        });
+      } else {
+        socket.broadcast.emit('receive-message', {
+          ...data,
+          senderId: senderUserId,
+          createdAt: newMsg.createdAt.toISOString(),
+        });
+      }
     });
 
     socket.on('edit-message', (data: EditMessagePayload) => {
