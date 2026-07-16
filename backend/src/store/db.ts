@@ -25,6 +25,61 @@ import { UserModel, ConversationModel, ConversationMemberModel, MessageModel, Fr
 
 let isSyncing = false;
 let hasPendingChanges = false;
+let hasSeededDefaultConversation = false;
+
+function ensureSeedConversation() {
+  if (hasSeededDefaultConversation || conversations.length > 0 || users.length < 2) {
+    return;
+  }
+
+  const [firstUser, secondUser] = users;
+  const createdAt = new Date();
+  const conversationId = `conv_seed_${Date.now()}`;
+
+  conversations.push({
+    id: conversationId,
+    type: 'direct',
+    name: null,
+    avatarUrl: null,
+    createdBy: firstUser.id,
+    createdAt,
+    updatedAt: createdAt,
+  });
+
+  conversationMembers.push(
+    {
+      id: `m_${conversationId}_1`,
+      conversationId,
+      userId: firstUser.id,
+      joinedAt: createdAt,
+      leftAt: null,
+      muted: false,
+    },
+    {
+      id: `m_${conversationId}_2`,
+      conversationId,
+      userId: secondUser.id,
+      joinedAt: createdAt,
+      leftAt: null,
+      muted: false,
+    }
+  );
+
+  messages.push({
+    id: `msg_${conversationId}_seed`,
+    conversationId,
+    senderId: firstUser.id,
+    encryptedContent: 'Say hi! 🔗 Secure connection established.',
+    contentType: 'system',
+    createdAt,
+    editedAt: null,
+    deletedAt: null,
+  });
+
+  hasSeededDefaultConversation = true;
+  saveDb();
+  console.log(`[DB] Seeded a default chat between ${firstUser.displayName} and ${secondUser.displayName}`);
+}
 
 async function performSync() {
   if (isSyncing) {
@@ -168,6 +223,7 @@ export async function connectDb() {
     createdAt: f.createdAt ? new Date(f.createdAt) : new Date(),
   })));
 
+  ensureSeedConversation();
   console.log(`[DB] Successfully loaded state from MongoDB (${users.length} users, ${conversations.length} conversations, ${messages.length} messages)`);
 }
 
@@ -226,6 +282,7 @@ export function loadDb() {
         })));
       }
       console.log('[DB] Loaded persistent fallback state from db.json');
+      ensureSeedConversation();
     } catch (err) {
       console.error('[DB] Failed to load db.json fallback, using defaults:', err);
     }
