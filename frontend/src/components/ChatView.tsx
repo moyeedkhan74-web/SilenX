@@ -157,6 +157,54 @@ const ChatView: React.FC = () => {
     setReplyTo(undefined);
   };
 
+  const handleSendRichMessage = (partial: Partial<ChatMessage>) => {
+    if (!activeConversationId || activeConversationState.isBlocked) return;
+
+    const socket = connectSocket();
+    const recipientId = activeConvo?.members?.find((member) => member.id !== currentUser?.id)?.id;
+    const msg: ChatMessage = {
+      id: crypto.randomUUID(),
+      conversationId: activeConversationId,
+      senderId: currentUser?.id || 'self',
+      text: partial.text || '',
+      isSelf: true,
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      isRead: false,
+      isEdited: false,
+      isDeleted: false,
+      deliveryStatus: 'sent' as const,
+      reactions: [],
+      isPinned: false,
+      isStarred: false,
+      contentType: partial.contentType || 'text',
+      mediaUrl: partial.mediaUrl,
+      fileName: partial.fileName,
+      fileSize: partial.fileSize,
+      duration: partial.duration,
+      locationData: partial.locationData,
+      contactData: partial.contactData,
+      pollData: partial.pollData,
+      eventData: partial.eventData,
+    };
+
+    addMessage(activeConversationId, msg);
+    socket?.emit('send-message', {
+      conversationId: activeConversationId,
+      encryptedContent: msg.text,
+      tempId: msg.id,
+      recipientId,
+      contentType: msg.contentType,
+      mediaUrl: msg.mediaUrl,
+      fileName: msg.fileName,
+      fileSize: msg.fileSize,
+      duration: msg.duration,
+      locationData: msg.locationData,
+      contactData: msg.contactData,
+      pollData: msg.pollData,
+      eventData: msg.eventData,
+    });
+  };
+
   const updateConversationState = (updates: Partial<typeof activeConversationState>) => {
     if (!activeConversationId) return;
     setConversationState((prev) => ({
@@ -649,6 +697,7 @@ const ChatView: React.FC = () => {
             setReplyTo(payload.replyTo);
             handleSend(payload);
           }}
+          onSendRichMessage={handleSendRichMessage}
           replyTo={replyTo}
           onCancelReply={() => setReplyTo(undefined)}
           onTypingChange={handleTypingChange}

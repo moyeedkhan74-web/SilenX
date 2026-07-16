@@ -3,17 +3,18 @@ import { PinButton } from './PinButton';
 import { MicButton } from './MicButton';
 import { MessageManager } from '@silenx/core';
 import { VoiceNoteManager } from '@silenx/core';
+import './ChatExample.css';
 
 /**
- * EXAMPLE: How to use PinButton and MicButton together
- * This is a complete message component with pinning and voice recording
+ * Example message data supporting text and image messages.
  */
-
 interface Message {
   id: string;
-  text: string;
-  isPinned: boolean;
   senderId: string;
+  text?: string;
+  imageUrl?: string;
+  caption?: string;
+  isPinned: boolean;
   createdAt: Date;
 }
 
@@ -22,12 +23,15 @@ interface MessageComponentProps {
   chatId: string;
   currentUserId: string;
   messageManager: MessageManager;
-  voiceNoteManager: VoiceNoteManager;
 }
 
-/**
- * MESSAGE COMPONENT - With PIN BUTTON
- */
+const ACTION_OPTIONS = [
+  { label: 'Reply', icon: '↩️' },
+  { label: 'Forward', icon: '📤' },
+  { label: 'Save', icon: '⭐' },
+  { label: 'Share', icon: '🔗' },
+];
+
 export const MessageWithPin: React.FC<MessageComponentProps> = ({
   message,
   chatId,
@@ -42,9 +46,8 @@ export const MessageWithPin: React.FC<MessageComponentProps> = ({
     try {
       await messageManager.pinMessage(messageId, currentUserId);
       setIsPinned(true);
-      console.log('✅ Message pinned!');
     } catch (error) {
-      console.error('❌ Failed to pin:', error);
+      console.error('Failed to pin:', error);
     } finally {
       setLoading(false);
     }
@@ -55,35 +58,77 @@ export const MessageWithPin: React.FC<MessageComponentProps> = ({
     try {
       await messageManager.unpinMessage(messageId);
       setIsPinned(false);
-      console.log('✅ Message unpinned!');
     } catch (error) {
-      console.error('❌ Failed to unpin:', error);
+      console.error('Failed to unpin:', error);
     } finally {
       setLoading(false);
     }
   };
 
+  const renderImageMessage = () => (
+    <div className="image-message">
+      <img
+        className="image-preview"
+        src={message.imageUrl}
+        alt={message.caption || 'Shared photo'}
+      />
+      <div className="image-overlay">
+        <div className="image-topbar">
+          <PinButton
+            messageId={message.id}
+            isPinned={isPinned}
+            onPin={handlePin}
+            onUnpin={handleUnpin}
+            loading={loading}
+          />
+        </div>
+      </div>
+      <div className="image-caption">
+        <span className="image-caption-text">{message.caption || 'Shared photo'}</span>
+        <div className="image-actions">
+          {ACTION_OPTIONS.map((option) => (
+            <button key={option.label} className="image-action" type="button">
+              <span>{option.icon}</span>
+              <span>{option.label}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+
   return (
-    <div className="message-item">
-      <div className="message-content">
-        <p>{message.text}</p>
+    <div className={`message-item ${isPinned ? 'pinned' : ''}`}>
+      <div className="message-header">
+        <span className="message-sender">SilenX</span>
+        <span className="message-timestamp">
+          {message.createdAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+        </span>
       </div>
-      <div className="message-actions">
-        <PinButton
-          messageId={message.id}
-          isPinned={isPinned}
-          onPin={handlePin}
-          onUnpin={handleUnpin}
-          loading={loading}
-        />
-      </div>
+
+      {message.imageUrl ? (
+        renderImageMessage()
+      ) : (
+        <div className="message-bubble">
+          {message.text}
+        </div>
+      )}
+
+      {!message.imageUrl && (
+        <div className="message-actions">
+          <PinButton
+            messageId={message.id}
+            isPinned={isPinned}
+            onPin={handlePin}
+            onUnpin={handleUnpin}
+            loading={loading}
+          />
+        </div>
+      )}
     </div>
   );
 };
 
-/**
- * CHAT INPUT - With MIC BUTTON
- */
 interface ChatInputProps {
   chatId: string;
   currentUserId: string;
@@ -100,56 +145,48 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const [message, setMessage] = useState('');
 
   const handleRecordingStart = async () => {
-    console.log('🎤 Starting voice recording...');
     try {
-      await voiceNoteManager.startRecording({ format: 'mp3' });
-      console.log('✅ Recording started');
+      await voiceNoteManager.startVoiceNoteRecording(chatId, currentUserId, { format: 'mp3' });
     } catch (error) {
-      console.error('❌ Recording error:', error);
+      console.error('Recording error:', error);
     }
   };
 
-  const handleRecordingStop = async (filePath: string, duration: number) => {
-    console.log(`🎙️  Recording stopped - Duration: ${duration}s`);
+  const handleRecordingStop = async (duration: number) => {
     try {
-      // Create voice note message
-      const voiceNote = await voiceNoteManager.recordVoiceNote(
-        chatId,
-        currentUserId
-      );
-
-      console.log('✅ Voice note saved:', voiceNote);
-
-      // Send message
-      const msgData = {
+      const voiceNote = await voiceNoteManager.stopVoiceNoteRecording();
+      onMessageSent?.({
         id: Date.now().toString(),
         chatId,
         senderId: currentUserId,
-        content: voiceNote,
-        timestamp: new Date(),
-      };
-
-      onMessageSent?.(msgData);
+        text: 'Voice note',
+        isPinned: false,
+        createdAt: new Date(),
+        voiceNote,
+      });
     } catch (error) {
-      console.error('❌ Failed to save voice note:', error);
+      console.error('Failed to save voice note:', error);
     }
   };
 
-  const handleRecordingCancel = () => {
-    console.log('❌ Voice recording cancelled');
+  const handleRecordingCancel = async () => {
+    try {
+      await voiceNoteManager.cancelRecording();
+    } catch (error) {
+      console.error('Failed to cancel recording:', error);
+    }
   };
 
   return (
     <div className="chat-input-container">
       <input
         type="text"
-        placeholder="Type message..."
+        placeholder="Write a message or record voice note..."
         value={message}
         onChange={(e) => setMessage(e.target.value)}
         className="message-input"
       />
 
-      {/* MIC BUTTON */}
       <MicButton
         onRecordingStart={handleRecordingStart}
         onRecordingStop={handleRecordingStop}
@@ -159,10 +196,6 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   );
 };
 
-/**
- * COMPLETE CHAT COMPONENT
- * Shows both features working together
- */
 export const ChatComponent: React.FC<{
   chatId: string;
   messages: Message[];
@@ -186,7 +219,6 @@ export const ChatComponent: React.FC<{
             chatId={chatId}
             currentUserId={currentUserId}
             messageManager={messageManager}
-            voiceNoteManager={voiceNoteManager}
           />
         ))}
       </div>

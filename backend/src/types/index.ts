@@ -1,6 +1,6 @@
 export type UserStatus = 'online' | 'away' | 'offline';
 export type ConversationType = 'direct' | 'group';
-export type ContentType = 'text' | 'system';
+export type ContentType = 'text' | 'system' | 'image' | 'file' | 'location' | 'contact' | 'poll' | 'event' | 'voice-note';
 export type CallType = 'audio' | 'video';
 export type CallStatus = 'pending' | 'accepted' | 'rejected' | 'missed' | 'ended';
 
@@ -64,6 +64,35 @@ export interface Message {
     userId: string;
     emoji: string;
   }[];
+  mediaUrl?: string;
+  fileName?: string;
+  fileSize?: string;
+  duration?: string;
+  locationData?: {
+    latitude: number;
+    longitude: number;
+    description: string;
+  };
+  contactData?: {
+    name: string;
+    uid: string;
+    avatarUrl?: string;
+  };
+  pollData?: {
+    question: string;
+    options: {
+      id: string;
+      text: string;
+      votes: string[];
+    }[];
+  };
+  eventData?: {
+    title: string;
+    description?: string;
+    date: string;
+    time: string;
+    location?: string;
+  };
 }
 
 export interface MessageRead {
@@ -104,6 +133,36 @@ export interface SendMessagePayload {
   replyTo?: {
     sender: string;
     text: string;
+  };
+  contentType?: ContentType;
+  mediaUrl?: string;
+  fileName?: string;
+  fileSize?: string;
+  duration?: string;
+  locationData?: {
+    latitude: number;
+    longitude: number;
+    description: string;
+  };
+  contactData?: {
+    name: string;
+    uid: string;
+    avatarUrl?: string;
+  };
+  pollData?: {
+    question: string;
+    options: {
+      id: string;
+      text: string;
+      votes: string[];
+    }[];
+  };
+  eventData?: {
+    title: string;
+    description?: string;
+    date: string;
+    time: string;
+    location?: string;
   };
 }
 

@@ -344,6 +344,19 @@ const handlePin = async (id) => {
 };
 ```
 
+### WhatsApp-style photo pin preview
+For an image message, show a pin action over the photo and a small caption plus action row. This gives the same feel as WhatsApp photo messages without AI overlay.
+
+```tsx
+<div className="image-message">
+  <img className="image-preview" src={photoUrl} alt="Shared photo" />
+  <div className="image-topbar">
+    <PinButton messageId={message.id} isPinned={message.isPinned} onPin={handlePin} onUnpin={handleUnpin} />
+  </div>
+  <div className="image-caption">Shared photo</div>
+</div>
+```
+
 ### If recording fails
 ```typescript
 const handleStart = async () => {

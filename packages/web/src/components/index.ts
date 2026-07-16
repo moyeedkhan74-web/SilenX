@@ -14,7 +14,7 @@ export interface PinButtonProps {
 
 export interface MicButtonProps {
   onRecordingStart?: () => void;
-  onRecordingStop?: (filePath: string, duration: number) => Promise<void>;
+  onRecordingStop?: (duration: number) => Promise<void>;
   onRecordingCancel?: () => void;
   disabled?: boolean;
 }

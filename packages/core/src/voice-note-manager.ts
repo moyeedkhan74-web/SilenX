@@ -59,6 +59,9 @@ export abstract class AbstractVoiceRecorder implements IVoiceRecorder {
 export class VoiceNoteManager {
   private storage: IStorage;
   private recorder: AbstractVoiceRecorder;
+  private activeChatId?: string;
+  private activeSenderId?: string;
+  private activeRecordingOptions?: VoiceRecorderOptions;
 
   constructor(storage: IStorage, recorder: AbstractVoiceRecorder) {
     this.storage = storage;
@@ -74,14 +77,11 @@ export class VoiceNoteManager {
     options?: VoiceRecorderOptions
   ): Promise<VoiceNote> {
     const startTime = Date.now();
-
-    // Start recording
+ 
+    // Start recording from scratch and store immediately.
     await this.recorder.startRecording(options);
-
-    // User will call stopRecording() when done
     const { filePath, duration } = await this.recorder.stopRecording();
-
-    // Create voice note record
+ 
     const voiceNote: VoiceNote = {
       id: `voice_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       messageId: '',
@@ -91,14 +91,53 @@ export class VoiceNoteManager {
       originalName: `voice_${Date.now()}.${options?.format || 'mp3'}`,
       filePath,
       mimeType: this.getMimeType(options?.format),
-      size: 0, // Will be updated after upload
+      size: 0,
       createdAt: Date.now(),
-      isDownloaded: true, // Local recording is always available
+      isDownloaded: true,
+    };
+ 
+    await this.storage.addVoiceNote(voiceNote);
+    return voiceNote;
+  }
+
+  async startVoiceNoteRecording(
+    chatId: string,
+    senderId: string,
+    options?: VoiceRecorderOptions
+  ): Promise<void> {
+    if (this.recorder.isRecording()) {
+      throw new Error('Recording already in progress');
+    }
+    this.activeChatId = chatId;
+    this.activeSenderId = senderId;
+    this.activeRecordingOptions = options;
+    await this.recorder.startRecording(options);
+  }
+
+  async stopVoiceNoteRecording(): Promise<VoiceNote> {
+    if (!this.activeChatId || !this.activeSenderId) {
+      throw new Error('No active voice note recording');
+    }
+
+    const { filePath, duration } = await this.recorder.stopRecording();
+    const voiceNote: VoiceNote = {
+      id: `voice_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      messageId: '',
+      chatId: this.activeChatId,
+      senderId: this.activeSenderId,
+      duration,
+      originalName: `voice_${Date.now()}.${this.activeRecordingOptions?.format || 'mp3'}`,
+      filePath,
+      mimeType: this.getMimeType(this.activeRecordingOptions?.format),
+      size: 0,
+      createdAt: Date.now(),
+      isDownloaded: true,
     };
 
-    // Store voice note
     await this.storage.addVoiceNote(voiceNote);
-
+    this.activeChatId = undefined;
+    this.activeSenderId = undefined;
+    this.activeRecordingOptions = undefined;
     return voiceNote;
   }
 

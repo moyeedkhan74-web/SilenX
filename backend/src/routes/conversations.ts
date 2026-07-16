@@ -176,7 +176,16 @@ router.get('/:id/messages', (req: Request, res: Response) => {
     isDeleted: !!m.deletedAt,
     isSystem: m.contentType === 'system',
     replyTo: m.replyTo,
-    reactions: m.reactions || []
+    reactions: m.reactions || [],
+    contentType: m.contentType || 'text',
+    mediaUrl: m.mediaUrl,
+    fileName: m.fileName,
+    fileSize: m.fileSize,
+    duration: m.duration,
+    locationData: m.locationData,
+    contactData: m.contactData,
+    pollData: m.pollData,
+    eventData: m.eventData
   }));
 
   res.status(200).json(formatted);

@@ -61,6 +61,15 @@ export const connectSocket = (): Socket => {
         isPinned: false,
         isStarred: false,
         replyTo: payload?.replyTo,
+        contentType: payload?.contentType || 'text',
+        mediaUrl: payload?.mediaUrl,
+        fileName: payload?.fileName,
+        fileSize: payload?.fileSize,
+        duration: payload?.duration,
+        locationData: payload?.locationData,
+        contactData: payload?.contactData,
+        pollData: payload?.pollData,
+        eventData: payload?.eventData,
       };
 
       useChatStore.getState().addMessage(conversationId, incomingMessage);
@@ -70,6 +79,12 @@ export const connectSocket = (): Socket => {
       const { conversationId, messageId, userId, emoji } = payload || {};
       if (!conversationId || !messageId || !userId) return;
       useChatStore.getState().reactToMessage(conversationId, messageId, userId, emoji);
+    });
+
+    socket.on('poll-voted', (payload: any) => {
+      const { conversationId, messageId, pollData } = payload || {};
+      if (!conversationId || !messageId || !pollData) return;
+      useChatStore.getState().updatePollState(conversationId, messageId, pollData);
     });
   }
 

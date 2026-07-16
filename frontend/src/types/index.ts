@@ -49,6 +49,36 @@ export interface ChatMessage {
     sender: string;
     text: string;
   };
+  contentType?: 'text' | 'system' | 'image' | 'file' | 'location' | 'contact' | 'poll' | 'event' | 'voice-note';
+  mediaUrl?: string; // for images, files, voice notes
+  fileName?: string; // for files
+  fileSize?: string; // for files
+  duration?: string; // for voice notes
+  locationData?: {
+    latitude: number;
+    longitude: number;
+    description: string;
+  };
+  contactData?: {
+    name: string;
+    uid: string;
+    avatarUrl?: string;
+  };
+  pollData?: {
+    question: string;
+    options: {
+      id: string;
+      text: string;
+      votes: string[]; // List of userIds
+    }[];
+  };
+  eventData?: {
+    title: string;
+    description?: string;
+    date: string;
+    time: string;
+    location?: string;
+  };
 }
 
 export interface CallInfo {

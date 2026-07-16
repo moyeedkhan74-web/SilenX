@@ -7,6 +7,8 @@ Production-ready React UI components for messaging app with pinning and voice no
 ### PinButton
 Pin/unpin messages like WhatsApp & Telegram.
 
+It also supports a WhatsApp-style pin overlay on photo messages, giving a native thumbnail preview with pin, reply, forward, and share actions.
+
 **Props:**
 - `messageId: string` - Message ID to pin
 - `isPinned: boolean` - Is message pinned?

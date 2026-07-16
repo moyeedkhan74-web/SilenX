@@ -40,11 +40,19 @@ export function registerSocketHandlers(io: Server): void {
         conversationId: data.conversationId,
         senderId: senderUserId,
         encryptedContent: data.encryptedContent,
-        contentType: 'text' as const,
+        contentType: data.contentType || 'text',
         createdAt: new Date(),
         editedAt: null,
         deletedAt: null,
-        replyTo: data.replyTo
+        replyTo: data.replyTo,
+        mediaUrl: data.mediaUrl,
+        fileName: data.fileName,
+        fileSize: data.fileSize,
+        duration: data.duration,
+        locationData: data.locationData,
+        contactData: data.contactData,
+        pollData: data.pollData,
+        eventData: data.eventData,
       };
       messages.push(newMsg);
       saveDb();
@@ -109,6 +117,31 @@ export function registerSocketHandlers(io: Server): void {
           userId: senderUserId,
           emoji: data.emoji
         });
+      }
+    });
+
+    socket.on('vote-poll', (data: { messageId: string; conversationId: string; optionId: string }) => {
+      console.log(`[Socket] Poll vote on option ${data.optionId} in message ${data.messageId}`);
+      const senderUserId = (socket as Socket & { data?: { userId?: string } }).data?.userId || socket.id;
+
+      const msg = messages.find(m => m.id === data.messageId);
+      if (msg && msg.pollData) {
+        const option = msg.pollData.options.find(o => o.id === data.optionId);
+        if (option) {
+          const voteIdx = option.votes.indexOf(senderUserId);
+          if (voteIdx > -1) {
+            option.votes.splice(voteIdx, 1);
+          } else {
+            option.votes.push(senderUserId);
+          }
+          saveDb();
+
+          socket.broadcast.emit('poll-voted', {
+            messageId: data.messageId,
+            conversationId: data.conversationId,
+            pollData: msg.pollData
+          });
+        }
       }
     });
 

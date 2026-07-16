@@ -44,7 +44,7 @@ const MessageSchema = new Schema({
   conversationId: { type: String, required: true, index: true },
   senderId: { type: String, required: true },
   encryptedContent: { type: String, required: true },
-  contentType: { type: String, required: true, enum: ['text', 'system'] },
+  contentType: { type: String, required: true },
   createdAt: { type: Date, required: true, default: Date.now },
   editedAt: { type: Date, default: null },
   deletedAt: { type: Date, default: null },
@@ -56,6 +56,35 @@ const MessageSchema = new Schema({
     userId: { type: String, required: true },
     emoji: { type: String, required: true },
   }],
+  mediaUrl: { type: String },
+  fileName: { type: String },
+  fileSize: { type: String },
+  duration: { type: String },
+  locationData: {
+    latitude: { type: Number },
+    longitude: { type: Number },
+    description: { type: String },
+  },
+  contactData: {
+    name: { type: String },
+    uid: { type: String },
+    avatarUrl: { type: String },
+  },
+  pollData: {
+    question: { type: String },
+    options: [{
+      id: { type: String },
+      text: { type: String },
+      votes: [{ type: String }],
+    }],
+  },
+  eventData: {
+    title: { type: String },
+    description: { type: String },
+    date: { type: String },
+    time: { type: String },
+    location: { type: String },
+  },
 });
 
 // FriendRequest Schema

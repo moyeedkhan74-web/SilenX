@@ -26,6 +26,7 @@ interface ChatState {
   removeMessage: (convId: string, messageId: string) => void;
   clearConversation: (convId: string) => void;
   reactToMessage: (convId: string, messageId: string, userId: string, emoji: string) => void;
+  updatePollState: (convId: string, messageId: string, pollData: any) => void;
 
   // Context menu actions
   deleteConversation: (convId: string) => Promise<void>;
@@ -198,6 +199,17 @@ export const useChatStore = create<ChatState>((set, get) => ({
         }
         return { ...m, reactions };
       });
+      const nextState: Partial<ChatState> = {
+        messages: { ...state.messages, [convId]: updatedMessages }
+      };
+      persistState(nextState);
+      return nextState;
+    }),
+  updatePollState: (convId, messageId, pollData) =>
+    set((state) => {
+      const updatedMessages = (state.messages[convId] || []).map((m) =>
+        m.id === messageId ? { ...m, pollData } : m
+      );
       const nextState: Partial<ChatState> = {
         messages: { ...state.messages, [convId]: updatedMessages }
       };

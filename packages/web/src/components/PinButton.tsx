@@ -11,7 +11,6 @@ interface PinButtonProps {
 
 /**
  * PIN BUTTON - Like WhatsApp & Telegram
- * Click to pin/unpin message
  */
 export const PinButton: React.FC<PinButtonProps> = ({
   messageId,
@@ -26,7 +25,11 @@ export const PinButton: React.FC<PinButtonProps> = ({
     if (isLoading || loading) return;
     setIsLoading(true);
     try {
-      isPinned ? await onUnpin(messageId) : await onPin(messageId);
+      if (isPinned) {
+        await onUnpin(messageId);
+      } else {
+        await onPin(messageId);
+      }
     } catch (error) {
       console.error('Pin error:', error);
     } finally {
@@ -40,14 +43,16 @@ export const PinButton: React.FC<PinButtonProps> = ({
       onClick={handleClick}
       disabled={isLoading || loading}
       title={isPinned ? 'Unpin message' : 'Pin message'}
+      aria-label={isPinned ? 'Unpin message' : 'Pin message'}
     >
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
         {isPinned ? (
-          <path d="M16 9V5l-3 3-4-4-1.414 1.414L7.586 9H4v2h7v7l3-3 4 4 1.414-1.414L16.414 15V9h7V9h-7z" />
+          <path d="M14.7 3.3c-.4-.4-1-.4-1.4 0L8.5 8H5a1 1 0 000 2h2.6l-3 3a1 1 0 000 1.4l3.6 3.6a1 1 0 001.4 0l3-3V21a1 1 0 002 0v-5.9l3 3a1 1 0 001.4 0l3.6-3.6a1 1 0 000-1.4l-3-3H19a1 1 0 000-2h-3.5l4.8-4.8c.4-.4.4-1 0-1.4l-2.2-2.2z" />
         ) : (
-          <path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z" />
+          <path d="M12 2c-.6 0-1 .4-1 1v6.6l-4.4 4.4c-.4.4-.4 1 0 1.4l2.2 2.2c.4.4 1 .4 1.4 0L12 14.4l4.8 4.8c.4.4 1 .4 1.4 0l2.2-2.2c.4-.4.4-1 0-1.4L13 9.6V3c0-.6-.4-1-1-1zM8 9.6l4-4V4h.1v1.6l4 4L13 9.6 8 9.6z" />
         )}
       </svg>
+      {(isLoading || loading) && <span className="pin-spinner" />}
     </button>
   );
 };
