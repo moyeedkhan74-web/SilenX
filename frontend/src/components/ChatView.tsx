@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Phone, Video, MoreVertical, Lock, Search, Bell, UserX, Flag, Trash2, Check, CheckCheck, Star } from 'lucide-react';
+import { Phone, Video, MoreVertical, Lock, Search, Bell, UserX, Flag, Trash2, Check, CheckCheck, Star, FileText, PlayCircle, MapPin } from 'lucide-react';
 import { useChatStore } from '../store/chatStore';
 import { useCallStore } from '../store/callStore';
 import { connectSocket } from '../services/socket';
@@ -180,6 +180,7 @@ const ChatView: React.FC = () => {
       mediaUrl: partial.mediaUrl,
       fileName: partial.fileName,
       fileSize: partial.fileSize,
+      fileType: partial.fileType,
       duration: partial.duration,
       locationData: partial.locationData,
       contactData: partial.contactData,
@@ -197,6 +198,7 @@ const ChatView: React.FC = () => {
       mediaUrl: msg.mediaUrl,
       fileName: msg.fileName,
       fileSize: msg.fileSize,
+      fileType: msg.fileType,
       duration: msg.duration,
       locationData: msg.locationData,
       contactData: msg.contactData,
@@ -312,6 +314,103 @@ const ChatView: React.FC = () => {
       messageId,
       emoji
     });
+  };
+
+  const renderMessageContent = (msg: ChatMessage) => {
+    switch (msg.contentType) {
+      case 'image':
+        return msg.mediaUrl ? (
+          <div className="rich-image-bubble">
+            <a href={msg.mediaUrl} target="_blank" rel="noreferrer">
+              <img src={msg.mediaUrl} alt={msg.text || 'Image'} />
+            </a>
+          </div>
+        ) : null;
+      case 'video':
+        return msg.mediaUrl ? (
+          <div className="rich-image-bubble">
+            <video controls preload="metadata" className="rich-video-player">
+              <source src={msg.mediaUrl} type={msg.fileType || undefined} />
+              Your browser does not support video playback.
+            </video>
+          </div>
+        ) : null;
+      case 'file':
+        return msg.mediaUrl ? (
+          <a className="rich-file-bubble" href={msg.mediaUrl} download={msg.fileName || ''} target="_blank" rel="noreferrer noopener">
+            <div className="rich-file-icon"><FileText size={20} /></div>
+            <div className="rich-file-info">
+              <div className="rich-file-name">{msg.fileName || 'Attachment'}</div>
+              <div className="rich-file-size">{msg.fileSize || 'Unknown size'}</div>
+            </div>
+          </a>
+        ) : null;
+      case 'voice-note':
+        return msg.mediaUrl ? (
+          <div className="rich-voice-bubble">
+            <div className="rich-voice-icon"><PlayCircle size={18} /></div>
+            <div style={{ width: '100%' }}>
+              <audio controls src={msg.mediaUrl} style={{ width: '100%' }} />
+              <div className="rich-voice-duration">{msg.duration || ''}</div>
+            </div>
+          </div>
+        ) : null;
+      case 'location':
+        return msg.locationData ? (
+          <a
+            className="rich-location-bubble"
+            href={`https://maps.google.com/?q=${msg.locationData.latitude},${msg.locationData.longitude}`}
+            target="_blank"
+            rel="noreferrer noopener"
+          >
+            <div className="rich-location-map"><MapPin size={24} /></div>
+            <div className="rich-location-desc">{msg.locationData.description || 'Shared location'}</div>
+            <div className="rich-location-coords">
+              {msg.locationData.latitude.toFixed(5)}, {msg.locationData.longitude.toFixed(5)}
+            </div>
+          </a>
+        ) : null;
+      case 'contact':
+        return msg.contactData ? (
+          <div className="rich-contact-bubble">
+            <div className="rich-contact-avatar">{(msg.contactData.name || 'C').slice(0, 2).toUpperCase()}</div>
+            <div className="rich-contact-info">
+              <div className="rich-contact-name">{msg.contactData.name}</div>
+              <div className="rich-contact-uid">{msg.contactData.uid}</div>
+            </div>
+          </div>
+        ) : null;
+      case 'poll':
+        return msg.pollData ? (
+          <div className="rich-poll-bubble">
+            <div className="rich-poll-question">{msg.pollData.question}</div>
+            {msg.pollData.options.map((option) => (
+              <button
+                key={option.id}
+                type="button"
+                className={`rich-poll-option ${option.votes.length > 0 ? 'voted' : ''}`}
+                onClick={() => {
+                  // Poll voting is not fully implemented in this UI yet.
+                }}
+              >
+                <span>{option.text}</span>
+                <span className="rich-poll-votes">{option.votes.length}</span>
+              </button>
+            ))}
+          </div>
+        ) : null;
+      case 'event':
+        return msg.eventData ? (
+          <div className="rich-event-bubble">
+            <div className="rich-event-title">{msg.eventData.title}</div>
+            <div className="rich-event-datetime">{msg.eventData.date} · {msg.eventData.time}</div>
+            {msg.eventData.description && <div className="rich-event-desc">{msg.eventData.description}</div>}
+            {msg.eventData.location && <div className="rich-event-loc">{msg.eventData.location}</div>}
+          </div>
+        ) : null;
+      default:
+        return null;
+    }
   };
 
   const handleStartEdit = (messageId: string) => {
@@ -611,7 +710,10 @@ const ChatView: React.FC = () => {
                         </div>
                       </div>
                     ) : (
-                      <p className="message-text">{msg.text}</p>
+                      <>
+                        {msg.text && <p className="message-text">{msg.text}</p>}
+                        {renderMessageContent(msg)}
+                      </>
                     )}
                     {msg.isEdited && <span className="msg-edited">edited</span>}
                     {msg.reactions && msg.reactions.length > 0 && (() => {

@@ -48,6 +48,7 @@ export function registerSocketHandlers(io: Server): void {
         mediaUrl: data.mediaUrl,
         fileName: data.fileName,
         fileSize: data.fileSize,
+        fileType: data.fileType,
         duration: data.duration,
         locationData: data.locationData,
         contactData: data.contactData,

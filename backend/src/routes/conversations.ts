@@ -181,6 +181,7 @@ router.get('/:id/messages', (req: Request, res: Response) => {
     mediaUrl: m.mediaUrl,
     fileName: m.fileName,
     fileSize: m.fileSize,
+    fileType: m.fileType,
     duration: m.duration,
     locationData: m.locationData,
     contactData: m.contactData,

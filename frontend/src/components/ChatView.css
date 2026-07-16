@@ -796,7 +796,8 @@
 }
 
 /* ─── Rich Message Bubbles ─── */
-.rich-image-bubble img {
+.rich-image-bubble img,
+.rich-video-player {
   max-width: 240px;
   max-height: 200px;
   border-radius: 12px;
@@ -804,7 +805,8 @@
   cursor: pointer;
   transition: transform 200ms ease;
 }
-.rich-image-bubble img:hover {
+.rich-image-bubble img:hover,
+.rich-video-player:hover {
   transform: scale(1.03);
 }
 

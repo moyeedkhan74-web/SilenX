@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Image, Camera, MapPin, User, FileText, BarChart3, CalendarDays, X } from 'lucide-react';
+import { Image, Camera, MapPin, User, FileText, BarChart3, CalendarDays, Video, X } from 'lucide-react';
 import './AttachmentMenu.css';
 
 interface AttachmentMenuProps {
@@ -9,7 +9,7 @@ interface AttachmentMenuProps {
   onSendCamera: (imageDataUrl: string) => void;
   onSendLocation: (data: { latitude: number; longitude: number; description: string }) => void;
   onSendContact: (data: { name: string; uid: string }) => void;
-  onSendDocument: (data: { fileName: string; fileSize: string; dataUrl: string }) => void;
+  onSendDocument: (data: { fileName: string; fileSize: string; dataUrl: string; fileType?: string }) => void;
   onSendPoll: (data: { question: string; options: string[] }) => void;
   onSendEvent: (data: { title: string; date: string; time: string; description?: string; location?: string }) => void;
 }
@@ -30,6 +30,7 @@ export const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
   const [subModal, setSubModal] = useState<SubModal>('none');
   const menuRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const docInputRef = useRef<HTMLInputElement>(null);
 
@@ -84,7 +85,7 @@ export const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
     onClose();
   };
 
-  const handleFileSelected = (e: React.ChangeEvent<HTMLInputElement>, type: 'image' | 'camera' | 'document') => {
+  const handleFileSelected = (e: React.ChangeEvent<HTMLInputElement>, type: 'image' | 'camera' | 'video' | 'document') => {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
@@ -92,7 +93,7 @@ export const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
       const dataUrl = reader.result as string;
       if (type === 'image') onSendImage(dataUrl);
       else if (type === 'camera') onSendCamera(dataUrl);
-      else onSendDocument({ fileName: file.name, fileSize: formatFileSize(file.size), dataUrl });
+      else onSendDocument({ fileName: file.name, fileSize: formatFileSize(file.size), dataUrl, fileType: file.type });
       closeAndReset();
     };
     reader.readAsDataURL(file);
@@ -121,6 +122,7 @@ export const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
 
   const items = [
     { icon: <Image size={22} />, label: 'Gallery', color: '#7c4dff', onClick: () => fileInputRef.current?.click() },
+    { icon: <Video size={22} />, label: 'Video', color: '#009688', onClick: () => videoInputRef.current?.click() },
     { icon: <Camera size={22} />, label: 'Camera', color: '#e91e63', onClick: () => cameraInputRef.current?.click() },
     { icon: <MapPin size={22} />, label: 'Location', color: '#00c853', onClick: () => setSubModal('location') },
     { icon: <User size={22} />, label: 'Contact', color: '#2979ff', onClick: () => setSubModal('contact') },
@@ -259,7 +261,17 @@ export const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
         </div>
       )}
       {/* Hidden file inputs */}
-      <input ref={fileInputRef} type="file" accept="image/*" hidden onChange={(e) => handleFileSelected(e, 'image')} />
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*,video/*"
+        hidden
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          handleFileSelected(e, file?.type.startsWith('video/') ? 'video' : 'image');
+        }}
+      />
+      <input ref={videoInputRef} type="file" accept="video/*" hidden onChange={(e) => handleFileSelected(e, 'video')} />
       <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" hidden onChange={(e) => handleFileSelected(e, 'camera')} />
       <input ref={docInputRef} type="file" accept="*/*" hidden onChange={(e) => handleFileSelected(e, 'document')} />
     </div>

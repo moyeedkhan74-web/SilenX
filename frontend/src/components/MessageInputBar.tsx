@@ -111,8 +111,24 @@ export function MessageInputBar({ onSend, onSendRichMessage, replyTo, onCancelRe
   const handleSendCamera = (dataUrl: string) => {
     onSendRichMessage?.({ text: '📸 Camera photo', contentType: 'image', mediaUrl: dataUrl });
   };
-  const handleSendDocument = (data: { fileName: string; fileSize: string; dataUrl: string }) => {
-    onSendRichMessage?.({ text: `📄 ${data.fileName}`, contentType: 'file', mediaUrl: data.dataUrl, fileName: data.fileName, fileSize: data.fileSize });
+  const handleSendDocument = (data: { fileName: string; fileSize: string; dataUrl: string; fileType?: string }) => {
+    const contentType = data.fileType?.startsWith('video/')
+      ? 'video'
+      : data.fileType?.startsWith('image/')
+      ? 'image'
+      : 'file';
+
+    const displayText = contentType === 'video'
+      ? `🎬 ${data.fileName}`
+      : `📄 ${data.fileName}`;
+
+    onSendRichMessage?.({
+      text: displayText,
+      contentType,
+      mediaUrl: data.dataUrl,
+      fileName: data.fileName,
+      fileSize: data.fileSize,
+    });
   };
   const handleSendLocation = (data: { latitude: number; longitude: number; description: string }) => {
     onSendRichMessage?.({ text: `📍 ${data.description}`, contentType: 'location', locationData: data });

@@ -1,6 +1,6 @@
 export type UserStatus = 'online' | 'away' | 'offline';
 export type ConversationType = 'direct' | 'group';
-export type ContentType = 'text' | 'system' | 'image' | 'file' | 'location' | 'contact' | 'poll' | 'event' | 'voice-note';
+export type ContentType = 'text' | 'system' | 'image' | 'video' | 'file' | 'location' | 'contact' | 'poll' | 'event' | 'voice-note';
 export type CallType = 'audio' | 'video';
 export type CallStatus = 'pending' | 'accepted' | 'rejected' | 'missed' | 'ended';
 
@@ -67,6 +67,7 @@ export interface Message {
   mediaUrl?: string;
   fileName?: string;
   fileSize?: string;
+  fileType?: string;
   duration?: string;
   locationData?: {
     latitude: number;
@@ -138,6 +139,7 @@ export interface SendMessagePayload {
   mediaUrl?: string;
   fileName?: string;
   fileSize?: string;
+  fileType?: string;
   duration?: string;
   locationData?: {
     latitude: number;

@@ -38,8 +38,10 @@ export const connectSocket = (): Socket => {
 
     socket.on('receive-message', (payload: any) => {
       const conversationId = payload?.conversationId;
-      const text = payload?.encryptedContent || payload?.text || '';
-      if (!conversationId || !text) return;
+      const encryptedContent = payload?.encryptedContent ?? payload?.text ?? '';
+      const contentType = payload?.contentType || 'text';
+      if (!conversationId) return;
+      if (contentType === 'text' && !encryptedContent) return;
 
       const currentState = useChatStore.getState();
       const existingMessages = currentState.messages[conversationId] || [];
@@ -50,7 +52,7 @@ export const connectSocket = (): Socket => {
         id: payload?.tempId || payload?.id || crypto.randomUUID(),
         conversationId,
         senderId: payload?.senderId || 'remote',
-        text,
+        text: encryptedContent,
         isSelf: false,
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         isRead: false,

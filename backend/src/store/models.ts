@@ -59,6 +59,7 @@ const MessageSchema = new Schema({
   mediaUrl: { type: String },
   fileName: { type: String },
   fileSize: { type: String },
+  fileType: { type: String },
   duration: { type: String },
   locationData: {
     latitude: { type: Number },

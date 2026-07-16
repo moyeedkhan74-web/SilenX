@@ -49,10 +49,11 @@ export interface ChatMessage {
     sender: string;
     text: string;
   };
-  contentType?: 'text' | 'system' | 'image' | 'file' | 'location' | 'contact' | 'poll' | 'event' | 'voice-note';
-  mediaUrl?: string; // for images, files, voice notes
-  fileName?: string; // for files
-  fileSize?: string; // for files
+  contentType?: 'text' | 'system' | 'image' | 'video' | 'file' | 'location' | 'contact' | 'poll' | 'event' | 'voice-note';
+  mediaUrl?: string; // for images, videos, files, voice notes
+  fileName?: string; // for files and videos
+  fileSize?: string; // for files and videos
+  fileType?: string; // MIME type for download and preview
   duration?: string; // for voice notes
   locationData?: {
     latitude: number;
