@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { connectSocket, getSocket } from '../services/socket';
+import { getSocket } from '../services/socket';
 import { useAuthStore } from '../store/authStore';
 import { API_URL } from '../config/webrtc-config';
 import './NotificationsPanel.css';
@@ -19,9 +19,11 @@ const NotificationsPanel: React.FC = () => {
 
   const load = async () => {
     try {
+      const token = useAuthStore.getState().token;
+      if (!token) return;
       const res = await fetch(`${API_URL}/api/requests`, {
         headers: {
-          'x-user-id': user?.id || 'self',
+          Authorization: `Bearer ${token}`,
         },
       });
       if (res.ok) {
@@ -38,9 +40,8 @@ const NotificationsPanel: React.FC = () => {
   useEffect(() => {
     load();
 
-    const socket = connectSocket();
-    // register current user
-    if (user?.id) socket.emit('register', { userId: user.id });
+    const socket = getSocket();
+    if (!socket) return;
 
     socket.on('request:new', (payload: any) => {
       const item: PendingReq = {
@@ -73,10 +74,12 @@ const NotificationsPanel: React.FC = () => {
 
   const accept = async (id: string) => {
     try {
+      const token = useAuthStore.getState().token;
+      if (!token) return;
       const res = await fetch(`${API_URL}/api/requests/${encodeURIComponent(id)}/accept`, {
         method: 'POST',
         headers: {
-          'x-user-id': user?.id || 'self',
+          Authorization: `Bearer ${token}`,
         },
       });
       if (res.ok) load();
@@ -87,10 +90,12 @@ const NotificationsPanel: React.FC = () => {
 
   const decline = async (id: string) => {
     try {
+      const token = useAuthStore.getState().token;
+      if (!token) return;
       const res = await fetch(`${API_URL}/api/requests/${encodeURIComponent(id)}/decline`, {
         method: 'POST',
         headers: {
-          'x-user-id': user?.id || 'self',
+          Authorization: `Bearer ${token}`,
         },
       });
       if (res.ok) load();

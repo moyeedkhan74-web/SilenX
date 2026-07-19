@@ -1,24 +1,27 @@
-import { Router, Request, Response } from 'express';
-import { users, conversations, conversationMembers, messages, contactRequests, friendRequests, friends, saveDb } from '../store/db';
+import { Router, Response } from 'express';
+import {
+  users,
+  conversations,
+  conversationMembers,
+  messages,
+  friendRequests,
+  friends,
+  saveDb,
+} from '../store/db';
 import { io } from '../server';
 import { getSocketIdForUser } from '../websocket/socketStore';
+import { requireAuth, AuthenticatedRequest } from '../middleware/auth';
 
 const router = Router();
 
-const getCurrentUserId = (req: Request): string => {
-  const fromHeader = req.header('x-user-id');
-  if (fromHeader) return fromHeader;
-
-  const fromBody = (req.body as { userId?: string } | undefined)?.userId;
-  if (typeof fromBody === 'string' && fromBody.trim()) return fromBody;
-
-  return 'self';
-};
+// All request routes require authentication
+router.use(requireAuth as any);
 
 // POST /api/requests — create a contact request (outgoing)
-router.post('/', (req: Request, res: Response) => {
-  const currentUserId = getCurrentUserId(req);
+router.post('/', (req: AuthenticatedRequest, res: Response) => {
+  const currentUserId = req.currentUser!.dbId;
   const { recipientUid } = req.body;
+
   if (!recipientUid) {
     res.status(400).json({ message: 'recipientUid is required' });
     return;
@@ -30,12 +33,19 @@ router.post('/', (req: Request, res: Response) => {
     return;
   }
 
+  if (recipient.id === currentUserId) {
+    res.status(400).json({ message: 'Cannot send a request to yourself' });
+    return;
+  }
+
+  const sender = users.find(u => u.id === currentUserId);
+
   const newReq = {
     id: `req_${Date.now()}`,
     fromUserId: currentUserId,
     toUserId: recipient.id,
-    fromUid: users.find(u => u.id === currentUserId)?.uid || 'SEC_UNKNOWN',
-    fromDisplayName: users.find(u => u.id === currentUserId)?.displayName || 'User',
+    fromUid: sender?.uid || 'SEC_UNKNOWN',
+    fromDisplayName: sender?.displayName || 'User',
     toUid: recipient.uid,
     toDisplayName: recipient.displayName,
     status: 'pending' as const,
@@ -43,7 +53,8 @@ router.post('/', (req: Request, res: Response) => {
   };
 
   friendRequests.push(newReq as any);
-  // Emit real-time event to recipient if connected
+  saveDb();
+
   const recipientSocketId = getSocketIdForUser(recipient.id);
   if (recipientSocketId && io) {
     io.to(recipientSocketId).emit('request:new', {
@@ -58,12 +69,13 @@ router.post('/', (req: Request, res: Response) => {
   res.status(201).json(newReq);
 });
 
-// GET /api/requests — list incoming requests for the signed-in user
-router.get('/', (req: Request, res: Response) => {
-  const currentUserId = getCurrentUserId(req);
-  const incoming = friendRequests.filter((r: any) => (r.toUserId === currentUserId || r.receiverId === currentUserId));
-  
-  // Enrich requests with sender's public info (name, uid, avatar)
+// GET /api/requests — list incoming requests for the authenticated user
+router.get('/', (req: AuthenticatedRequest, res: Response) => {
+  const currentUserId = req.currentUser!.dbId;
+  const incoming = friendRequests.filter(
+    (r: any) => r.toUserId === currentUserId || r.receiverId === currentUserId
+  );
+
   const enriched = incoming.map((r: any) => {
     const senderId = r.senderId || r.fromUserId;
     const sender = users.find(u => u.id === senderId);
@@ -74,21 +86,28 @@ router.get('/', (req: Request, res: Response) => {
       fromAvatarUrl: sender?.avatarUrl || r.fromAvatarUrl || null,
     };
   });
-  
+
   res.status(200).json(enriched);
 });
 
-// POST /api/requests/send — send by receiverId
-router.post('/send', (req: Request, res: Response) => {
-  const currentUserId = getCurrentUserId(req);
+// POST /api/requests/send — send by receiverId (alternative endpoint)
+router.post('/send', (req: AuthenticatedRequest, res: Response) => {
+  const currentUserId = req.currentUser!.dbId;
   const { receiverId } = req.body;
+
   if (!receiverId) {
     res.status(400).json({ message: 'receiverId is required' });
     return;
   }
+
   const receiver = users.find(u => u.id === receiverId);
   if (!receiver) {
     res.status(404).json({ message: 'Receiver not found' });
+    return;
+  }
+
+  if (receiver.id === currentUserId) {
+    res.status(400).json({ message: 'Cannot send a request to yourself' });
     return;
   }
 
@@ -113,7 +132,6 @@ router.post('/send', (req: Request, res: Response) => {
   friendRequests.push(newReq as any);
   saveDb();
 
-  // Emit to receiver
   const recipientSocketId = getSocketIdForUser(receiver.id);
   if (recipientSocketId && io) {
     io.to(recipientSocketId).emit('request:new', {
@@ -129,41 +147,46 @@ router.post('/send', (req: Request, res: Response) => {
   res.status(201).json({ requestId: newReq.id, status: 'pending' });
 });
 
-// POST /api/requests/:id/accept — accept incoming request and create conversation
-router.post('/:id/accept', (req: Request, res: Response) => {
+// POST /api/requests/:id/accept — accept incoming request
+router.post('/:id/accept', (req: AuthenticatedRequest, res: Response) => {
   const id = req.params.id;
-  const currentUserId = getCurrentUserId(req);
+  const currentUserId = req.currentUser!.dbId;
+
   const reqObj = friendRequests.find((r: any) => r.id === id);
   if (!reqObj) {
     res.status(404).json({ message: 'Request not found' });
     return;
   }
+
   const senderId = (reqObj as any).senderId || (reqObj as any).fromUserId;
   const receiverId = (reqObj as any).receiverId || (reqObj as any).toUserId;
 
+  // Only the intended recipient may accept
   if (receiverId !== currentUserId) {
     res.status(403).json({ message: 'Cannot accept requests not addressed to you' });
     return;
   }
 
   reqObj.status = 'accepted';
-  reqObj.updatedAt = new Date();
+  (reqObj as any).updatedAt = new Date();
 
-  // Create friend relationship
-  const sender = users.find(u => u.id === reqObj.senderId);
-  const receiver = users.find(u => u.id === reqObj.receiverId);
+  const sender = users.find(u => u.id === (reqObj as any).senderId);
+  const receiver = users.find(u => u.id === (reqObj as any).receiverId);
   if (sender && receiver) {
-    const friendEntry = { id: `f_${Date.now()}`, userId1: sender.id, userId2: receiver.id, createdAt: new Date() };
+    const friendEntry = {
+      id: `f_${Date.now()}`,
+      userId1: sender.id,
+      userId2: receiver.id,
+      createdAt: new Date(),
+    };
     friends.push(friendEntry);
   }
 
-  // Notify sender
   const senderSocketId = getSocketIdForUser(senderId);
   if (senderSocketId && io) {
     io.to(senderSocketId).emit('request:accepted', { id: reqObj.id, by: receiverId });
   }
 
-  // Create conversation (direct) for chat UI
   const recipient = users.find(u => u.id === senderId);
   if (!recipient) {
     res.status(500).json({ message: 'Request source user not found' });
@@ -183,11 +206,24 @@ router.post('/:id/accept', (req: Request, res: Response) => {
 
   conversations.push(newConvo);
 
-  const member1 = { id: `m_${newConvoId}_self`, conversationId: newConvoId, userId: currentUserId, joinedAt: new Date(), leftAt: null, muted: false };
-  const member2 = { id: `m_${newConvoId}_other`, conversationId: newConvoId, userId: recipient.id, joinedAt: new Date(), leftAt: null, muted: false };
+  const member1 = {
+    id: `m_${newConvoId}_self`,
+    conversationId: newConvoId,
+    userId: currentUserId,
+    joinedAt: new Date(),
+    leftAt: null,
+    muted: false,
+  };
+  const member2 = {
+    id: `m_${newConvoId}_other`,
+    conversationId: newConvoId,
+    userId: recipient.id,
+    joinedAt: new Date(),
+    leftAt: null,
+    muted: false,
+  };
   conversationMembers.push(member1, member2);
 
-  // Add system message
   const systemMsg = {
     id: `msg_sys_${Date.now()}`,
     conversationId: newConvoId,
@@ -196,7 +232,7 @@ router.post('/:id/accept', (req: Request, res: Response) => {
     contentType: 'system' as const,
     createdAt: new Date(),
     editedAt: null,
-    deletedAt: null
+    deletedAt: null,
   };
   messages.push(systemMsg);
   saveDb();
@@ -205,14 +241,16 @@ router.post('/:id/accept', (req: Request, res: Response) => {
 });
 
 // POST /api/requests/:id/decline — decline incoming request
-router.post('/:id/decline', (req: Request, res: Response) => {
+router.post('/:id/decline', (req: AuthenticatedRequest, res: Response) => {
   const id = req.params.id;
-  const currentUserId = getCurrentUserId(req);
+  const currentUserId = req.currentUser!.dbId;
+
   const reqObj = friendRequests.find((r: any) => r.id === id);
   if (!reqObj) {
     res.status(404).json({ message: 'Request not found' });
     return;
   }
+
   const senderId = (reqObj as any).senderId || (reqObj as any).fromUserId;
   const receiverId = (reqObj as any).receiverId || (reqObj as any).toUserId;
 
@@ -222,9 +260,9 @@ router.post('/:id/decline', (req: Request, res: Response) => {
   }
 
   reqObj.status = 'declined';
-  reqObj.updatedAt = new Date();
+  (reqObj as any).updatedAt = new Date();
+  saveDb();
 
-  // Notify sender
   const senderSocketId = getSocketIdForUser(senderId);
   if (senderSocketId && io) {
     io.to(senderSocketId).emit('request:declined', { id: reqObj.id });

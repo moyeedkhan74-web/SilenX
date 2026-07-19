@@ -73,11 +73,12 @@ export const EditProfileModal: React.FC<Props> = ({ isOpen, onClose, profile, on
       }
 
       const payload: any = { displayName, avatarUrl: finalAvatarUrl, bio };
+      const token = useAuthStore.getState().token;
       const res = await fetch(`${API_URL}/api/users/me`, {
         method: 'PUT',
         headers: { 
           'Content-Type': 'application/json',
-          'x-user-id': currentUser?.id || 'self',
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify(payload),
       });

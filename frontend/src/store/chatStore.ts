@@ -75,10 +75,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
   fetchConversations: async () => {
     set({ isLoading: true });
     try {
-      const currentUser = useAuthStore.getState().user;
+      const token = useAuthStore.getState().token;
+      if (!token) return;
       const res = await fetch(`${API_URL}/api/conversations`, {
         headers: {
-          'x-user-id': currentUser?.id || 'self',
+          Authorization: `Bearer ${token}`,
         }
       });
       if (res.ok) {
@@ -95,10 +96,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   fetchMessages: async (conversationId: string) => {
     try {
-      const currentUser = useAuthStore.getState().user;
+      const token = useAuthStore.getState().token;
+      if (!token) return;
       const res = await fetch(`${API_URL}/api/conversations/${conversationId}/messages`, {
         headers: {
-          'x-user-id': currentUser?.id || 'self',
+          Authorization: `Bearer ${token}`,
         }
       });
       if (res.ok) {
@@ -127,12 +129,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   createConversation: async (recipientUid: string) => {
     try {
-      const currentUser = useAuthStore.getState().user;
+      const token = useAuthStore.getState().token;
+      if (!token) return null;
       const res = await fetch(`${API_URL}/api/conversations`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-user-id': currentUser?.id || 'self',
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({ type: 'direct', recipientUid }),
       });
@@ -283,11 +286,12 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }),
   deleteConversation: async (convId) => {
     try {
-      const currentUser = useAuthStore.getState().user;
+      const token = useAuthStore.getState().token;
+      if (!token) return;
       const res = await fetch(`${API_URL}/api/conversations/${encodeURIComponent(convId)}`, {
         method: 'DELETE',
         headers: {
-          'x-user-id': currentUser?.id || 'self',
+          Authorization: `Bearer ${token}`,
         },
       });
 

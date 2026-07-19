@@ -1,31 +1,59 @@
 import { Router, Request, Response } from 'express';
+import { getAdminAuth } from '../config/firebaseAdmin';
 import { users, saveDb } from '../store/db';
 
 const router = Router();
 
-// POST /api/auth/google — Login with Google profile payload
-// For production, verify the token with Google. Here we accept a profile payload from frontend.
-router.post('/google', (req: Request, res: Response) => {
-  const { googleId, email, displayName, avatar, firebaseUid } = req.body as any;
-  if (!googleId || !email) {
-    res.status(400).json({ message: 'googleId and email required' });
+/**
+ * POST /api/auth/google
+ *
+ * Accepts a Firebase ID token in the Authorization: Bearer header.
+ * Verifies it with Firebase Admin SDK and creates/finds the user record.
+ * Returns the DB user object — the token itself (from Firebase) is the session credential.
+ *
+ * Security: never trusts googleId / email / firebaseUid supplied in the body.
+ */
+router.post('/google', async (req: Request, res: Response) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    res.status(401).json({ message: 'Missing Authorization: Bearer <idToken> header' });
     return;
   }
 
-  const authUserId = firebaseUid || googleId;
-  let user = users.find((u: any) => u.googleId === googleId || u.email === email || u.id === authUserId || u.uid === authUserId);
+  const idToken = authHeader.slice(7);
+
+  const adminAuth = getAdminAuth();
+  if (!adminAuth) {
+    res.status(503).json({ message: 'Auth service not configured on the server. Set FIREBASE_SERVICE_ACCOUNT_JSON.' });
+    return;
+  }
+
+  let decodedToken: import('firebase-admin').auth.DecodedIdToken;
+  try {
+    decodedToken = await adminAuth.verifyIdToken(idToken);
+  } catch (err: any) {
+    console.warn('[Auth] verifyIdToken failed:', err?.errorInfo?.code || err?.message);
+    res.status(401).json({ message: 'Invalid or expired Firebase ID token' });
+    return;
+  }
+
+  const firebaseUid = decodedToken.uid;
+  const email = decodedToken.email || null;
+  const displayName = (decodedToken as any).name as string | undefined || null;
+  const avatarUrl = (decodedToken as any).picture as string | undefined || null;
+
+  let user = users.find((u: any) => u.id === firebaseUid);
   let changed = false;
+
   if (!user) {
-    const id = authUserId || `u_${Date.now()}`;
-    const uid = `SEC_${id}`;
+    const uid = `SEC_${firebaseUid}`;
     user = {
-      id,
+      id: firebaseUid,
       uid,
-      email,
-      phone: undefined,
-      googleId,
-      displayName: displayName || 'New User',
-      avatarUrl: avatar || null,
+      email: email || '',
+      googleId: decodedToken.firebase?.identities?.['google.com']?.[0] || null,
+      displayName: displayName || 'Secure User',
+      avatarUrl: avatarUrl || null,
       status: 'online',
       lastSeen: new Date(),
       bio: '',
@@ -36,33 +64,28 @@ router.post('/google', (req: Request, res: Response) => {
     users.push(user as any);
     changed = true;
   } else {
-    // Sync displayName / avatar if they changed
+    // Sync mutable profile fields from token claims
     if (displayName && user.displayName !== displayName) {
       user.displayName = displayName;
       changed = true;
     }
-    if (avatar && user.avatarUrl !== avatar) {
-      user.avatarUrl = avatar;
+    if (avatarUrl && user.avatarUrl !== avatarUrl) {
+      user.avatarUrl = avatarUrl;
+      changed = true;
+    }
+    if (email && user.email !== email) {
+      user.email = email;
       changed = true;
     }
   }
 
-  if (changed) {
-    saveDb();
-  }
+  if (changed) saveDb();
 
-  // Return mock token and user
-  res.status(200).json({ user, token: 'mock-jwt-token' });
+  // Do NOT issue a separate server token — the Firebase ID token IS the credential.
+  res.status(200).json({ user });
 });
 
-// POST /api/auth/refresh — Refresh access token
-router.post('/refresh', (_req: Request, res: Response) => {
-  res.status(200).json({
-    token: 'mock-jwt-token-fresh-abc'
-  });
-});
-
-// POST /api/auth/logout — Logout
+// POST /api/auth/logout — stateless; client discards the Firebase token client-side
 router.post('/logout', (_req: Request, res: Response) => {
   res.status(200).json({ message: 'Logged out successfully' });
 });

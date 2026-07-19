@@ -8,13 +8,6 @@ import { connectSocket } from '../services/socket';
 import { API_URL, normalizeUid } from '../config/webrtc-config';
 import './LoginPage.css';
 
-const DEV_USERS = [
-  { id: 'self', uid: 'SEC_8f7d6e5c4b3a', email: 'user@gmail.com', displayName: 'User', bio: "Hey there! I'm using SlienX." },
-  { id: 'u1', uid: 'SEC_a1b2c3d4e5f6', email: 'alice@proton.me', displayName: 'Alice Chen', bio: 'Security researcher' },
-  { id: 'u2', uid: 'SEC_f6e5d4c3b2a1', email: 'bob@signal.org', displayName: 'Bob Martinez', bio: 'Full-stack developer' },
-  { id: 'u6', uid: 'SEC_FjEcUktRBeZlbLxX', email: 'testuser@example.com', displayName: 'Test User', bio: 'Test account for Secure ID lookup' }
-];
-
 const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const login = useAuthStore((state) => state.login);
@@ -23,7 +16,7 @@ const LoginPage: React.FC = () => {
 
   const handleGoogleLogin = async () => {
     if (!auth || !googleProvider) {
-      setError('Google sign-in is not configured yet. Add your Firebase environment values.');
+      setError('Google sign-in is not configured. Add your Firebase environment values.');
       return;
     }
 
@@ -33,111 +26,63 @@ const LoginPage: React.FC = () => {
     try {
       const result = await signInWithPopup(auth, googleProvider);
       const firebaseUser = result.user;
-      const token = await firebaseUser.getIdToken();
 
-      // Call backend to create/find server-side user and receive server token
+      // Get a fresh Firebase ID token — this is the credential we send to the backend
+      const idToken = await firebaseUser.getIdToken();
+
+      // Send the token to the backend for verification and user creation/lookup
+      const resp = await fetch(`${API_URL}/api/auth/google`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${idToken}`,
+        },
+      });
+
+      if (!resp.ok) {
+        // If the backend rejects the token, sign out immediately — no fallback
+        await auth.signOut();
+        const errBody = await resp.json().catch(() => ({}));
+        setError(errBody.message || 'Authentication failed. Please try again.');
+        return;
+      }
+
+      const body = await resp.json();
+      const serverUser = body.user;
+
+      // Store the Firebase ID token as the app credential
+      login(
+        {
+          id: serverUser.id,
+          uid: normalizeUid(serverUser.uid || serverUser.id),
+          email: serverUser.email || '',
+          displayName: serverUser.displayName || 'Secure User',
+          avatarUrl: serverUser.avatarUrl || null,
+          status: serverUser.status || 'online',
+          lastSeen: new Date().toISOString(),
+          bio: serverUser.bio || 'Signed in with Google',
+        },
+        idToken
+      );
+
+      // Connect socket with the Firebase ID token for server-side verification
       try {
-        const payload = {
-          googleId: firebaseUser.providerData?.[0]?.uid || firebaseUser.uid,
-          firebaseUid: firebaseUser.uid,
-          email: firebaseUser.email,
-          displayName: firebaseUser.displayName,
-          avatar: firebaseUser.photoURL,
-        };
-        const resp = await fetch(`${API_URL}/api/auth/google`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
-        if (resp.ok) {
-          const body = await resp.json();
-          const serverUser = body.user;
-          const serverToken = body.token;
-
-          login(
-            {
-              id: serverUser.id,
-              uid: normalizeUid(serverUser.uid || serverUser.id),
-              email: serverUser.email || '',
-              displayName: serverUser.displayName || 'Secure User',
-              avatarUrl: serverUser.avatarUrl || null,
-              status: serverUser.status || 'online',
-              lastSeen: new Date().toISOString(),
-              bio: serverUser.bio || 'Signed in with Google',
-            },
-            serverToken
-          );
-
-          // register socket for server-side user id
-          try {
-            const socket = connectSocket();
-            socket.emit('register', { userId: serverUser.id });
-          } catch (err) {
-            console.warn('Socket registration failed', err);
-          }
-        } else {
-          console.warn('Backend auth failed, falling back to local user');
-          login(
-            {
-              id: firebaseUser.uid,
-              uid: firebaseUser.uid ? normalizeUid(firebaseUser.uid) : '',
-              email: firebaseUser.email || '',
-              displayName: firebaseUser.displayName || 'Secure User',
-              avatarUrl: firebaseUser.photoURL || null,
-              status: 'online',
-              lastSeen: new Date().toISOString(),
-              bio: 'Signed in with Google',
-            },
-            token
-          );
-        }
+        connectSocket(idToken);
       } catch (err) {
-        console.error('Backend auth error', err);
-        login(
-          {
-            id: firebaseUser.uid,
-            uid: firebaseUser.uid,
-            email: firebaseUser.email || '',
-            displayName: firebaseUser.displayName || 'Secure User',
-            avatarUrl: firebaseUser.photoURL || null,
-            status: 'online',
-            lastSeen: new Date().toISOString(),
-            bio: 'Signed in with Google',
-          },
-          token
-        );
+        console.warn('Socket registration failed', err);
       }
 
       navigate('/');
-    } catch (err) {
-      console.error(err);
-      setError('Google sign-in failed. Please try again.');
+    } catch (err: any) {
+      console.error('[Login] Error:', err);
+      if (err?.code === 'auth/popup-closed-by-user') {
+        setError('Sign-in popup was closed. Please try again.');
+      } else {
+        setError('Google sign-in failed. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleDevLogin = (devUser: typeof DEV_USERS[0]) => {
-    login(
-      {
-        id: devUser.id,
-        uid: devUser.uid,
-        email: devUser.email,
-        displayName: devUser.displayName,
-        avatarUrl: null,
-        status: 'online',
-        lastSeen: new Date().toISOString(),
-        bio: devUser.bio,
-      },
-      'mock-jwt-token'
-    );
-    try {
-      const socket = connectSocket();
-      socket.emit('register', { userId: devUser.id });
-    } catch (err) {
-      console.warn('Socket registration failed', err);
-    }
-    navigate('/');
   };
 
   return (
@@ -177,7 +122,12 @@ const LoginPage: React.FC = () => {
           </div>
         </div>
 
-        <button className="google-login-btn" onClick={handleGoogleLogin} disabled={loading} id="google-login-button">
+        <button
+          className="google-login-btn"
+          onClick={handleGoogleLogin}
+          disabled={loading}
+          id="google-login-button"
+        >
           {loading ? (
             <span className="login-spinner" />
           ) : (
@@ -192,25 +142,6 @@ const LoginPage: React.FC = () => {
         </button>
 
         {error ? <p className="login-error">{error}</p> : null}
-
-        {import.meta.env.DEV && (
-          <div className="dev-login-section" style={{ marginTop: '24px', borderTop: '1px dashed var(--border-color)', paddingTop: '16px' }}>
-            <h3 style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              Developer Bypass
-            </h3>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-              {DEV_USERS.map((user) => (
-                <button
-                  key={user.id}
-                  onClick={() => handleDevLogin(user)}
-                  className="dev-login-btn"
-                >
-                  {user.displayName} ({user.id})
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
 
         <div className="login-footer">
           <span>Fast and private</span>

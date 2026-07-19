@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { MessageCircle, Users, User, Settings, LogOut } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
-import { connectSocket, getSocket } from '../../services/socket';
+import { getSocket } from '../../services/socket';
 import { API_URL } from '../../config/webrtc-config';
 import '../Sidebar.css';
 
@@ -18,8 +18,10 @@ export const Sidebar: React.FC<SidebarProps> = () => {
   useEffect(() => {
     const fetchCount = async () => {
       try {
+        const token = useAuthStore.getState().token;
+        if (!token) return;
         const res = await fetch(`${API_URL}/api/requests`, {
-          headers: { 'x-user-id': currentUser?.id || 'self' },
+          headers: { Authorization: `Bearer ${token}` },
         });
         if (res.ok) {
           const data = await res.json();
@@ -37,8 +39,8 @@ export const Sidebar: React.FC<SidebarProps> = () => {
 
     fetchCount();
 
-    const socket = connectSocket();
-    if (currentUser?.id) socket.emit('register', { userId: currentUser.id });
+    const socket = getSocket();
+    if (!socket) return;
 
     socket.on('request:new', () => {
       setPendingCount((c) => c + 1);

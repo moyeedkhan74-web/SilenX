@@ -1,22 +1,61 @@
 node_modules/
 npm-debug.log
 *.log
+
+# Environment files — NEVER commit real secrets
 .env
 .env.*
 !.env.example
+
+# IDE
 .vscode/
 .idea/
+
+# OS
 .DS_Store
 Thumbs.db
+
+# Build outputs
 dist/
 build/
 coverage/
 
-# Local Google/Firebase credential files
-google-services.json
-client_secret_*.json
-firebase.json
+# ──────────────────────────────────────────────────────────────────────────────
+# Credential files — add every pattern that could carry a secret
+# ──────────────────────────────────────────────────────────────────────────────
 
-# Temp files
+# Google OAuth client secrets (downloaded from GCP console)
+client_secret*.json
+client_secret_*.json
+
+# Firebase / Google service-account keys
+*serviceAccountKey*.json
+*service-account*.json
+*service_account*.json
+firebase-adminsdk-*.json
+
+# Google services config (contains project details, not a prod secret but keep clean)
+google-services.json
+
+# Firebase hosting / emulator config (may contain project IDs)
+firebase.json
+.firebaserc
+
+# Backblaze / S3 / object storage credentials
+*.b2.json
+*.s3cfg
+
+# Any generic "key" or "secret" JSON files
+*secret*.json
+*credentials*.json
+*private_key*.json
+
+# Temp / scratch files
 status_ascii.txt
+diff.txt
+diff_last.txt
+diff_prev.txt
 *.txt
+
+# Issue tracker notes
+issue/

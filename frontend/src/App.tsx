@@ -42,80 +42,58 @@ function App() {
 
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
-        const token = await firebaseUser.getIdToken();
         try {
-          const payload = {
-            googleId: firebaseUser.providerData?.[0]?.uid || firebaseUser.uid,
-            firebaseUid: firebaseUser.uid,
-            email: firebaseUser.email,
-            displayName: firebaseUser.displayName,
-            avatar: firebaseUser.photoURL,
-          };
+          // Always obtain a fresh token — getIdToken(true) forces a refresh
+          const idToken = await firebaseUser.getIdToken(/* forceRefresh */ false);
+
           const resp = await fetch(`${API_URL}/api/auth/google`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload),
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${idToken}`,
+            },
           });
-          if (resp.ok) {
-            const body = await resp.json();
-            const serverUser = body.user;
-            const serverToken = body.token;
-            login(
-              {
-                id: serverUser.id,
-                uid: normalizeUid(serverUser.uid || serverUser.id),
-                email: serverUser.email || '',
-                displayName: serverUser.displayName || 'Secure User',
-                avatarUrl: serverUser.avatarUrl || null,
-                status: serverUser.status || 'online',
-                lastSeen: new Date().toISOString(),
-                bio: serverUser.bio || 'Signed in with Google',
-              },
-              serverToken
-            );
-            try {
-              const socket = connectSocket();
-              socket.emit('register', { userId: serverUser.id });
-            } catch (error) {
-              console.warn('Socket registration failed:', error);
-            }
-          } else {
-            login(
-              {
-                id: firebaseUser.uid,
-                uid: normalizeUid(firebaseUser.uid),
-                email: firebaseUser.email || '',
-                displayName: firebaseUser.displayName || 'Secure User',
-                avatarUrl: firebaseUser.photoURL || null,
-                status: 'online',
-                lastSeen: new Date().toISOString(),
-                bio: 'Signed in with Google',
-              },
-              token
-            );
+
+          if (!resp.ok) {
+            // Server rejected the token (401/503) — sign out and force re-login
+            console.error('[App] Backend rejected token, signing out');
+            await auth!.signOut();
+            logout();
+            setInitialized(true);
+            return;
           }
-        } catch (error) {
-          console.warn('Backend auth failed:', error);
+
+          const body = await resp.json();
+          const serverUser = body.user;
+
+          // Store the Firebase ID token as our app token; it is refreshed by Firebase automatically
           login(
             {
-              id: firebaseUser.uid,
-              uid: firebaseUser.uid,
-              email: firebaseUser.email || '',
-              displayName: firebaseUser.displayName || 'Secure User',
-              avatarUrl: firebaseUser.photoURL || null,
-              status: 'online',
+              id: serverUser.id,
+              uid: normalizeUid(serverUser.uid || serverUser.id),
+              email: serverUser.email || '',
+              displayName: serverUser.displayName || 'Secure User',
+              avatarUrl: serverUser.avatarUrl || null,
+              status: serverUser.status || 'online',
               lastSeen: new Date().toISOString(),
-              bio: 'Signed in with Google',
+              bio: serverUser.bio || 'Signed in with Google',
             },
-            token
+            idToken
           );
-        }
-      } else {
-        // Only logout if not already authenticated (e.g. via dev bypass login)
-        const currentState = useAuthStore.getState();
-        if (!currentState.isAuthenticated) {
+
+          // Connect socket with the Firebase ID token for server-side verification
+          try {
+            connectSocket(idToken);
+          } catch (error) {
+            console.warn('Socket connection failed:', error);
+          }
+        } catch (error) {
+          console.error('[App] Auth flow failed:', error);
+          await auth!.signOut().catch(() => {});
           logout();
         }
+      } else {
+        logout();
       }
       setInitialized(true);
     });
