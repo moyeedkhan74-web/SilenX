@@ -8,7 +8,6 @@ import { useAuthStore } from '../store/authStore';
 export const SettingsPage: React.FC = () => {
   const navigate = useNavigate();
   const logout = useAuthStore((state) => state.logout);
-  const user = useAuthStore((state) => state.user);
 
   const handleDeleteAccount = async () => {
     const confirmDelete = window.confirm(
@@ -17,10 +16,11 @@ export const SettingsPage: React.FC = () => {
     if (!confirmDelete) return;
 
     try {
+      const token = useAuthStore.getState().token;
       const res = await fetch(`${API_URL}/api/users/me`, {
         method: 'DELETE',
         headers: {
-          'x-user-id': user?.id || 'self',
+          Authorization: `Bearer ${token}`,
         },
       });
 

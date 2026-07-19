@@ -1,6 +1,7 @@
 import { io, Socket } from 'socket.io-client';
 import { SOCKET_URL } from '../config/webrtc-config';
 import { useChatStore } from '../store/chatStore';
+import { useAuthStore } from '../store/authStore';
 import type { ChatMessage } from '../types';
 
 let socket: Socket | null = null;
@@ -8,14 +9,31 @@ let socket: Socket | null = null;
 /**
  * Connect (or reconnect) the Socket.io client.
  *
- * @param idToken - Firebase ID token used to authenticate the socket connection on the server.
- *                  The server verifies this token in the io.use() middleware.
+ * Automatically retrieves the Firebase ID token from the useAuthStore
+ * if not provided as an argument. If socket is already connected and
+ * the token matches, it returns the existing socket without reconnecting.
  */
-export const connectSocket = (idToken: string): Socket => {
-  // If an existing socket is open with a different token, disconnect it first
+export const connectSocket = (idToken?: string): Socket => {
+  const token = idToken || useAuthStore.getState().token;
+
   if (socket) {
+    const currentToken = socket.auth && typeof socket.auth === 'object'
+      ? (socket.auth as any).token
+      : null;
+
+    if (!token || currentToken === token) {
+      return socket;
+    }
+
+    // Token changed, disconnect the old one
     socket.disconnect();
     socket = null;
+  }
+
+  if (!token) {
+    // If no token is loaded yet, return a disconnected socket instance for safety
+    console.warn('[Socket] No Firebase ID token available; creating disconnected socket.');
+    return io(SOCKET_URL || '', { autoConnect: false });
   }
 
   const options = {
@@ -23,14 +41,13 @@ export const connectSocket = (idToken: string): Socket => {
     reconnectionAttempts: 5,
     reconnectionDelay: 1000,
     // Pass the Firebase ID token in the handshake auth object
-    auth: { token: idToken },
+    auth: { token },
   };
 
   socket = SOCKET_URL ? io(SOCKET_URL, options) : io(options);
 
   socket.on('connect', () => {
     console.log(`[Socket] Connected: ${socket?.id}`);
-    // No 'register' event needed — identity comes from the server-verified token
   });
 
   socket.on('disconnect', (reason) => {

@@ -33,9 +33,10 @@ export const ContactsPage: React.FC = () => {
   const loadRequests = async () => {
     setIsLoading(true);
     try {
+      const token = useAuthStore.getState().token;
       const res = await fetch(`${API_URL}/api/requests`, {
         headers: {
-          'x-user-id': currentUser?.id || 'self',
+          Authorization: `Bearer ${token}`,
         }
       });
       if (res.ok) {
@@ -57,10 +58,11 @@ export const ContactsPage: React.FC = () => {
     // Optimistic UI: remove from list immediately
     setRequests((prev) => prev.filter((r) => r.id !== id));
     try {
+      const token = useAuthStore.getState().token;
       const res = await fetch(`${API_URL}/api/requests/${encodeURIComponent(id)}/accept`, { 
         method: 'POST',
         headers: {
-          'x-user-id': currentUser?.id || 'self',
+          Authorization: `Bearer ${token}`,
         }
       });
       if (res.ok) {
@@ -87,10 +89,11 @@ export const ContactsPage: React.FC = () => {
 
   const handleDecline = async (id: string) => {
     try {
+      const token = useAuthStore.getState().token;
       const res = await fetch(`${API_URL}/api/requests/${encodeURIComponent(id)}/decline`, { 
         method: 'POST',
         headers: {
-          'x-user-id': currentUser?.id || 'self',
+          Authorization: `Bearer ${token}`,
         }
       });
       if (res.ok) {

@@ -2,6 +2,8 @@ import { Router, Request, Response } from 'express';
 import { getAdminAuth } from '../config/firebaseAdmin';
 import { users, saveDb } from '../store/db';
 
+import { DecodedIdToken } from 'firebase-admin/auth';
+
 const router = Router();
 
 /**
@@ -28,7 +30,7 @@ router.post('/google', async (req: Request, res: Response) => {
     return;
   }
 
-  let decodedToken: import('firebase-admin').auth.DecodedIdToken;
+  let decodedToken: DecodedIdToken;
   try {
     decodedToken = await adminAuth.verifyIdToken(idToken);
   } catch (err: any) {

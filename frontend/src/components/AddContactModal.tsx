@@ -48,7 +48,6 @@ export const AddContactModal: React.FC<AddContactModalProps> = ({ isOpen, onClos
   const [error, setError] = useState('');
   const [previewUser, setPreviewUser] = useState<FoundUser | null>(null);
   const scannerRef = useRef<Html5Qrcode | null>(null);
-  const user = useAuthStore((state) => state.user);
 
   useEffect(() => {
     return () => {
@@ -158,11 +157,12 @@ export const AddContactModal: React.FC<AddContactModalProps> = ({ isOpen, onClos
     if (!previewUser) return;
 
     try {
+      const token = useAuthStore.getState().token;
       const res = await fetch(`${API_URL}/api/requests/send`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-user-id': user?.id || 'self',
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({ receiverId: previewUser.id }),
       });
