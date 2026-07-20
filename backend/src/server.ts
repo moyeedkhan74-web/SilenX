@@ -13,11 +13,47 @@ import requestRoutes from './routes/requests';
 import { connectDb } from './store/db';
 
 const app = express();
+
+const allowedOrigins = [
+  'https://silen-x.vercel.app',
+  'http://localhost:5173',
+  'http://localhost:3000',
+];
+
+if (config.frontendUrl) {
+  const normalized = config.frontendUrl.replace(/\/$/, '');
+  if (!allowedOrigins.includes(normalized)) {
+    allowedOrigins.push(normalized);
+  }
+}
+
+const checkOrigin = (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+  // Allow requests with no origin (like mobile apps, curl, uptime check pings)
+  if (!origin) {
+    callback(null, true);
+    return;
+  }
+
+  const isAllowed = allowedOrigins.includes(origin) ||
+                    origin.startsWith('http://localhost:') ||
+                    origin.startsWith('http://127.0.0.1:') ||
+                    /^https:\/\/silen-x-.*\.vercel\.app$/.test(origin);
+
+  if (isAllowed) {
+    callback(null, true);
+  } else {
+    console.warn(`[CORS] Blocked request from origin: ${origin}`);
+    callback(null, false);
+  }
+};
+
 app.use(
   cors({
-    origin: config.isProduction ? config.frontendUrl : true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    origin: checkOrigin,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     credentials: true,
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
+    optionsSuccessStatus: 200,
   })
 );
 app.use(express.json());
@@ -26,7 +62,7 @@ const server = http.createServer(app);
 
 const io = new Server(server, {
   cors: {
-    origin: config.isProduction ? [config.frontendUrl] : '*',
+    origin: checkOrigin,
     methods: ['GET', 'POST'],
     credentials: true,
   },
