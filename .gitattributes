@@ -1,0 +1,6 @@
+# Enforce LF (Unix-style) line endings for Dockerfiles so Docker builders on platforms like Back4app / Render don't fail immediately.
+Dockerfile text eol=lf
+backend/Dockerfile text eol=lf
+*.json text eol=lf
+*.ts text eol=lf
+*.tsx text eol=lf

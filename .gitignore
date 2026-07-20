@@ -33,6 +33,8 @@ client_secret_*.json
 *service-account*.json
 *service_account*.json
 firebase-adminsdk-*.json
+*firebase-adminsdk*.json
+silenx-*.json
 
 # Google services config (contains project details, not a prod secret but keep clean)
 google-services.json

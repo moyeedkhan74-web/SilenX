@@ -29,9 +29,47 @@
       "deletedAt": null
     }
   ],
-  "conversations": [],
-  "conversationMembers": [],
-  "messages": [],
+  "conversations": [
+    {
+      "id": "conv_seed_1784558170273",
+      "type": "direct",
+      "name": null,
+      "avatarUrl": null,
+      "createdBy": "FjEcUktRBeZlbLxXbdbXzFdVOa82",
+      "createdAt": "2026-07-20T14:36:10.273Z",
+      "updatedAt": "2026-07-20T14:36:10.273Z"
+    }
+  ],
+  "conversationMembers": [
+    {
+      "id": "m_conv_seed_1784558170273_1",
+      "conversationId": "conv_seed_1784558170273",
+      "userId": "FjEcUktRBeZlbLxXbdbXzFdVOa82",
+      "joinedAt": "2026-07-20T14:36:10.273Z",
+      "leftAt": null,
+      "muted": false
+    },
+    {
+      "id": "m_conv_seed_1784558170273_2",
+      "conversationId": "conv_seed_1784558170273",
+      "userId": "CGmnFr3IfXQ9zEQElfZRK1vW2qp2",
+      "joinedAt": "2026-07-20T14:36:10.273Z",
+      "leftAt": null,
+      "muted": false
+    }
+  ],
+  "messages": [
+    {
+      "id": "msg_conv_seed_1784558170273_seed",
+      "conversationId": "conv_seed_1784558170273",
+      "senderId": "FjEcUktRBeZlbLxXbdbXzFdVOa82",
+      "encryptedContent": "Say hi! 🔗 Secure connection established.",
+      "contentType": "system",
+      "createdAt": "2026-07-20T14:36:10.273Z",
+      "editedAt": null,
+      "deletedAt": null
+    }
+  ],
   "friendRequests": [],
   "friends": []
 }

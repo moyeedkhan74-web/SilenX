@@ -16,4 +16,4 @@ ENV PORT=3000
 
 EXPOSE 3000
 
-CMD ["sh", "-c", "node backend/dist/server.js"]
+CMD ["node", "backend/dist/server.js"]
