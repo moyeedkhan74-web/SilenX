@@ -99,8 +99,12 @@ async function performSync() {
       friendRequests,
       friends
     };
-    fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2), 'utf8');
-    console.log('[DB] Saved backup to db.json');
+    try {
+      fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2), 'utf8');
+      console.log('[DB] Saved backup to db.json');
+    } catch (fsErr) {
+      console.warn('[DB] Could not write db.json backup (container filesystem may be read-only):', (fsErr as any)?.message);
+    }
 
     // 2. Sync to MongoDB only if it is connected
     if (mongoose.connection.readyState === 1) {

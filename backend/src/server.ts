@@ -47,15 +47,20 @@ const checkOrigin = (origin: string | undefined, callback: (err: Error | null, a
   }
 };
 
-app.use(
-  cors({
-    origin: checkOrigin,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    credentials: true,
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
-    optionsSuccessStatus: 200,
-  })
-);
+const corsOptions = {
+  origin: checkOrigin,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  credentials: true,
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
+  optionsSuccessStatus: 200,
+};
+
+app.use(cors(corsOptions));
+
+// Explicitly handle ALL OPTIONS preflight requests FIRST — before any route logic.
+// This ensures the browser always gets CORS headers even if a later handler throws.
+app.options('*', cors(corsOptions));
+
 app.use(express.json());
 
 const server = http.createServer(app);
@@ -111,5 +116,20 @@ const startServer = async () => {
 };
 
 startServer();
+
+// Global error handler — always emit CORS headers so the browser doesn't
+// mistake a server crash for a CORS block.
+app.use((err: any, req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  const origin = req.headers.origin as string | undefined;
+  if (origin) {
+    checkOrigin(origin, (_, allow) => {
+      if (allow) res.setHeader('Access-Control-Allow-Origin', origin);
+    });
+    res.setHeader('Vary', 'Origin');
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+  }
+  console.error('[Server] Unhandled error:', err?.message || err);
+  res.status(500).json({ message: 'Internal server error' });
+});
 
 export { app, io, server, port, startServer };
