@@ -1,6 +1,7 @@
 import express, { Request, Response } from 'express';
 import http from 'http';
 import path from 'path';
+import fs from 'fs';
 import { Server } from 'socket.io';
 import cors from 'cors';
 import { config } from './config';
@@ -90,12 +91,87 @@ app.use('/api/requests', requestRoutes);
 
 // ─── Serve Frontend (production) ───────────────────────────
 const frontendDist = path.join(__dirname, '../../frontend/dist');
-app.use(express.static(frontendDist));
-
-// SPA catch-all: any non-API GET returns index.html
-app.get('*', (_req: Request, res: Response) => {
-  res.sendFile(path.join(frontendDist, 'index.html'));
-});
+if (fs.existsSync(frontendDist)) {
+  app.use(express.static(frontendDist));
+  // SPA catch-all: any non-API GET returns index.html
+  app.get('*', (_req: Request, res: Response) => {
+    res.sendFile(path.join(frontendDist, 'index.html'));
+  });
+} else {
+  // If frontend is not built in the container, serve a clean status page
+  app.get('*', (_req: Request, res: Response) => {
+    res.status(200).send(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>SlienX API Gateway</title>
+        <style>
+          body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #0b0e11;
+            color: #e9edef;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+          }
+          .card {
+            text-align: center;
+            background: #111b21;
+            padding: 2.5rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            max-width: 400px;
+          }
+          h1 {
+            color: #00a884;
+            margin-top: 0;
+            font-size: 1.8rem;
+          }
+          p {
+            line-height: 1.5;
+            color: #8696a0;
+            margin-bottom: 1.5rem;
+          }
+          a {
+            display: inline-block;
+            padding: 0.75rem 1.5rem;
+            background: #00a884;
+            color: #fff;
+            text-decoration: none;
+            border-radius: 20px;
+            font-weight: bold;
+            transition: background 0.2s;
+          }
+          a:hover {
+            background: #008f72;
+          }
+          .badge {
+            display: inline-block;
+            padding: 0.25rem 0.6rem;
+            background: #202c33;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            font-family: monospace;
+            color: #34b7f1;
+            margin-top: 0.5rem;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="card">
+          <h1>SlienX API Gateway</h1>
+          <p>The secure communication gateway is running successfully.</p>
+          <div class="badge">Status: Online</div>
+          <br/><br/>
+          <a href="https://silen-x.vercel.app" target="_blank" rel="noopener noreferrer">Open Chat App</a>
+        </div>
+      </body>
+      </html>
+    `);
+  });
+}
 
 // ─── WebSocket ─────────────────────────────────────────────
 registerSocketHandlers(io);
