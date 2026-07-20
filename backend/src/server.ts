@@ -98,14 +98,16 @@ registerSocketHandlers(io);
 const port = Number(process.env.PORT) || 5000;
 
 const startServer = async () => {
+  // Listen immediately so that health check endpoints resolve instantly and don't block Render startup
+  server.listen(port, () => {
+    console.log(`[Server] SlienX backend listening on port ${port}`);
+  });
+
   try {
     await connectDb();
   } catch (err) {
     console.error('[Server] MongoDB connection failed:', err);
   }
-  server.listen(port, () => {
-    console.log(`[Server] SlienX backend listening on port ${port}`);
-  });
 };
 
 startServer();
