@@ -76,13 +76,16 @@ export const connectSocket = (idToken?: string): Socket => {
     );
     if (alreadyExists) return;
 
+    const messageDate = payload?.createdAt ? new Date(payload.createdAt) : new Date();
+
     const incomingMessage: ChatMessage = {
       id: payload?.tempId || payload?.id || crypto.randomUUID(),
       conversationId,
       senderId: payload?.senderId || 'remote',
       text: encryptedContent,
       isSelf: false,
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      time: messageDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      createdAt: messageDate.toISOString(),
       isRead: false,
       isEdited: false,
       isDeleted: false,

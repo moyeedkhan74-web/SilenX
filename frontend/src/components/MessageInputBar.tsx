@@ -40,6 +40,12 @@ export function MessageInputBar({ onSend, onSendRichMessage, replyTo, onCancelRe
     textRef.current?.focus();
   };
 
+  useEffect(() => {
+    if (replyTo) {
+      textRef.current?.focus();
+    }
+  }, [replyTo]);
+
   const handleSend = () => {
     if (!text.trim()) return;
     onTypingChange?.(false);

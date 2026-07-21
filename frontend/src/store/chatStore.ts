@@ -48,6 +48,14 @@ const persistState = (state: Partial<ChatState>) => {
   localStorage.setItem(key, JSON.stringify(payload));
 };
 
+const sortMessagesByTime = (msgs: ChatMessage[]): ChatMessage[] => {
+  return [...msgs].sort((a, b) => {
+    const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+    const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+    return timeA - timeB;
+  });
+};
+
 export const useChatStore = create<ChatState>((set, get) => ({
   conversations: [],
   activeConversationId: null,
@@ -112,10 +120,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
               mergedMessages.push(msg);
             }
           });
+          const sorted = sortMessagesByTime(mergedMessages);
           const nextState = {
             messages: {
               ...state.messages,
-              [conversationId]: mergedMessages,
+              [conversationId]: sorted,
             },
           };
           persistState(nextState);
@@ -170,18 +179,49 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
   addMessage: (convId, msg) =>
     set((state) => {
+      const existing = state.messages[convId] || [];
+      const updatedMessages = existing.some((m) => m.id === msg.id)
+        ? existing.map((m) => (m.id === msg.id ? { ...m, ...msg } : m))
+        : [...existing, msg];
+      const sortedMessages = sortMessagesByTime(updatedMessages);
+
+      // Update conversation's last message & time and move to top
+      const updatedConvos = state.conversations.map((c) => {
+        if (c.id === convId) {
+          const unreadCount = (!msg.isSelf && state.activeConversationId !== convId)
+            ? (c.unreadCount || 0) + 1
+            : c.unreadCount;
+          return {
+            ...c,
+            lastMessage: msg.text || (msg.contentType ? `[${msg.contentType}]` : ''),
+            lastMessageTime: msg.time,
+            unreadCount,
+          };
+        }
+        return c;
+      });
+
+      // Move active conversation to top of list
+      const targetConvoIndex = updatedConvos.findIndex((c) => c.id === convId);
+      if (targetConvoIndex > 0) {
+        const [targetConvo] = updatedConvos.splice(targetConvoIndex, 1);
+        updatedConvos.unshift(targetConvo);
+      }
+
       const nextState: Partial<ChatState> = {
         messages: {
           ...state.messages,
-          [convId]: [...(state.messages[convId] || []), msg],
+          [convId]: sortedMessages,
         },
+        conversations: updatedConvos,
       };
       persistState(nextState);
       return nextState;
     }),
   setMessages: (convId, msgs) =>
     set((state) => {
-      const nextState: Partial<ChatState> = { messages: { ...state.messages, [convId]: msgs } };
+      const sorted = sortMessagesByTime(msgs);
+      const nextState: Partial<ChatState> = { messages: { ...state.messages, [convId]: sorted } };
       persistState(nextState);
       return nextState;
     }),

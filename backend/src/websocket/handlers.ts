@@ -146,7 +146,7 @@ export function registerSocketHandlers(io: Server): void {
       convoMemberIds.forEach(memberId => {
         const recipientSocketId = getSocketIdForUser(memberId);
         if (recipientSocketId) {
-          socket.to(recipientSocketId).emit('receive-message', outgoing);
+          io.to(recipientSocketId).emit('receive-message', outgoing);
         }
       });
     });

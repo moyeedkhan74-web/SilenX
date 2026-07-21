@@ -214,7 +214,9 @@ router.get('/:id/messages', (req: AuthenticatedRequest, res: Response) => {
     return;
   }
 
-  const convoMessages = messages.filter(m => m.conversationId === convoId);
+  const convoMessages = messages
+    .filter(m => m.conversationId === convoId)
+    .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
 
   const formatted = convoMessages.map(m => ({
     id: m.id,
@@ -223,6 +225,7 @@ router.get('/:id/messages', (req: AuthenticatedRequest, res: Response) => {
     text: m.encryptedContent,
     isSelf: m.senderId === currentUserId,
     time: m.createdAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    createdAt: m.createdAt.toISOString(),
     isRead: m.senderId === currentUserId ? true : m.createdAt.getTime() < Date.now() - 1000,
     isEdited: !!m.editedAt,
     isDeleted: !!m.deletedAt,

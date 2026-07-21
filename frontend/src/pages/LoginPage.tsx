@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Lock, ShieldCheck, Sparkles } from 'lucide-react';
+import { Lock, Clock3, Layers3 } from 'lucide-react';
 import { signInWithPopup } from 'firebase/auth';
 import { auth, googleProvider } from '../config/firebase';
 import { useAuthStore } from '../store/authStore';
@@ -29,11 +29,8 @@ const LoginPage: React.FC = () => {
     try {
       const result = await signInWithPopup(auth, googleProvider);
       const firebaseUser = result.user;
-
-      // Get a fresh Firebase ID token — this is the credential we send to the backend
       const idToken = await firebaseUser.getIdToken();
 
-      // Send the token to the backend with auto-retries for cold-starts
       let body;
       try {
         body = await authenticateWithGoogleBackend(idToken, (msg) => setStatusMessage(msg));
@@ -45,7 +42,6 @@ const LoginPage: React.FC = () => {
 
       const serverUser = body.user;
 
-      // Store the Firebase ID token as the app credential
       login(
         {
           id: serverUser.id,
@@ -60,7 +56,6 @@ const LoginPage: React.FC = () => {
         idToken
       );
 
-      // Connect socket with the Firebase ID token for server-side verification
       try {
         connectSocket(idToken);
       } catch (err) {
@@ -83,86 +78,113 @@ const LoginPage: React.FC = () => {
 
   return (
     <div className="login-page">
-      <div className="login-particles">
-        {Array.from({ length: 10 }).map((_, i) => (
-          <div key={i} className="particle" />
-        ))}
+      <div className="aurora" aria-hidden="true">
+        <div className="blob blob-1" />
+        <div className="blob blob-2" />
+        <div className="blob blob-3" />
+        <div className="blob blob-4" />
       </div>
 
-      <div className="login-card">
-        <div className="login-logo">
-          <div className="login-logo-glow" />
-          <div className="login-badge">SX</div>
+      <header className="topbar">
+        <div className="brand">
+          <span className="dot" />
+          <span>SlienX</span>
         </div>
 
-        <div className="login-pill">
-          <Sparkles size={14} />
-          <span>Google-only secure sign in</span>
+        <nav className="navlinks" aria-label="Primary navigation">
+          <a href="#">Features</a>
+          <a href="#">Security</a>
+          <a href="#">Download</a>
+        </nav>
+      </header>
+
+      <main className="hero">
+        <section className="hero-copy">
+          <span className="eyebrow">Now on web, desktop &amp; mobile</span>
+          <h2>Conversations that stay yours.</h2>
+          <p>
+            SlienX pairs end-to-end encrypted messaging with crystal-clear calls, so what you say stays between you and the people you're talking to — nobody else.
+          </p>
+
+          <div className="feature-list">
+            <div className="feature">
+              <div className="feature-icon">
+                <Lock size={18} />
+              </div>
+              <div className="feature-text">
+                <h3>Encrypted by default</h3>
+                <p>Every message and call is protected before it leaves your device.</p>
+              </div>
+            </div>
+
+            <div className="feature">
+              <div className="feature-icon">
+                <Clock3 size={18} />
+              </div>
+              <div className="feature-text">
+                <h3>Set up in seconds</h3>
+                <p>Sign in with your Google account — no phone number, no new password.</p>
+              </div>
+            </div>
+
+            <div className="feature">
+              <div className="feature-icon">
+                <Layers3 size={18} />
+              </div>
+              <div className="feature-text">
+                <h3>One account, every device</h3>
+                <p>Pick up the same conversation on your phone, tablet, or laptop.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="card">
+          <div className="mark">SX</div>
+          <h1>Sign in</h1>
+          <p className="tagline">Continue with your Google account to get started.</p>
+
+          <button
+            className="google-btn"
+            onClick={handleGoogleLogin}
+            disabled={loading}
+            id="google-login-button"
+          >
+            {loading ? (
+              <span className="login-spinner" />
+            ) : (
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path fill="#4285F4" d="M23.49 12.27c0-.79-.07-1.54-.19-2.27H12v4.51h6.47a5.53 5.53 0 0 1-2.4 3.63v3h3.87c2.27-2.09 3.55-5.17 3.55-8.87z"/>
+                <path fill="#34A853" d="M12 24c3.24 0 5.95-1.07 7.94-2.91l-3.87-3c-1.08.72-2.45 1.15-4.07 1.15-3.13 0-5.78-2.11-6.73-4.96H1.27v3.09A12 12 0 0 0 12 24z"/>
+                <path fill="#FBBC05" d="M5.27 14.28A7.2 7.2 0 0 1 4.89 12c0-.79.14-1.56.38-2.28V6.63H1.27A12 12 0 0 0 0 12c0 1.93.46 3.76 1.27 5.37z"/>
+                <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.43-3.43C17.94 1.19 15.24 0 12 0A12 12 0 0 0 1.27 6.63l4 3.09C6.22 6.86 8.87 4.75 12 4.75z"/>
+              </svg>
+            )}
+            <span>{statusMessage || (loading ? 'Signing you in…' : 'Continue with Google')}</span>
+          </button>
+
+          {statusMessage ? (
+            <div className="status">
+              {statusMessage}
+            </div>
+          ) : null}
+
+          <div className="error" id="errorMsg">
+            {error}
+          </div>
+
+          <div className="foot">By continuing, you agree to SlienX's Terms &amp; Privacy Policy.</div>
+        </section>
+      </main>
+
+      <footer className="footer">
+        <span>© 2026 SlienX. All rights reserved.</span>
+        <div className="footer-links">
+          <a href="#">Privacy</a>
+          <a href="#">Terms</a>
+          <a href="#">Help Center</a>
         </div>
-
-        <h1 className="login-title">SlienX</h1>
-        <p className="login-tagline">Private messaging, crystal-clear calls, and end-to-end protection.</p>
-
-        <div className="login-features">
-          <div className="login-feature">
-            <span className="login-feature-icon"><Lock size={18} /></span>
-            <span className="login-feature-label">Encrypted</span>
-          </div>
-          <div className="login-feature">
-            <span className="login-feature-icon"><ShieldCheck size={18} /></span>
-            <span className="login-feature-label">No phone number</span>
-          </div>
-          <div className="login-feature">
-            <span className="login-feature-icon"><ShieldCheck size={18} /></span>
-            <span className="login-feature-label">Zero-knowledge</span>
-          </div>
-        </div>
-
-        <button
-          className="google-login-btn"
-          onClick={handleGoogleLogin}
-          disabled={loading}
-          id="google-login-button"
-        >
-          {loading ? (
-            <span className="login-spinner" />
-          ) : (
-            <svg width="20" height="20" viewBox="0 0 24 24">
-              <path fill="var(--color-google-blue)" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/>
-              <path fill="var(--color-google-green)" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-              <path fill="var(--color-google-yellow)" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-              <path fill="var(--color-google-red)" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-            </svg>
-          )}
-          <span>{statusMessage || (loading ? 'Signing you in…' : 'Continue with Google')}</span>
-        </button>
-
-        {statusMessage ? <p className="login-status" style={{ color: '#34b7f1', marginTop: '12px', fontSize: '0.88rem' }}>{statusMessage}</p> : null}
-        {error ? <p className="login-error">{error}</p> : null}
-
-        <div className="login-footer">
-          <span>Fast and private</span>
-          <span className="login-footer-dot" />
-          <span>Secure by design</span>
-          <span className="login-footer-dot" />
-          <span>Google-auth only</span>
-        </div>
-
-        <div className="login-trust-badges">
-          <div className="trust-badge">
-            <span className="trust-badge-icon"><ShieldCheck size={14} /></span>
-            <span>X25519 Keys</span>
-          </div>
-          <div className="trust-badge">
-            <span className="trust-badge-icon"><ShieldCheck size={14} /></span>
-            <span>ChaCha20</span>
-          </div>
-          <div className="trust-badge">
-            <span className="trust-badge-icon"><ShieldCheck size={14} /></span>
-            <span>WebRTC</span>
-          </div>
-        </div>
-      </div>
+      </footer>
     </div>
   );
 };

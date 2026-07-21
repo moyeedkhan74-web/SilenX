@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>SlienX — Sign in</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg-0:#070c14;
+    --bg-1:#0d1522;
+    --card:#0f1826;
+    --card-border:#1c2a3d;
+    --teal-1:#1fd1a8;
+    --teal-2:#0ea5e9;
+    --text-hi:#f3f6f9;
+    --text-lo:#8296ac;
+    --text-faint:#54687e;
+    --error:#ff6b6b;
+  }
+
+  *{ box-sizing:border-box; }
+
+  html{
+    height:100%;
+  }
+
+  body{
+    font-family:'Inter', sans-serif;
+    color:var(--text-hi);
+    min-height:100vh;
+    margin:0;
+    display:flex;
+    flex-direction:column;
+    padding:0;
+    background-color:#060a12;
+    position:relative;
+    overflow-x:hidden;
+  }
+
+  .aurora{
+    position:fixed;
+    inset:0;
+    z-index:0;
+    overflow:hidden;
+    pointer-events:none;
+  }
+
+  .blob{
+    position:absolute;
+    border-radius:50%;
+    filter:blur(90px);
+    opacity:0.55;
+    will-change:transform;
+  }
+
+  .blob-1{
+    width:600px; height:600px;
+    top:-220px; left:-120px;
+    background:radial-gradient(circle, #1fd1a8, transparent 70%);
+    animation:float1 22s ease-in-out infinite;
+  }
+
+  .blob-2{
+    width:520px; height:520px;
+    top:10%; right:-180px;
+    background:radial-gradient(circle, #0ea5e9, transparent 70%);
+    animation:float2 26s ease-in-out infinite;
+  }
+
+  .blob-3{
+    width:560px; height:560px;
+    bottom:-260px; left:12%;
+    background:radial-gradient(circle, #8b5cf6, transparent 70%);
+    opacity:0.4;
+    animation:float3 30s ease-in-out infinite;
+  }
+
+  .blob-4{
+    width:420px; height:420px;
+    bottom:-160px; right:8%;
+    background:radial-gradient(circle, #f472b6, transparent 70%);
+    opacity:0.3;
+    animation:float1 24s ease-in-out infinite reverse;
+  }
+
+  @keyframes float1{
+    0%,100%{ transform:translate(0,0) scale(1); }
+    50%{ transform:translate(40px,50px) scale(1.08); }
+  }
+  @keyframes float2{
+    0%,100%{ transform:translate(0,0) scale(1); }
+    50%{ transform:translate(-50px,40px) scale(1.05); }
+  }
+  @keyframes float3{
+    0%,100%{ transform:translate(0,0) scale(1); }
+    50%{ transform:translate(30px,-40px) scale(1.1); }
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    .blob{ animation:none !important; }
+  }
+
+  /* ---- entrance animation ---- */
+
+  @keyframes fadeDown{
+    from{ opacity:0; transform:translateY(-16px); }
+    to{ opacity:1; transform:translateY(0); }
+  }
+  @keyframes fadeUp{
+    from{ opacity:0; transform:translateY(28px); }
+    to{ opacity:1; transform:translateY(0); }
+  }
+  @keyframes fadeRight{
+    from{ opacity:0; transform:translateX(-24px); }
+    to{ opacity:1; transform:translateX(0); }
+  }
+  @keyframes fadeLeft{
+    from{ opacity:0; transform:translateX(24px); }
+    to{ opacity:1; transform:translateX(0); }
+  }
+  @keyframes blobIn{
+    from{ opacity:0; transform:scale(0.7); }
+    to{ opacity:1; transform:scale(1); }
+  }
+
+  .topbar{ animation:fadeDown .7s cubic-bezier(.2,.8,.2,1) both; }
+
+  .eyebrow, .hero-copy h2, .hero-copy > p, .feature{
+    opacity:0;
+    animation:fadeRight .7s cubic-bezier(.2,.8,.2,1) both;
+  }
+  .eyebrow{ animation-delay:.15s; }
+  .hero-copy h2{ animation-delay:.25s; }
+  .hero-copy > p{ animation-delay:.35s; }
+  .feature:nth-of-type(1){ animation-delay:.45s; }
+  .feature:nth-of-type(2){ animation-delay:.55s; }
+  .feature:nth-of-type(3){ animation-delay:.65s; }
+
+  .card{ animation:fadeLeft .8s cubic-bezier(.2,.8,.2,1) .35s both; }
+
+  .footer{
+    opacity:0;
+    animation:fadeUp .7s cubic-bezier(.2,.8,.2,1) .8s both;
+  }
+
+  .blob{ animation-fill-mode:both; }
+  .blob-1{ animation:blobIn 1.2s ease-out both, float1 22s ease-in-out 1.2s infinite; }
+  .blob-2{ animation:blobIn 1.2s ease-out .1s both, float2 26s ease-in-out 1.3s infinite; }
+  .blob-3{ animation:blobIn 1.2s ease-out .2s both, float3 30s ease-in-out 1.4s infinite; }
+  .blob-4{ animation:blobIn 1.2s ease-out .3s both, float1 24s ease-in-out 1.5s infinite reverse; }
+
+  @media (prefers-reduced-motion: reduce){
+    .topbar, .eyebrow, .hero-copy h2, .hero-copy > p, .feature, .card, .footer, .blob{
+      animation:none !important;
+      opacity:1 !important;
+      transform:none !important;
+    }
+  }
+
+  /* ---- page chrome ---- */
+
+  .topbar{
+    position:relative;
+    z-index:2;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:28px 48px;
+    max-width:1180px;
+    width:100%;
+    margin:0 auto;
+  }
+
+  .brand{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    font-family:'Space Grotesk', sans-serif;
+    font-weight:600;
+    font-size:17px;
+    letter-spacing:-0.01em;
+  }
+
+  .brand .dot{
+    width:26px; height:26px;
+    border-radius:8px;
+    background:linear-gradient(135deg, var(--teal-1), var(--teal-2));
+  }
+
+  .navlinks{
+    display:flex;
+    gap:32px;
+    font-size:14px;
+    color:var(--text-lo);
+  }
+
+  .navlinks a{
+    color:inherit;
+    text-decoration:none;
+  }
+  .navlinks a:hover{ color:var(--text-hi); }
+
+  .hero{
+    position:relative;
+    z-index:1;
+    flex:1;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    max-width:1180px;
+    width:100%;
+    margin:0 auto;
+    padding:24px 48px 60px;
+    gap:80px;
+  }
+
+  .hero-copy{
+    flex:1;
+    max-width:440px;
+  }
+
+  .eyebrow{
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
+    font-size:13px;
+    font-weight:600;
+    color:var(--teal-1);
+    letter-spacing:0.04em;
+    text-transform:uppercase;
+    margin-bottom:20px;
+  }
+
+  .hero-copy h2{
+    font-family:'Space Grotesk', sans-serif;
+    font-size:44px;
+    line-height:1.12;
+    letter-spacing:-0.02em;
+    margin:0 0 20px;
+  }
+
+  .hero-copy > p{
+    color:var(--text-lo);
+    font-size:16px;
+    line-height:1.65;
+    margin:0 0 36px;
+    max-width:400px;
+  }
+
+  .feature-list{
+    display:flex;
+    flex-direction:column;
+    gap:22px;
+  }
+
+  .feature{
+    display:flex;
+    align-items:flex-start;
+    gap:14px;
+  }
+
+  .feature-icon{
+    flex:none;
+    width:36px; height:36px;
+    border-radius:10px;
+    background:rgba(255,255,255,0.05);
+    border:1px solid rgba(255,255,255,0.08);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+
+  .feature-icon svg{ width:18px; height:18px; }
+
+  .feature-text h3{
+    font-size:15px;
+    font-weight:600;
+    margin:0 0 3px;
+  }
+
+  .feature-text p{
+    font-size:13.5px;
+    color:var(--text-lo);
+    margin:0;
+    line-height:1.5;
+  }
+
+  .footer{
+    position:relative;
+    z-index:1;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    max-width:1180px;
+    width:100%;
+    margin:0 auto;
+    padding:24px 48px 32px;
+    font-size:13px;
+    color:var(--text-faint);
+    border-top:1px solid rgba(255,255,255,0.06);
+  }
+
+  .footer-links{
+    display:flex;
+    gap:24px;
+  }
+  .footer-links a{
+    color:var(--text-faint);
+    text-decoration:none;
+  }
+  .footer-links a:hover{ color:var(--text-lo); }
+
+  @media (max-width:920px){
+    .hero{ flex-direction:column; gap:48px; padding-top:8px; }
+    .hero-copy{ max-width:520px; text-align:center; }
+    .hero-copy > p{ margin-left:auto; margin-right:auto; }
+    .feature-list{ text-align:left; }
+    .navlinks{ display:none; }
+  }
+
+  @media (max-width:600px){
+    .topbar{ padding:22px 20px; }
+    .hero{ padding:0 20px 40px; }
+    .footer{ padding:20px 20px 28px; flex-direction:column; gap:14px; text-align:center; }
+    .hero-copy h2{ font-size:32px; }
+  }
+
+  .card{
+    position:relative;
+    z-index:1;
+    width:100%;
+    max-width:440px;
+    flex:none;
+    background:rgba(15,24,38,0.55);
+    backdrop-filter:blur(28px);
+    -webkit-backdrop-filter:blur(28px);
+    border:1px solid rgba(255,255,255,0.08);
+    border-radius:28px;
+    padding:52px 44px 40px;
+    text-align:center;
+    box-shadow:0 40px 80px -30px rgba(0,0,0,0.6);
+  }
+
+  .mark{
+    width:64px;
+    height:64px;
+    margin:0 auto 32px;
+    border-radius:18px;
+    background:linear-gradient(135deg, var(--teal-1), var(--teal-2));
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-family:'Space Grotesk', sans-serif;
+    font-weight:700;
+    font-size:22px;
+    letter-spacing:0.02em;
+    color:#04140f;
+    box-shadow:0 12px 30px -8px rgba(31,209,168,0.45);
+  }
+
+  h1{
+    font-family:'Space Grotesk', sans-serif;
+    font-weight:600;
+    font-size:34px;
+    letter-spacing:-0.01em;
+    margin:0 0 14px;
+  }
+
+  p.tagline{
+    color:var(--text-lo);
+    font-size:15.5px;
+    line-height:1.6;
+    max-width:400px;
+    margin:0 auto 44px;
+  }
+
+  .google-btn{
+    width:100%;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:12px;
+    background:var(--text-hi);
+    color:#10141a;
+    border:none;
+    border-radius:14px;
+    padding:17px 20px;
+    font-family:'Inter', sans-serif;
+    font-weight:600;
+    font-size:15.5px;
+    cursor:pointer;
+    transition:transform .15s ease, box-shadow .15s ease;
+  }
+
+  .google-btn:hover{
+    transform:translateY(-1px);
+    box-shadow:0 12px 24px -10px rgba(255,255,255,0.25);
+  }
+
+  .google-btn svg{ width:20px; height:20px; }
+
+  .error{
+    color:var(--error);
+    font-size:13.5px;
+    margin-top:20px;
+    min-height:18px;
+  }
+
+  .foot{
+    margin-top:40px;
+    font-size:13px;
+    color:var(--text-faint);
+  }
+
+  @media (max-width:480px){
+    .card{ padding:48px 28px 36px; border-radius:20px; }
+    h1{ font-size:28px; }
+  }
+</style>
+</head>
+<body>
+
+  <div class="aurora">
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+    <div class="blob blob-3"></div>
+    <div class="blob blob-4"></div>
+  </div>
+
+  <header class="topbar">
+    <div class="brand"><span class="dot"></span>SlienX</div>
+    <nav class="navlinks">
+      <a href="#">Features</a>
+      <a href="#">Security</a>
+      <a href="#">Download</a>
+    </nav>
+  </header>
+
+  <main class="hero">
+    <div class="hero-copy">
+      <span class="eyebrow">Now on web, desktop &amp; mobile</span>
+      <h2>Conversations that stay yours.</h2>
+      <p>SlienX pairs end-to-end encrypted messaging with crystal-clear calls, so what you say stays between you and the people you're talking to — nobody else.</p>
+
+      <div class="feature-list">
+        <div class="feature">
+          <div class="feature-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#1fd1a8" stroke-width="2"><path d="M12 2l8 4v6c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V6l8-4z"/></svg>
+          </div>
+          <div class="feature-text">
+            <h3>Encrypted by default</h3>
+            <p>Every message and call is protected before it leaves your device.</p>
+          </div>
+        </div>
+
+        <div class="feature">
+          <div class="feature-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#0ea5e9" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+          </div>
+          <div class="feature-text">
+            <h3>Set up in seconds</h3>
+            <p>Sign in with your Google account — no phone number, no new password.</p>
+          </div>
+        </div>
+
+        <div class="feature">
+          <div class="feature-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" stroke-width="2"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h3"/></svg>
+          </div>
+          <div class="feature-text">
+            <h3>One account, every device</h3>
+            <p>Pick up the same conversation on your phone, tablet, or laptop.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="mark">SX</div>
+      <h1>Sign in</h1>
+      <p class="tagline">Continue with your Google account to get started.</p>
+
+      <button class="google-btn" id="googleBtn">
+        <svg viewBox="0 0 24 24"><path fill="#4285F4" d="M23.49 12.27c0-.79-.07-1.54-.19-2.27H12v4.51h6.47a5.53 5.53 0 0 1-2.4 3.63v3h3.87c2.27-2.09 3.55-5.17 3.55-8.87z"/><path fill="#34A853" d="M12 24c3.24 0 5.95-1.07 7.94-2.91l-3.87-3c-1.08.72-2.45 1.15-4.07 1.15-3.13 0-5.78-2.11-6.73-4.96H1.27v3.09A12 12 0 0 0 12 24z"/><path fill="#FBBC05" d="M5.27 14.28A7.2 7.2 0 0 1 4.89 12c0-.79.14-1.56.38-2.28V6.63H1.27A12 12 0 0 0 0 12c0 1.93.46 3.76 1.27 5.37z"/><path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.43-3.43C17.94 1.19 15.24 0 12 0A12 12 0 0 0 1.27 6.63l4 3.09C6.22 6.86 8.87 4.75 12 4.75z"/></svg>
+        Continue with Google
+      </button>
+
+      <div class="error" id="errorMsg"></div>
+
+      <div class="foot">By continuing, you agree to SlienX's Terms &amp; Privacy Policy.</div>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <span>© 2026 SlienX. All rights reserved.</span>
+    <div class="footer-links">
+      <a href="#">Privacy</a>
+      <a href="#">Terms</a>
+      <a href="#">Help Center</a>
+    </div>
+  </footer>
+
+<script>
+  // demo: simulate the failed sign-in state on click
+  document.getElementById('googleBtn').addEventListener('click', () => {
+    document.getElementById('errorMsg').textContent = 'Google sign-in failed. Please try again.';
+  });
+</script>
+</body>
+</html>

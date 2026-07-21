@@ -34,6 +34,7 @@ export interface ChatMessage {
   text: string;
   isSelf: boolean;
   time: string;
+  createdAt?: string;
   isRead: boolean;
   isEdited: boolean;
   isDeleted: boolean;
