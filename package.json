@@ -4,5 +4,8 @@
   "scripts": {
     "build": "npm --prefix backend install --include=dev && npm --prefix backend run build",
     "start": "node server.js"
+  },
+  "overrides": {
+    "jose": "4.15.9"
   }
 }
