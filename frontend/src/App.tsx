@@ -10,8 +10,10 @@ import SettingsPage from './pages/SettingsPage';
 import CallOverlay from './components/CallOverlay';
 import { auth } from './config/firebase';
 import { useAuthStore } from './store/authStore';
-import { API_URL, normalizeUid } from './config/webrtc-config';
+import { normalizeUid } from './config/webrtc-config';
 import { connectSocket } from './services/socket';
+import { authenticateWithGoogleBackend } from './services/authApi';
+import type { UserStatus } from './types';
 import './App.css';
 import { ThemeProvider } from './theme/ThemeContext';
 
@@ -45,25 +47,7 @@ function App() {
         try {
           // Always obtain a fresh token — getIdToken(true) forces a refresh
           const idToken = await firebaseUser.getIdToken(/* forceRefresh */ false);
-
-          const resp = await fetch(`${API_URL}/api/auth/google`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${idToken}`,
-            },
-          });
-
-          if (!resp.ok) {
-            // Server rejected the token (401/503) — sign out and force re-login
-            console.error('[App] Backend rejected token, signing out');
-            await auth!.signOut();
-            logout();
-            setInitialized(true);
-            return;
-          }
-
-          const body = await resp.json();
+          const body = await authenticateWithGoogleBackend(idToken);
           const serverUser = body.user;
 
           // Store the Firebase ID token as our app token; it is refreshed by Firebase automatically
@@ -74,7 +58,7 @@ function App() {
               email: serverUser.email || '',
               displayName: serverUser.displayName || 'Secure User',
               avatarUrl: serverUser.avatarUrl || null,
-              status: serverUser.status || 'online',
+              status: (serverUser.status as UserStatus) || 'online',
               lastSeen: new Date().toISOString(),
               bio: serverUser.bio || 'Signed in with Google',
             },

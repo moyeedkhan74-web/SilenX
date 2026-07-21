@@ -58,6 +58,12 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 
+// Set Cross-Origin-Opener-Policy header to allow Google OAuth popups without browser blocking
+app.use((_req: Request, res: Response, next) => {
+  res.setHeader('Cross-Origin-Opener-Policy', 'same-origin-allow-popups');
+  next();
+});
+
 // Explicitly handle ALL OPTIONS preflight requests FIRST — before any route logic.
 // This ensures the browser always gets CORS headers even if a later handler throws.
 app.options('*', cors(corsOptions));

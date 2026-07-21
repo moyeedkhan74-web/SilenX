@@ -5,7 +5,9 @@ import { signInWithPopup } from 'firebase/auth';
 import { auth, googleProvider } from '../config/firebase';
 import { useAuthStore } from '../store/authStore';
 import { connectSocket } from '../services/socket';
-import { API_URL, normalizeUid } from '../config/webrtc-config';
+import { normalizeUid } from '../config/webrtc-config';
+import { authenticateWithGoogleBackend } from '../services/authApi';
+import type { UserStatus } from '../types';
 import './LoginPage.css';
 
 const LoginPage: React.FC = () => {
@@ -13,6 +15,7 @@ const LoginPage: React.FC = () => {
   const login = useAuthStore((state) => state.login);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
   const handleGoogleLogin = async () => {
     if (!auth || !googleProvider) {
@@ -30,24 +33,16 @@ const LoginPage: React.FC = () => {
       // Get a fresh Firebase ID token — this is the credential we send to the backend
       const idToken = await firebaseUser.getIdToken();
 
-      // Send the token to the backend for verification and user creation/lookup
-      const resp = await fetch(`${API_URL}/api/auth/google`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${idToken}`,
-        },
-      });
-
-      if (!resp.ok) {
-        // If the backend rejects the token, sign out immediately — no fallback
+      // Send the token to the backend with auto-retries for cold-starts
+      let body;
+      try {
+        body = await authenticateWithGoogleBackend(idToken, (msg) => setStatusMessage(msg));
+      } catch (backendErr: any) {
         await auth.signOut();
-        const errBody = await resp.json().catch(() => ({}));
-        setError(errBody.message || 'Authentication failed. Please try again.');
+        setError(backendErr?.message || 'Backend server unavailable. Please try again.');
         return;
       }
 
-      const body = await resp.json();
       const serverUser = body.user;
 
       // Store the Firebase ID token as the app credential
@@ -58,7 +53,7 @@ const LoginPage: React.FC = () => {
           email: serverUser.email || '',
           displayName: serverUser.displayName || 'Secure User',
           avatarUrl: serverUser.avatarUrl || null,
-          status: serverUser.status || 'online',
+          status: (serverUser.status as UserStatus) || 'online',
           lastSeen: new Date().toISOString(),
           bio: serverUser.bio || 'Signed in with Google',
         },
@@ -78,10 +73,11 @@ const LoginPage: React.FC = () => {
       if (err?.code === 'auth/popup-closed-by-user') {
         setError('Sign-in popup was closed. Please try again.');
       } else {
-        setError('Google sign-in failed. Please try again.');
+        setError(err?.message || 'Google sign-in failed. Please try again.');
       }
     } finally {
       setLoading(false);
+      setStatusMessage(null);
     }
   };
 
@@ -138,9 +134,10 @@ const LoginPage: React.FC = () => {
               <path fill="var(--color-google-red)" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
             </svg>
           )}
-          <span>{loading ? 'Signing you in…' : 'Continue with Google'}</span>
+          <span>{statusMessage || (loading ? 'Signing you in…' : 'Continue with Google')}</span>
         </button>
 
+        {statusMessage ? <p className="login-status" style={{ color: '#34b7f1', marginTop: '12px', fontSize: '0.88rem' }}>{statusMessage}</p> : null}
         {error ? <p className="login-error">{error}</p> : null}
 
         <div className="login-footer">
