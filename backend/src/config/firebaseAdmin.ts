@@ -43,6 +43,23 @@ export function getAdminApp(): App | null {
       return adminApp;
     }
 
+    // Split key reassembly for platforms with environment variable size limits (like Back4app)
+    const pk1 = process.env.FIREBASE_PRIVATE_KEY_1;
+    const pk2 = process.env.FIREBASE_PRIVATE_KEY_2;
+    const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+    if (pk1 && pk2 && clientEmail && projectId) {
+      const privateKey = (pk1 + pk2).replace(/\\n/g, '\n');
+      const credentialObj = {
+        type: 'service_account',
+        project_id: projectId,
+        private_key: privateKey,
+        client_email: clientEmail,
+      };
+      adminApp = initializeApp({ credential: cert(credentialObj as any) });
+      console.log('[FirebaseAdmin] Initialised using split FIREBASE_PRIVATE_KEY Env Vars');
+      return adminApp;
+    }
+
     // Fall back to ADC (GOOGLE_APPLICATION_CREDENTIALS file or GCE metadata)
     adminApp = initializeApp({
       credential: applicationDefault(),
