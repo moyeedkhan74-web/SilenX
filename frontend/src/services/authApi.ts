@@ -17,15 +17,11 @@ export async function authenticateWithGoogleBackend(
   idToken: string,
   onStatusUpdate?: (msg: string) => void
 ): Promise<GoogleAuthResponse> {
-  const maxRetries = 8;
-  const retryDelayMs = 4000;
+  const maxRetries = 5;
+  const retryDelayMs = 3000;
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      if (attempt > 1 && onStatusUpdate) {
-        onStatusUpdate(`Waking up secure backend server (attempt ${attempt}/${maxRetries})…`);
-      }
-
       const resp = await fetch(`${API_URL}/api/auth/google`, {
         method: 'POST',
         headers: {
@@ -34,24 +30,47 @@ export async function authenticateWithGoogleBackend(
         },
       });
 
-      // Render cold starts return 503, 502, or 504 while container starts up
+      // Try reading response JSON first
+      const bodyText = await resp.text();
+      let body: any = {};
+      try {
+        body = JSON.parse(bodyText);
+      } catch {
+        // Response is non-JSON (e.g. Render HTML gateway 503 cold start page)
+      }
+
+      if (resp.ok) {
+        return body as GoogleAuthResponse;
+      }
+
+      // If backend returned a JSON error message (e.g. missing credentials or invalid token), DO NOT RETRY
+      if (body && body.message) {
+        throw new Error(body.message);
+      }
+
+      // If status is 503/502/504 and body was HTML (Render proxy cold start page), retry
       if (resp.status === 503 || resp.status === 502 || resp.status === 504) {
-        console.warn(`[AuthAPI] Backend returned ${resp.status}. Cold start retry ${attempt}/${maxRetries}...`);
         if (attempt < maxRetries) {
+          if (onStatusUpdate) {
+            onStatusUpdate(`Connecting to backend server (attempt ${attempt}/${maxRetries})…`);
+          }
           await new Promise((r) => setTimeout(r, retryDelayMs));
           continue;
         }
       }
 
-      if (!resp.ok) {
-        const errBody = await resp.json().catch(() => ({}));
-        throw new Error(errBody.message || `Backend authentication failed (HTTP ${resp.status})`);
+      throw new Error(`Backend authentication failed (HTTP ${resp.status})`);
+    } catch (err: any) {
+      // If it's a known error message from JSON response, rethrow immediately
+      if (err.message && !err.message.includes('fetch') && !err.message.includes('HTTP 503')) {
+        throw err;
       }
 
-      return await resp.json();
-    } catch (err: any) {
       console.warn(`[AuthAPI] Attempt ${attempt} failed:`, err?.message || err);
-      if (attempt < maxRetries && (err?.name === 'TypeError' || err?.message?.includes('fetch') || err?.message?.includes('503'))) {
+      if (attempt < maxRetries) {
+        if (onStatusUpdate) {
+          onStatusUpdate(`Connecting to backend server (attempt ${attempt}/${maxRetries})…`);
+        }
         await new Promise((r) => setTimeout(r, retryDelayMs));
         continue;
       }
@@ -59,5 +78,5 @@ export async function authenticateWithGoogleBackend(
     }
   }
 
-  throw new Error('Server is warming up. Please try signing in again in a few seconds.');
+  throw new Error('Unable to connect to backend server. Please try again.');
 }

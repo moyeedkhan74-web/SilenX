@@ -26,7 +26,7 @@ router.post('/google', async (req: Request, res: Response) => {
 
   const adminAuth = getAdminAuth();
   if (!adminAuth) {
-    res.status(503).json({ message: 'Auth service not configured on the server. Set FIREBASE_SERVICE_ACCOUNT_JSON.' });
+    res.status(500).json({ message: 'Firebase Admin credentials missing on server. Please set FIREBASE_SERVICE_ACCOUNT_JSON in Render environment variables.' });
     return;
   }
 
