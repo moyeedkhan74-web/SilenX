@@ -46,7 +46,7 @@
   top: -220px;
   left: -120px;
   background: radial-gradient(circle, #1fd1a8, transparent 70%);
-  animation: float1 22s ease-in-out infinite;
+  animation: blobIn 1.2s ease-out both, float1 22s ease-in-out 1.2s infinite;
 }
 
 .blob-2 {
@@ -55,7 +55,7 @@
   top: 10%;
   right: -180px;
   background: radial-gradient(circle, #0ea5e9, transparent 70%);
-  animation: float2 26s ease-in-out infinite;
+  animation: blobIn 1.2s ease-out 0.1s both, float2 26s ease-in-out 1.3s infinite;
 }
 
 .blob-3 {
@@ -65,7 +65,7 @@
   left: 12%;
   background: radial-gradient(circle, #8b5cf6, transparent 70%);
   opacity: 0.4;
-  animation: float3 30s ease-in-out infinite;
+  animation: blobIn 1.2s ease-out 0.2s both, float3 30s ease-in-out 1.4s infinite;
 }
 
 .blob-4 {
@@ -75,7 +75,7 @@
   right: 8%;
   background: radial-gradient(circle, #f472b6, transparent 70%);
   opacity: 0.3;
-  animation: float1 24s ease-in-out infinite reverse;
+  animation: blobIn 1.2s ease-out 0.3s both, float1 24s ease-in-out 1.5s infinite reverse;
 }
 
 @keyframes float1 {
@@ -93,6 +93,61 @@
   50% { transform: translate(30px, -40px) scale(1.1); }
 }
 
+@keyframes fadeDown {
+  from {
+    opacity: 0;
+    transform: translateY(-16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(28px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeRight {
+  from {
+    opacity: 0;
+    transform: translateX(-24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes fadeLeft {
+  from {
+    opacity: 0;
+    transform: translateX(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes blobIn {
+  from {
+    opacity: 0;
+    transform: scale(0.7);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
 .topbar {
   position: relative;
   z-index: 2;
@@ -103,6 +158,7 @@
   max-width: 1180px;
   width: 100%;
   margin: 0 auto;
+  animation: fadeDown 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 
 .brand {
@@ -175,6 +231,8 @@
   line-height: 1.12;
   letter-spacing: -0.02em;
   margin: 0 0 20px;
+  opacity: 0;
+  animation: fadeRight 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) 0.25s both;
 }
 
 .hero-copy > p {
@@ -183,6 +241,8 @@
   line-height: 1.65;
   margin: 0 0 36px;
   max-width: 400px;
+  opacity: 0;
+  animation: fadeRight 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) 0.35s both;
 }
 
 .feature-list {
@@ -195,6 +255,20 @@
   display: flex;
   align-items: flex-start;
   gap: 14px;
+  opacity: 0;
+  animation: fadeRight 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.feature:nth-of-type(1) {
+  animation-delay: 0.45s;
+}
+
+.feature:nth-of-type(2) {
+  animation-delay: 0.55s;
+}
+
+.feature:nth-of-type(3) {
+  animation-delay: 0.65s;
 }
 
 .feature-icon {
@@ -237,6 +311,7 @@
   padding: 52px 44px 40px;
   text-align: center;
   box-shadow: 0 40px 80px -30px rgba(0, 0, 0, 0.6);
+  animation: fadeLeft 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) 0.35s both;
 }
 
 .mark {
@@ -350,6 +425,8 @@
   font-size: 13px;
   color: var(--text-faint);
   border-top: 1px solid rgba(255, 255, 255, 0.06);
+  opacity: 0;
+  animation: fadeUp 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) 0.8s both;
 }
 
 .footer-links {
