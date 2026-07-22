@@ -134,6 +134,7 @@ export function MessageInputBar({ onSend, onSendRichMessage, replyTo, onCancelRe
       mediaUrl: data.dataUrl,
       fileName: data.fileName,
       fileSize: data.fileSize,
+      fileType: data.fileType,
     });
   };
   const handleSendLocation = (data: { latitude: number; longitude: number; description: string }) => {

@@ -335,7 +335,7 @@ const ChatView: React.FC = () => {
       case 'video':
         return msg.mediaUrl ? (
           <div className="rich-image-bubble">
-            <video controls preload="metadata" className="rich-video-player">
+            <video controls preload="metadata" src={msg.mediaUrl} className="rich-video-player">
               <source src={msg.mediaUrl} type={msg.fileType || undefined} />
               Your browser does not support video playback.
             </video>

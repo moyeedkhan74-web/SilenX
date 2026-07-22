@@ -88,12 +88,37 @@ export const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
   const handleFileSelected = (e: React.ChangeEvent<HTMLInputElement>, type: 'image' | 'camera' | 'video' | 'document') => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    // Auto-detect actual content type from the file's MIME type
+    const isVideo = file.type.startsWith('video/');
+
     const reader = new FileReader();
     reader.onload = () => {
       const dataUrl = reader.result as string;
-      if (type === 'image') onSendImage(dataUrl);
-      else if (type === 'camera') onSendCamera(dataUrl);
-      else onSendDocument({ fileName: file.name, fileSize: formatFileSize(file.size), dataUrl, fileType: file.type });
+
+      if (type === 'camera') {
+        // Camera capture
+        onSendCamera(dataUrl);
+      } else if (type === 'image' && !isVideo) {
+        // Gallery selected an image
+        onSendImage(dataUrl);
+      } else if (type === 'video' || (type === 'image' && isVideo)) {
+        // Video button or Gallery selected a video — send as document with video fileType
+        onSendDocument({
+          fileName: file.name,
+          fileSize: formatFileSize(file.size),
+          dataUrl,
+          fileType: file.type,
+        });
+      } else {
+        // Document / other file types
+        onSendDocument({
+          fileName: file.name,
+          fileSize: formatFileSize(file.size),
+          dataUrl,
+          fileType: file.type,
+        });
+      }
       closeAndReset();
     };
     reader.readAsDataURL(file);
