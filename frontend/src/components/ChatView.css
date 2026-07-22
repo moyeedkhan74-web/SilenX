@@ -814,18 +814,30 @@
 }
 
 /* ─── Rich Message Bubbles ─── */
+.msg-bubble.media-only {
+  padding: 4px;
+}
+
+.rich-image-bubble {
+  display: block;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
 .rich-image-bubble img,
 .rich-video-player {
-  max-width: 240px;
-  max-height: 200px;
+  width: 100%;
+  max-width: 320px;
+  max-height: 320px;
   border-radius: 12px;
   object-fit: cover;
+  display: block;
   cursor: pointer;
   transition: transform 200ms ease;
 }
 .rich-image-bubble img:hover,
 .rich-video-player:hover {
-  transform: scale(1.03);
+  transform: scale(1.02);
 }
 
 .rich-file-bubble {

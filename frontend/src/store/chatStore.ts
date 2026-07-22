@@ -191,9 +191,21 @@ export const useChatStore = create<ChatState>((set, get) => ({
           const unreadCount = (!msg.isSelf && state.activeConversationId !== convId)
             ? (c.unreadCount || 0) + 1
             : c.unreadCount;
+
+          const previewText = msg.text || (
+            msg.contentType === 'image' ? '📷 Photo' :
+            msg.contentType === 'video' ? '🎥 Video' :
+            msg.contentType === 'voice-note' ? '🎤 Voice note' :
+            msg.contentType === 'file' ? `📄 ${msg.fileName || 'File'}` :
+            msg.contentType === 'location' ? '📍 Location' :
+            msg.contentType === 'contact' ? '👤 Contact' :
+            msg.contentType === 'poll' ? '📊 Poll' :
+            msg.contentType === 'event' ? '📅 Event' : ''
+          );
+
           return {
             ...c,
-            lastMessage: msg.text || (msg.contentType ? `[${msg.contentType}]` : ''),
+            lastMessage: previewText,
             lastMessageTime: msg.time,
             unreadCount,
           };

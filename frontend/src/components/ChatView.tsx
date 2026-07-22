@@ -683,6 +683,10 @@ const ChatView: React.FC = () => {
 
           const msgSender = !isOwn ? activeConvo.members.find((m) => m.id === msg.senderId) || otherUser : null;
 
+          const isMediaOnly = (msg.contentType === 'image' || msg.contentType === 'video');
+          const isLegacyMediaText = msg.text === '📷 Photo' || msg.text === '📸 Camera photo' || msg.text?.startsWith('🎬 ');
+          const showTextMessage = msg.text && !isLegacyMediaText;
+
           return (
             <div key={msg.id} data-message-id={msg.id} className={`msg-wrapper ${isOwn ? 'self' : 'remote'} ${isHighlighted ? 'highlighted' : ''}`}>
               {!isOwn && (
@@ -704,7 +708,7 @@ const ChatView: React.FC = () => {
                     ref={(node) => {
                       messageRefs.current[msg.id] = node;
                     }}
-                    className={`msg-bubble ${msg.isDeleted ? 'deleted' : ''}`}
+                    className={`msg-bubble ${msg.isDeleted ? 'deleted' : ''} ${isMediaOnly && !showTextMessage ? 'media-only' : ''}`}
                     onMouseEnter={(event) => openMessageMenu(msg.id, event.currentTarget)}
                     onMouseLeave={scheduleCloseMenu}
                     onContextMenu={(event) => {
@@ -729,7 +733,7 @@ const ChatView: React.FC = () => {
                       </div>
                     ) : (
                       <>
-                        {msg.text && <p className="message-text">{msg.text}</p>}
+                        {showTextMessage && <p className="message-text">{msg.text}</p>}
                         {renderMessageContent(msg)}
                       </>
                     )}

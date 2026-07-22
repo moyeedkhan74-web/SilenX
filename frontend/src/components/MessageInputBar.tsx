@@ -112,10 +112,10 @@ export function MessageInputBar({ onSend, onSendRichMessage, replyTo, onCancelRe
 
   // ─── Attachment callbacks ───
   const handleSendImage = (dataUrl: string) => {
-    onSendRichMessage?.({ text: '📷 Photo', contentType: 'image', mediaUrl: dataUrl });
+    onSendRichMessage?.({ text: '', contentType: 'image', mediaUrl: dataUrl });
   };
   const handleSendCamera = (dataUrl: string) => {
-    onSendRichMessage?.({ text: '📸 Camera photo', contentType: 'image', mediaUrl: dataUrl });
+    onSendRichMessage?.({ text: '', contentType: 'image', mediaUrl: dataUrl });
   };
   const handleSendDocument = (data: { fileName: string; fileSize: string; dataUrl: string; fileType?: string }) => {
     const contentType = data.fileType?.startsWith('video/')
@@ -124,9 +124,7 @@ export function MessageInputBar({ onSend, onSendRichMessage, replyTo, onCancelRe
       ? 'image'
       : 'file';
 
-    const displayText = contentType === 'video'
-      ? `🎬 ${data.fileName}`
-      : `📄 ${data.fileName}`;
+    const displayText = contentType === 'file' ? `📄 ${data.fileName}` : '';
 
     onSendRichMessage?.({
       text: displayText,
