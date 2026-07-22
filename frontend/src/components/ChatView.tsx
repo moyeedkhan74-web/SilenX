@@ -10,6 +10,7 @@ import { MessageInputBar } from './MessageInputBar';
 import { MessageActionsMenu } from './MessageActionsMenu';
 import { SwipeableMessage } from './SwipeableMessage';
 import { ToastNotification } from './ToastNotification';
+import { ContactDetailsModal } from './ContactDetailsModal';
 import { useAuthStore } from '../store/authStore';
 import './ChatView.css';
 
@@ -28,6 +29,7 @@ const ChatView: React.FC = () => {
   const [activeMessageId, setActiveMessageId] = useState<string | null>(null);
   const [menuPosition, setMenuPosition] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
   const [toast, setToast] = useState<{ message: string; visible: boolean }>({ message: '', visible: false });
+  const [contactDetailsOpen, setContactDetailsOpen] = useState(false);
   const typingTimers = useRef<Record<string, NodeJS.Timeout>>({});
   const closeTimer = useRef<number | null>(null);
 
@@ -542,23 +544,25 @@ const ChatView: React.FC = () => {
               <ArrowLeft size={22} />
             </button>
           )}
-          <Avatar
-            name={chatName || 'SlienX'}
-            size={40}
-            online={status === 'online'}
-            avatarUrl={otherUser?.avatarUrl || activeConvo.avatarUrl || null}
-          />
-          <div className="chatview-header-meta">
-            <h3 className="chatview-header-name">
-              {chatName}
-              <span className="e2ee-badge">
-                <Lock size={10} />
-                <span>E2EE</span>
+          <div
+            className="chatview-header-profile-btn"
+            onClick={() => setContactDetailsOpen(true)}
+            style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', flex: 1, minWidth: 0 }}
+          >
+            <Avatar
+              name={chatName || 'SlienX'}
+              size={40}
+              online={status === 'online'}
+              avatarUrl={otherUser?.avatarUrl || activeConvo.avatarUrl || null}
+            />
+            <div className="chatview-header-meta">
+              <h3 className="chatview-header-name">
+                {chatName}
+              </h3>
+              <span className={`chatview-status-subtext ${status === 'online' ? 'online' : ''}`}>
+                {statusText}
               </span>
-            </h3>
-            <span className={`chatview-status-subtext ${status === 'online' ? 'online' : ''}`}>
-              {statusText}
-            </span>
+            </div>
           </div>
         </div>
         <div className="chatview-header-actions">
@@ -881,6 +885,24 @@ const ChatView: React.FC = () => {
         message={toast.message}
         visible={toast.visible}
         onClose={() => setToast((t) => ({ ...t, visible: false }))}
+      />
+      <ContactDetailsModal
+        isOpen={contactDetailsOpen}
+        onClose={() => setContactDetailsOpen(false)}
+        user={otherUser ? {
+          id: otherUser.id,
+          uid: (otherUser as any).uid || otherUser.id,
+          displayName: otherUser.displayName,
+          email: (otherUser as any).email || '',
+          bio: (otherUser as any).bio || '',
+          avatarUrl: otherUser.avatarUrl,
+          status: otherUser.status,
+          lastSeen: otherUser.lastSeen,
+        } : null}
+        conversationId={activeConversationId || ''}
+        onAudioCall={handleAudioCall}
+        onVideoCall={() => {}}
+        onSearchInChat={() => { setContactDetailsOpen(false); handleSearchInChat(); }}
       />
     </div>
   );
