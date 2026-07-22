@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import ChatList from '../components/features/ChatList';
 import ChatView from '../components/ChatView';
-import AddContactModal from '../components/AddContactModal';
 import { useChatStore } from '../store/chatStore';
 
 export const ChatsPage: React.FC = () => {
-  const [isContactSelectorOpen, setIsContactSelectorOpen] = useState(false);
+  const navigate = useNavigate();
   const fetchConversations = useChatStore((s) => s.fetchConversations);
   const hydrateFromStorage = useChatStore((s) => s.hydrateFromStorage);
 
@@ -21,17 +21,8 @@ export const ChatsPage: React.FC = () => {
       height: '100%',
       overflow: 'hidden'
     }}>
-      <ChatList onNewChatClick={() => setIsContactSelectorOpen(true)} />
+      <ChatList onNewChatClick={() => navigate('/contacts')} />
       <ChatView />
-
-      <AddContactModal 
-        isOpen={isContactSelectorOpen} 
-        onClose={() => setIsContactSelectorOpen(false)}
-        onAddComplete={() => {
-          setIsContactSelectorOpen(false);
-          fetchConversations();
-        }}
-      />
     </div>
   );
 };

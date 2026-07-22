@@ -550,7 +550,7 @@ const ChatView: React.FC = () => {
           </div>
         </div>
         <div className="chatview-header-actions">
-          <button className="icon-btn call-btn" title="Start audio call" type="button" onClick={handleAudioCall}>
+          <button className="icon-btn" title="Start audio call" type="button" onClick={handleAudioCall}>
             <Phone size={18} />
           </button>
           <button className="icon-btn" title="Video Call" type="button">
