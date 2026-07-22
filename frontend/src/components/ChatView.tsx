@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Phone, Video, MoreVertical, Lock, Search, Bell, UserX, Flag, Trash2, Check, CheckCheck, Star, FileText, PlayCircle, MapPin } from 'lucide-react';
+import { ArrowLeft, Phone, Video, MoreVertical, Lock, Search, Bell, UserX, Flag, Trash2, Check, CheckCheck, Star, FileText, PlayCircle, MapPin } from 'lucide-react';
+import { useIsMobile } from '../hooks/useIsMobile';
 import { useChatStore } from '../store/chatStore';
 import { useCallStore } from '../store/callStore';
 import { connectSocket } from '../services/socket';
@@ -13,6 +14,7 @@ import { useAuthStore } from '../store/authStore';
 import './ChatView.css';
 
 const ChatView: React.FC = () => {
+  const isMobile = useIsMobile();
   const [inputValue, setInputValue] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);
   const [replyTo, setReplyTo] = useState<{ sender: string; text: string } | undefined>();
@@ -32,7 +34,7 @@ const ChatView: React.FC = () => {
   const showToast = useCallback((message: string) => {
     setToast({ message, visible: true });
   }, []);
-  const { conversations, activeConversationId, messages, addMessage, clearConversation, editMessage, deleteMessage, reactToMessage } = useChatStore();
+  const { conversations, activeConversationId, messages, addMessage, clearConversation, editMessage, deleteMessage, reactToMessage, setActiveConversation } = useChatStore();
   const setMessages = useChatStore((s) => s.setMessages);
   const initiateCall = useCallStore((s) => s.initiateCall);
   const currentUser = useAuthStore((s) => s.user);
@@ -530,6 +532,16 @@ const ChatView: React.FC = () => {
     <div className="chatview">
       <header className="chatview-header">
         <div className="chatview-header-info">
+          {isMobile && (
+            <button
+              className="icon-btn mobile-back-btn"
+              title="Back to chats"
+              type="button"
+              onClick={() => setActiveConversation(null as any)}
+            >
+              <ArrowLeft size={22} />
+            </button>
+          )}
           <Avatar
             name={chatName || 'SlienX'}
             size={40}

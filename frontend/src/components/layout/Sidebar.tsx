@@ -4,6 +4,7 @@ import { MessageCircle, Users, User, Settings, LogOut } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { getSocket } from '../../services/socket';
 import { API_URL } from '../../config/webrtc-config';
+import { useIsMobile } from '../../hooks/useIsMobile';
 import '../Sidebar.css';
 
 interface SidebarProps {}
@@ -13,6 +14,7 @@ export const Sidebar: React.FC<SidebarProps> = () => {
   const location = useLocation();
   const currentUser = useAuthStore((s) => s.user);
   const [pendingCount, setPendingCount] = useState(0);
+  const isMobile = useIsMobile();
 
   // Fetch pending request count & listen for live updates
   useEffect(() => {
@@ -77,32 +79,34 @@ export const Sidebar: React.FC<SidebarProps> = () => {
   const currentPath = location.pathname;
 
   const tabs = [
-    { path: '/chats', label: 'Chats', icon: <MessageCircle size={20} />, badge: 0 },
-    { path: '/contacts', label: 'Contacts', icon: <Users size={20} />, badge: pendingCount },
-    { path: '/profile', label: 'Profile', icon: <User size={20} />, badge: 0 },
-    { path: '/settings', label: 'Settings', icon: <Settings size={20} />, badge: 0 },
+    { path: '/chats', label: 'Chats', icon: <MessageCircle size={isMobile ? 22 : 20} />, badge: 0 },
+    { path: '/contacts', label: 'Contacts', icon: <Users size={isMobile ? 22 : 20} />, badge: pendingCount },
+    { path: '/settings', label: 'Settings', icon: <Settings size={isMobile ? 22 : 20} />, badge: 0 },
   ];
 
   return (
     <aside className="sidebar">
-      <div className="sidebar-logo" aria-label="SlienX">
-        <div
-          style={{
-            width: 28,
-            height: 28,
-            borderRadius: 6,
-            display: 'grid',
-            placeItems: 'center',
-            background: 'linear-gradient(135deg, var(--primary-main), var(--primary-light))',
-            color: 'var(--color-on-accent)',
-            fontSize: 12,
-            fontWeight: 800,
-            letterSpacing: '0.06em',
-          }}
-        >
-          SX
+      {/* Logo — desktop only */}
+      {!isMobile && (
+        <div className="sidebar-logo" aria-label="SlienX">
+          <div
+            style={{
+              width: 28,
+              height: 28,
+              borderRadius: 6,
+              display: 'grid',
+              placeItems: 'center',
+              background: 'linear-gradient(135deg, var(--primary-main), var(--primary-light))',
+              color: 'var(--color-on-accent)',
+              fontSize: 12,
+              fontWeight: 800,
+              letterSpacing: '0.06em',
+            }}
+          >
+            SX
+          </div>
         </div>
-      </div>
+      )}
 
       <nav className="sidebar-nav">
         {tabs.map((tab) => {
@@ -117,6 +121,7 @@ export const Sidebar: React.FC<SidebarProps> = () => {
               style={{ position: 'relative' }}
             >
               {tab.icon}
+              {isMobile && <span className="nav-label">{tab.label}</span>}
               {tab.badge > 0 && (
                 <span className="nav-badge">{tab.badge > 9 ? '9+' : tab.badge}</span>
               )}
@@ -127,7 +132,8 @@ export const Sidebar: React.FC<SidebarProps> = () => {
 
       <div className="sidebar-bottom">
         <button className="nav-item" onClick={handleLogout} data-tooltip="Logout" type="button">
-          <LogOut size={20} />
+          <LogOut size={isMobile ? 22 : 20} />
+          {isMobile && <span className="nav-label">Logout</span>}
         </button>
       </div>
     </aside>
