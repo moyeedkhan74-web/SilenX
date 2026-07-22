@@ -1,116 +1,145 @@
 .add-contact-modal {
-  max-width: 480px;
+  max-width: 440px;
+  text-align: center;
 }
 
 .add-contact-modal h2 {
-  font-size: 1.3rem;
-  margin-bottom: 16px;
-  background: linear-gradient(135deg, var(--primary-light), var(--secondary-light));
+  font-size: 1.6rem;
+  font-weight: 800;
+  margin-bottom: 24px;
+  background: linear-gradient(135deg, var(--color-primary), var(--color-info));
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
+  display: inline-block;
 }
 
 .modal-tabs {
   display: flex;
   gap: 8px;
-  margin-bottom: 20px;
+  margin-bottom: 28px;
+  background: rgba(var(--color-surface-rgb, 100, 100, 100), 0.05);
+  padding: 6px;
+  border-radius: 14px;
+  border: 1px solid rgba(var(--color-border-rgb, 150, 150, 150), 0.1);
 }
 
 .modal-tab {
   flex: 1;
-  padding: 10px 16px;
-  background: rgba(var(--color-surface-rgb), 0.04);
-  border: 1px solid rgba(var(--color-surface-rgb), 0.08);
+  padding: 12px 16px;
+  background: transparent;
+  border: none;
   border-radius: 10px;
   color: var(--text-secondary);
-  font-weight: 500;
-  font-size: 0.85rem;
+  font-weight: 600;
+  font-size: 0.9rem;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
 }
 
 .modal-tab:hover {
-  background: rgba(var(--color-accent-rgb), 0.08);
-  border-color: rgba(var(--color-accent-rgb), 0.2);
+  color: var(--text-primary);
+  background: rgba(var(--color-surface-rgb, 150, 150, 150), 0.08);
 }
 
 .modal-tab.active {
-  background: rgba(var(--color-accent-rgb), 0.12);
-  border-color: var(--primary-light);
-  color: var(--primary-light);
+  background: var(--color-primary);
+  color: var(--color-on-accent);
+  box-shadow: 0 4px 12px rgba(var(--color-accent-rgb), 0.25);
 }
 
 /* QR Scanner Area */
 .qr-reader-container {
-  border-radius: 12px;
+  border-radius: 16px;
   overflow: hidden;
-  margin-bottom: 12px;
-  min-height: 50px;
+  margin-bottom: 16px;
+  min-height: 200px;
+  background: rgba(0, 0, 0, 0.03);
+  border: 1px solid rgba(var(--color-border-rgb, 150, 150, 150), 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .qr-reader-container video {
-  border-radius: 12px;
+  border-radius: 16px;
+  object-fit: cover;
+  width: 100%;
 }
 
 .scan-start-area {
   text-align: center;
-  padding: 40px 20px;
-  border: 2px dashed rgba(var(--color-accent-rgb), 0.2);
-  border-radius: 12px;
-  background: rgba(var(--color-accent-rgb), 0.04);
+  padding: 48px 24px;
+  border: 2px dashed rgba(var(--color-accent-rgb), 0.25);
+  border-radius: 16px;
+  background: rgba(var(--color-accent-rgb), 0.03);
+  transition: all 0.3s ease;
+}
+
+.scan-start-area:hover {
+  border-color: rgba(var(--color-accent-rgb), 0.5);
+  background: rgba(var(--color-accent-rgb), 0.06);
 }
 
 .scan-controls {
   text-align: center;
-  padding: 8px 0;
+  padding: 16px 0;
 }
 
 .scan-error {
   color: var(--danger-main);
-  font-size: 0.82rem;
+  font-size: 0.85rem;
   text-align: center;
-  margin: 8px 0;
-  padding: 8px 12px;
-  background: var(--danger-light);
-  border-radius: 8px;
+  margin: 12px 0;
+  padding: 10px 16px;
+  background: var(--danger-soft);
+  border: 1px solid var(--danger-light);
+  border-radius: 10px;
 }
 
 .camera-subtext {
-  color: var(--text-tertiary);
-  font-size: 0.82rem;
-  margin-bottom: 16px;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  margin-bottom: 24px;
 }
 
 /* UID Entry Area */
 .enter-tab {
   text-align: center;
+  animation: fadeIn 0.3s ease;
 }
 
 .enter-help {
-  color: var(--text-tertiary);
-  font-size: 0.82rem;
-  margin-bottom: 14px;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  margin-bottom: 24px;
+  line-height: 1.5;
 }
 
 .input-uid {
   width: 100%;
-  padding: 12px 16px;
-  background: rgba(var(--color-surface-rgb), 0.04);
-  border: 1px solid rgba(var(--color-surface-rgb), 0.1);
-  border-radius: 10px;
+  padding: 16px 20px;
+  background: var(--input-bg);
+  border: 2px solid rgba(var(--color-border-rgb, 150, 150, 150), 0.15);
+  border-radius: 14px;
   color: var(--text-primary);
   font-family: 'JetBrains Mono', 'Fira Code', monospace;
-  font-size: 0.95rem;
-  letter-spacing: 1px;
-  margin-bottom: 12px;
+  font-size: 1.1rem;
+  letter-spacing: 1.5px;
+  margin-bottom: 24px;
   outline: none;
-  transition: border-color 0.2s;
+  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  text-align: center;
 }
 
 .input-uid:focus {
-  border-color: var(--primary-light);
-  box-shadow: 0 0 0 3px rgba(var(--color-accent-rgb), 0.12);
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 4px rgba(var(--color-accent-rgb), 0.15);
+  transform: translateY(-2px);
 }
 
 .input-uid::placeholder {
@@ -119,9 +148,12 @@
 }
 
 .input-uid:disabled {
-  opacity: 0.6;
+  opacity: 0.5;
 }
 
 .btn-block {
   width: 100%;
+  padding: 14px 24px;
+  font-size: 1rem;
+  border-radius: 12px;
 }
