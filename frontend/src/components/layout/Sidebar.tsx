@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { MessageCircle, Users, User, Settings, LogOut } from 'lucide-react';
+import { MessageCircle, Users, Settings, LogOut } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { getSocket } from '../../services/socket';
 import { API_URL } from '../../config/webrtc-config';
