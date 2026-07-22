@@ -96,7 +96,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onDeleteAccountCli
         </div>
         <div className="settings-row">
           <span>Encryption</span>
-          <span className="settings-value" style={{ color: 'var(--secondary-light)' }}>ChaCha20-Poly1305</span>
+          <span className="settings-value" style={{ color: 'var(--color-primary)' }}>ChaCha20-Poly1305</span>
         </div>
       </div>
 
