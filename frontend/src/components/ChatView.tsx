@@ -430,6 +430,26 @@ const ChatView: React.FC = () => {
     }
   };
 
+  const handleDownloadMessage = async (messageId: string) => {
+    const targetMessage = currentMessages.find((msg) => msg.id === messageId);
+    if (!targetMessage?.mediaUrl) return;
+
+    try {
+      const response = await fetch(targetMessage.mediaUrl);
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = blobUrl;
+      anchor.download = targetMessage.fileName || targetMessage.text || 'attachment';
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      window.setTimeout(() => URL.revokeObjectURL(blobUrl), 0);
+    } catch {
+      showToast('Download failed');
+    }
+  };
+
   const handlePinMessage = (messageId: string) => {
     if (!activeConversationId) return;
     const target = currentMessages.find((msg) => msg.id === messageId);
@@ -839,6 +859,12 @@ const ChatView: React.FC = () => {
         onForward={() => {
           if (activeMessageId) {
             window.alert('Forwarding is ready for the next step.');
+          }
+          closeMessageMenu();
+        }}
+        onDownload={() => {
+          if (activeMessageId) {
+            void handleDownloadMessage(activeMessageId);
           }
           closeMessageMenu();
         }}

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Copy, Reply, Star, Trash2, Forward, SmilePlus, Pin, Pencil, MoreHorizontal } from 'lucide-react';
+import { Copy, Reply, Star, Trash2, Forward, SmilePlus, Pin, Pencil, MoreHorizontal, Download } from 'lucide-react';
 
 interface MessageActionsMenuProps {
   open: boolean;
@@ -10,6 +10,7 @@ interface MessageActionsMenuProps {
   onStar: () => void;
   onDelete: () => void;
   onForward: () => void;
+  onDownload?: () => void;
   onReact: (emoji: string) => void;
   onPin: () => void;
   onEdit: () => void;
@@ -37,6 +38,7 @@ export const MessageActionsMenu: React.FC<MessageActionsMenuProps> = ({
   onStar,
   onDelete,
   onForward,
+  onDownload,
   onReact,
   onPin,
   onEdit,
@@ -160,6 +162,11 @@ export const MessageActionsMenu: React.FC<MessageActionsMenuProps> = ({
           <button type="button" role="menuitem" onClick={() => handleAction(onReply)} title="Reply">
             <Reply size={14} />
           </button>
+          {onDownload && (
+            <button type="button" role="menuitem" onClick={() => handleAction(onDownload)} title="Download">
+              <Download size={14} />
+            </button>
+          )}
           <button
             type="button"
             role="menuitem"
