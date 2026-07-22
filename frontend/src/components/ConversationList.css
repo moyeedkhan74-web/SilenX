@@ -87,19 +87,21 @@
   cursor: pointer;
   text-align: left;
   font-family: inherit;
-  transition: all var(--transition-fast);
+  transition: background 150ms ease, border-color 150ms ease, transform 150ms ease;
   color: var(--text-primary);
   position: relative;
 }
 
 .convo-card:hover {
-  background: var(--input-bg);
+  background: var(--color-surface-soft);
   border-color: var(--border-subtle);
+  transform: translateY(-1px);
 }
 
 .convo-card.active {
-  background: rgba(var(--color-accent-rgb), 0.08);
-  border-color: rgba(var(--color-accent-rgb), 0.15);
+  background: var(--color-surface);
+  border-color: rgba(var(--color-accent-rgb), 0.2);
+  box-shadow: var(--shadow-sm);
 }
 
 .avatar-wrapper {
@@ -198,14 +200,14 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 18px;
-  height: 18px;
-  padding: 0 5px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
   border-radius: var(--radius-full);
-  background: var(--primary-main);
-  color: var(--color-on-accent);
-  font-size: 10px;
+  background: var(--color-badge);
+  color: #FFFFFF;
+  font-size: 11px;
   font-weight: 700;
-  box-shadow: 0 2px 6px rgba(var(--color-accent-rgb), 0.35);
-  animation: scaleIn 0.2s ease-out;
+  box-shadow: 0 2px 6px rgba(99, 102, 241, 0.25);
+  animation: scaleIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }

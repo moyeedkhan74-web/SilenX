@@ -40,7 +40,7 @@
   justify-content: center;
   cursor: pointer;
   color: var(--text-secondary);
-  transition: background var(--transition), color var(--transition);
+  transition: background 150ms ease, color 150ms ease;
   position: relative;
   border: none;
   background: transparent;
@@ -85,7 +85,7 @@
   height: 16px;
   padding: 0 4px;
   border-radius: 8px;
-  background: var(--color-error, #ef4444);
+  background: var(--color-badge);
   color: #fff;
   font-size: 10px;
   font-weight: 700;
