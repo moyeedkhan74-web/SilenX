@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { MessageCircle, Users, Settings, LogOut } from 'lucide-react';
+import { MessageCircle, Users, User, Settings, LogOut } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { getSocket } from '../../services/socket';
 import { API_URL } from '../../config/webrtc-config';
@@ -81,6 +81,7 @@ export const Sidebar: React.FC<SidebarProps> = () => {
   const tabs = [
     { path: '/chats', label: 'Chats', icon: <MessageCircle size={isMobile ? 22 : 20} />, badge: 0 },
     { path: '/contacts', label: 'Contacts', icon: <Users size={isMobile ? 22 : 20} />, badge: pendingCount },
+    { path: '/profile', label: 'Profile', icon: <User size={isMobile ? 22 : 20} />, badge: 0 },
     { path: '/settings', label: 'Settings', icon: <Settings size={isMobile ? 22 : 20} />, badge: 0 },
   ];
 
