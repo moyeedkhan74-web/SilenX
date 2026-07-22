@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { ArrowLeft, Phone, Video, MoreVertical, Lock, Search, Bell, UserX, Flag, Trash2, Check, CheckCheck, Star, FileText, PlayCircle, MapPin } from 'lucide-react';
+import { ArrowLeft, Phone, Video, MoreVertical, Lock, Search, Bell, UserX, Flag, Trash2, Check, CheckCheck, Star, PlayCircle, MapPin } from 'lucide-react';
 import { useIsMobile } from '../hooks/useIsMobile';
 import { useChatStore } from '../store/chatStore';
 import { useCallStore } from '../store/callStore';
@@ -11,6 +11,8 @@ import { MessageActionsMenu } from './MessageActionsMenu';
 import { SwipeableMessage } from './SwipeableMessage';
 import { ToastNotification } from './ToastNotification';
 import { ContactDetailsModal } from './ContactDetailsModal';
+import { MediaMessage } from './MediaMessage';
+import { MediaViewer } from './MediaViewer';
 import { useAuthStore } from '../store/authStore';
 import './ChatView.css';
 
@@ -325,32 +327,9 @@ const ChatView: React.FC = () => {
   const renderMessageContent = (msg: ChatMessage) => {
     switch (msg.contentType) {
       case 'image':
-        return msg.mediaUrl ? (
-          <div className="rich-image-bubble">
-            <a href={msg.mediaUrl} target="_blank" rel="noreferrer">
-              <img src={msg.mediaUrl} alt={msg.text || 'Image'} />
-            </a>
-          </div>
-        ) : null;
       case 'video':
-        return msg.mediaUrl ? (
-          <div className="rich-image-bubble">
-            <video controls preload="metadata" src={msg.mediaUrl} className="rich-video-player">
-              <source src={msg.mediaUrl} type={msg.fileType || undefined} />
-              Your browser does not support video playback.
-            </video>
-          </div>
-        ) : null;
       case 'file':
-        return msg.mediaUrl ? (
-          <a className="rich-file-bubble" href={msg.mediaUrl} download={msg.fileName || ''} target="_blank" rel="noreferrer noopener">
-            <div className="rich-file-icon"><FileText size={20} /></div>
-            <div className="rich-file-info">
-              <div className="rich-file-name">{msg.fileName || 'Attachment'}</div>
-              <div className="rich-file-size">{msg.fileSize || 'Unknown size'}</div>
-            </div>
-          </a>
-        ) : null;
+        return <MediaMessage message={msg} />;
       case 'voice-note':
         return msg.mediaUrl ? (
           <div className="rich-voice-bubble">
@@ -890,6 +869,7 @@ const ChatView: React.FC = () => {
         visible={toast.visible}
         onClose={() => setToast((t) => ({ ...t, visible: false }))}
       />
+      <MediaViewer />
       <ContactDetailsModal
         isOpen={contactDetailsOpen}
         onClose={() => setContactDetailsOpen(false)}

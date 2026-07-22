@@ -7,6 +7,7 @@ interface ChatState {
   conversations: Conversation[];
   activeConversationId: string | null;
   messages: Record<string, ChatMessage[]>;
+  activeMediaMessage: ChatMessage | null;
   isLoading: boolean;
 
   // REST API methods
@@ -18,6 +19,7 @@ interface ChatState {
   // Local modifications (optimistic updates)
   setConversations: (convos: Conversation[]) => void;
   setActiveConversation: (id: string | null) => void;
+  setActiveMediaMessage: (message: ChatMessage | null) => void;
   addMessage: (convId: string, msg: ChatMessage) => void;
   setMessages: (convId: string, msgs: ChatMessage[]) => void;
   markMessageRead: (convId: string, messageId: string) => void;
@@ -60,6 +62,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   conversations: [],
   activeConversationId: null,
   messages: {},
+  activeMediaMessage: null,
   isLoading: false,
 
   hydrateFromStorage: () => {
@@ -176,6 +179,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
     if (id) {
       get().fetchMessages(id);
     }
+  },
+  setActiveMediaMessage: (message) => {
+    set({ activeMediaMessage: message });
   },
   addMessage: (convId, msg) =>
     set((state) => {
