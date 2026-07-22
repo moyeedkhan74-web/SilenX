@@ -118,24 +118,34 @@ export const Sidebar: React.FC<SidebarProps> = () => {
               onClick={() => navigate(tab.path)}
               data-tooltip={tab.label}
               type="button"
-              style={{ position: 'relative' }}
             >
-              {tab.icon}
+              <div className="nav-icon-wrapper">
+                {tab.icon}
+                {tab.badge > 0 && (
+                  <span className="nav-badge">{tab.badge > 9 ? '9+' : tab.badge}</span>
+                )}
+              </div>
               {isMobile && <span className="nav-label">{tab.label}</span>}
-              {tab.badge > 0 && (
-                <span className="nav-badge">{tab.badge > 9 ? '9+' : tab.badge}</span>
-              )}
             </button>
           );
         })}
+        {isMobile && (
+          <button className="nav-item logout-nav-item" onClick={handleLogout} type="button">
+            <div className="nav-icon-wrapper">
+              <LogOut size={20} />
+            </div>
+            <span className="nav-label">Logout</span>
+          </button>
+        )}
       </nav>
 
-      <div className="sidebar-bottom">
-        <button className="nav-item" onClick={handleLogout} data-tooltip="Logout" type="button">
-          <LogOut size={isMobile ? 22 : 20} />
-          {isMobile && <span className="nav-label">Logout</span>}
-        </button>
-      </div>
+      {!isMobile && (
+        <div className="sidebar-bottom">
+          <button className="nav-item" onClick={handleLogout} data-tooltip="Logout" type="button">
+            <LogOut size={20} />
+          </button>
+        </div>
+      )}
     </aside>
   );
 };

@@ -59,6 +59,14 @@
   background: var(--color-primary);
   border-radius: 0 3px 3px 0;
 }
+
+.nav-icon-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .nav-item[data-tooltip]:hover::after {
   content: attr(data-tooltip);
   position: absolute;
@@ -79,13 +87,13 @@
 
 .nav-badge {
   position: absolute;
-  top: 4px;
-  right: 4px;
+  top: -4px;
+  right: -8px;
   min-width: 16px;
   height: 16px;
   padding: 0 4px;
   border-radius: 8px;
-  background: var(--color-badge);
+  background: var(--color-badge, #ef4444);
   color: #fff;
   font-size: 10px;
   font-weight: 700;
@@ -104,20 +112,92 @@
 
 .sidebar-bottom { margin-top: auto; display: flex; flex-direction: column; align-items: center; }
 
+/* ── Mobile WhatsApp Bottom Navigation ── */
 @media (max-width: 768px) {
   .sidebar {
-    width: 100%;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100vw;
     min-height: auto;
-    height: 64px;
+    height: 58px;
     flex-direction: row;
     border-right: none;
     border-top: 1px solid var(--border-color);
-    order: 2;
-    padding: 0 12px;
+    background: var(--bg-secondary);
+    backdrop-filter: blur(12px);
+    order: 99;
+    padding: 0;
+    margin: 0;
+    z-index: 1000;
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
   }
+
   .sidebar-logo { display: none; }
-  .sidebar-nav { flex-direction: row; justify-content: space-around; width: 100%; }
-  .nav-item { width: 44px; height: 44px; }
-  .nav-item.active::before { display: none; }
-  .sidebar-bottom { margin-top: 0; }
+  .sidebar-bottom { display: none; }
+
+  .sidebar-nav {
+    flex-direction: row;
+    justify-content: space-around;
+    align-items: center;
+    width: 100%;
+    height: 100%;
+    gap: 0;
+  }
+
+  .nav-item {
+    flex: 1;
+    height: 100%;
+    width: auto;
+    max-width: 25vw;
+    border-radius: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    padding: 4px 0;
+    background: transparent;
+    transition: color 150ms ease, background 150ms ease;
+  }
+
+  .nav-item:hover {
+    background: transparent;
+  }
+
+  .nav-item.active {
+    background: transparent;
+    color: var(--color-primary);
+  }
+
+  .nav-item.active::before {
+    display: none;
+  }
+
+  .nav-item.active .nav-icon-wrapper {
+    background: rgba(var(--color-accent-rgb), 0.14);
+    border-radius: 16px;
+    padding: 2px 14px;
+  }
+
+  .nav-icon-wrapper {
+    padding: 2px 14px;
+    transition: background 150ms ease;
+  }
+
+  .nav-label {
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1;
+    color: inherit;
+    text-align: center;
+    letter-spacing: 0.1px;
+    margin-top: 1px;
+  }
+
+  .nav-item.active .nav-label {
+    font-weight: 700;
+    color: var(--color-primary);
+  }
 }

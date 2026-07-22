@@ -1,7 +1,10 @@
 .dashboard-page {
   display: flex;
+  width: 100vw;
   height: 100vh;
+  height: 100dvh;
   overflow: hidden;
+  position: relative;
 }
 
 .dashboard-main {
@@ -12,10 +15,23 @@
 .dashboard-chat-layout {
   display: flex;
   height: 100%;
+  width: 100%;
 }
 
 @media (max-width: 768px) {
   .dashboard-page {
-    flex-direction: column;
+    flex-direction: column-reverse;
+  }
+
+  .dashboard-page .main-content {
+    padding-bottom: 58px;
+  }
+
+  .dashboard-page.chat-open .main-content {
+    padding-bottom: 0;
+  }
+
+  .dashboard-page.chat-open .sidebar {
+    display: none !important;
   }
 }
