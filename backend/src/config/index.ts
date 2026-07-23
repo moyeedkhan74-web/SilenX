@@ -9,6 +9,9 @@ export const config = {
   jwtExpiry: process.env.JWT_EXPIRY || '15m',
   refreshTokenExpiry: process.env.REFRESH_TOKEN_EXPIRY || '7d',
   databaseUrl: process.env.DATABASE_URL || '',
+  livekitUrl: process.env.LIVEKIT_URL || '',
+  livekitApiKey: process.env.LIVEKIT_API_KEY || '',
+  livekitApiSecret: process.env.LIVEKIT_API_SECRET || '',
   logLevel: process.env.LOG_LEVEL || 'debug',
   isProduction: process.env.NODE_ENV === 'production',
 };

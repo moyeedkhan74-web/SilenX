@@ -3,6 +3,9 @@ import { randomUUID } from 'crypto';
 import { requireAuth, AuthenticatedRequest } from '../middleware/auth';
 import type { CallLog } from '../types';
 import { callLogs, groups, groupMembers, users, saveDb } from '../store/db';
+import { config } from '../config';
+import { AccessToken } from 'livekit-server-sdk';
+import type { VideoGrant } from 'livekit-server-sdk';
 
 const router = Router();
 router.use(requireAuth as any);
@@ -67,6 +70,47 @@ router.post('/group/:groupId/start', (req: AuthenticatedRequest, res: Response) 
     participants: call.participants,
     callType: call.callType,
     startedAt: call.startedAt.toISOString(),
+  });
+});
+
+router.post('/livekit/token', async (req: AuthenticatedRequest, res: Response) => {
+  const currentUserId = req.currentUser!.dbId;
+  const user = users.find((u) => u.id === currentUserId);
+  if (!user) {
+    res.status(404).json({ message: 'Authenticated user not found' });
+    return;
+  }
+
+  if (!config.livekitUrl || !config.livekitApiKey || !config.livekitApiSecret) {
+    res.status(500).json({ message: 'LiveKit is not configured on the server' });
+    return;
+  }
+
+  const roomName = req.body.roomName || `group_${req.body.groupId || 'default'}`;
+  const identity = user.id;
+  const name = user.displayName || 'Guest';
+
+  const at = new AccessToken(config.livekitApiKey, config.livekitApiSecret, {
+    identity,
+    name,
+  });
+
+  const grant: VideoGrant = {
+    room: roomName,
+    roomJoin: true,
+    canPublish: true,
+    canSubscribe: true,
+  };
+  at.addGrant(grant);
+
+  const token = await at.toJwt();
+
+  res.status(200).json({
+    token,
+    url: config.livekitUrl,
+    roomName,
+    identity,
+    name,
   });
 });
 
