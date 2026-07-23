@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Conversation, ChatMessage } from '../types';
+import type { Conversation, ChatMessage, UserStatus } from '../types';
 import { API_URL } from '../config/webrtc-config';
 import { useAuthStore } from './authStore';
 
@@ -29,6 +29,7 @@ interface ChatState {
   clearConversation: (convId: string) => void;
   reactToMessage: (convId: string, messageId: string, userId: string, emoji: string) => void;
   updatePollState: (convId: string, messageId: string, pollData: any) => void;
+  updateUserStatus: (userId: string, status: UserStatus, lastSeen: string) => void;
 
   // Context menu actions
   deleteConversation: (convId: string) => Promise<void>;
@@ -274,6 +275,24 @@ export const useChatStore = create<ChatState>((set, get) => ({
       const nextState: Partial<ChatState> = {
         messages: { ...state.messages, [convId]: updatedMessages }
       };
+      persistState(nextState);
+      return nextState;
+    }),
+  updateUserStatus: (userId, status, lastSeen) =>
+    set((state) => {
+      const updatedConversations = state.conversations.map((c) => {
+        const hasMember = c.members.some((m) => m.id === userId);
+        if (hasMember) {
+          return {
+            ...c,
+            members: c.members.map((m) =>
+              m.id === userId ? { ...m, status, lastSeen } : m
+            ),
+          };
+        }
+        return c;
+      });
+      const nextState = { conversations: updatedConversations };
       persistState(nextState);
       return nextState;
     }),

@@ -15,6 +15,7 @@ import { MediaMessage } from './MediaMessage';
 import { MediaViewer } from './MediaViewer';
 import { useAuthStore } from '../store/authStore';
 import './ChatView.css';
+import { formatLastSeen } from '../utils/date';
 
 const ChatView: React.FC = () => {
   const isMobile = useIsMobile();
@@ -525,9 +526,10 @@ const ChatView: React.FC = () => {
   const otherUser = activeConvo.members.find((m) => m.id !== (currentUser?.id || 'self'));
   const chatName = activeConvo.type === 'group' ? (activeConvo.name || 'Group Chat') : (otherUser?.displayName || 'Unknown');
   const status = activeConvo.type === 'direct' && otherUser ? otherUser.status : null;
+  const formattedLastSeen = otherUser?.lastSeen ? formatLastSeen(otherUser.lastSeen) : 'Offline';
   const statusText = activeConvo.type === 'group' 
     ? `${activeConvo.members.length} participants` 
-    : (status === 'online' ? 'Online' : otherUser?.lastSeen ? `Last seen ${otherUser.lastSeen}` : 'Offline');
+    : (status === 'online' ? 'Online' : formattedLastSeen === 'Offline' ? 'Offline' : `Last seen ${formattedLastSeen}`);
 
   return (
     <div className="chatview">

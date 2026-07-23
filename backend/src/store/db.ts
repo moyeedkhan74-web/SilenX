@@ -181,11 +181,18 @@ export async function connectDb() {
   users.length = 0;
   users.push(...dbUsers.map((u: any) => ({
     ...u,
+    status: 'offline',
     lastSeen: u.lastSeen ? new Date(u.lastSeen) : new Date(),
     createdAt: u.createdAt ? new Date(u.createdAt) : new Date(),
     updatedAt: u.updatedAt ? new Date(u.updatedAt) : new Date(),
     deletedAt: u.deletedAt ? new Date(u.deletedAt) : null,
   })));
+
+  try {
+    await UserModel.updateMany({ status: { $ne: 'offline' } }, { $set: { status: 'offline' } });
+  } catch (err) {
+    console.warn('[DB] Failed to update statuses in MongoDB:', err);
+  }
 
   const dbConvos = await ConversationModel.find({}).lean();
   conversations.length = 0;
@@ -239,6 +246,7 @@ export function loadDb() {
         users.length = 0;
         users.push(...data.users.map((u: any) => ({
           ...u,
+          status: 'offline',
           lastSeen: u.lastSeen ? new Date(u.lastSeen) : new Date(),
           createdAt: u.createdAt ? new Date(u.createdAt) : new Date(),
           updatedAt: u.updatedAt ? new Date(u.updatedAt) : new Date(),

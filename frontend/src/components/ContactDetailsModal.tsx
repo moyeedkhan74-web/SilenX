@@ -6,6 +6,7 @@ import QRCodeSection from './shared/QRCodeSection';
 import Modal from './ui/Modal';
 import { useChatStore } from '../store/chatStore';
 import './ContactDetailsModal.css';
+import { formatLastSeen } from '../utils/date';
 
 interface ContactDetailsModalProps {
   isOpen: boolean;
@@ -155,7 +156,14 @@ export const ContactDetailsModal: React.FC<ContactDetailsModalProps> = ({
             </div>
 
             <p className="contact-status-text">
-              ● {user.status === 'online' ? 'Online' : user.lastSeen ? `Last seen ${user.lastSeen}` : 'Offline'}
+              ● {user.status === 'online' 
+                  ? 'Online' 
+                  : (user.lastSeen 
+                      ? (formatLastSeen(user.lastSeen) === 'Offline' 
+                          ? 'Offline' 
+                          : `Last seen ${formatLastSeen(user.lastSeen)}`)
+                      : 'Offline')
+                }
             </p>
             {user.bio && <p className="contact-bio-text">"{user.bio}"</p>}
             {user.email && <p className="contact-email-text">{user.email}</p>}

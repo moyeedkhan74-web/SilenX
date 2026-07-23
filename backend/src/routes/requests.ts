@@ -69,21 +69,35 @@ router.post('/', (req: AuthenticatedRequest, res: Response) => {
   res.status(201).json(newReq);
 });
 
-// GET /api/requests — list incoming requests for the authenticated user
+// GET /api/requests — list requests for the authenticated user (incoming pending and all mutual accepted)
 router.get('/', (req: AuthenticatedRequest, res: Response) => {
   const currentUserId = req.currentUser!.dbId;
-  const incoming = friendRequests.filter(
-    (r: any) => r.toUserId === currentUserId || r.receiverId === currentUserId
-  );
+  const list = friendRequests.filter((r: any) => {
+    const isReceiver = r.toUserId === currentUserId || r.receiverId === currentUserId;
+    const isSender = r.fromUserId === currentUserId || r.senderId === currentUserId;
+    if (r.status === 'accepted') {
+      return isReceiver || isSender;
+    }
+    return isReceiver; // only show incoming pending requests
+  });
 
-  const enriched = incoming.map((r: any) => {
+  const enriched = list.map((r: any) => {
     const senderId = r.senderId || r.fromUserId;
+    const receiverId = r.receiverId || r.toUserId;
     const sender = users.find(u => u.id === senderId);
+    const receiver = users.find(u => u.id === receiverId);
     return {
       ...r,
       fromDisplayName: sender?.displayName || r.fromDisplayName || 'Unknown User',
       fromUid: sender?.uid || r.fromUid || 'SEC_UNKNOWN',
       fromAvatarUrl: sender?.avatarUrl || r.fromAvatarUrl || null,
+      fromStatus: sender?.status || 'offline',
+      fromLastSeen: sender?.lastSeen ? sender.lastSeen.toISOString() : null,
+      toDisplayName: receiver?.displayName || r.toDisplayName || 'Unknown User',
+      toUid: receiver?.uid || r.toUid || 'SEC_UNKNOWN',
+      toAvatarUrl: receiver?.avatarUrl || r.toAvatarUrl || null,
+      toStatus: receiver?.status || 'offline',
+      toLastSeen: receiver?.lastSeen ? receiver.lastSeen.toISOString() : null,
     };
   });
 

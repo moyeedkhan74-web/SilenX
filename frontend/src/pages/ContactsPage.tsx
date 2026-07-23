@@ -117,7 +117,9 @@ export const ContactsPage: React.FC = () => {
       id: isSender ? (r.receiverId || r.toUserId || '') : (r.senderId || r.fromUserId || ''),
       displayName: isSender ? (r.toDisplayName || 'Unknown') : (r.fromDisplayName || 'Unknown'),
       uid: isSender ? (r.toUid || '') : (r.fromUid || ''),
-      status: 'offline' // default status mapping
+      avatarUrl: isSender ? ((r as any).toAvatarUrl || null) : ((r as any).fromAvatarUrl || null),
+      status: isSender ? ((r as any).toStatus || 'offline') : ((r as any).fromStatus || 'offline'),
+      lastSeen: isSender ? ((r as any).toLastSeen || '') : ((r as any).fromLastSeen || '')
     };
   });
 
@@ -191,6 +193,8 @@ export const ContactsPage: React.FC = () => {
                   key={contact.id}
                   displayName={contact.displayName}
                   uid={contact.uid}
+                  avatarUrl={contact.avatarUrl}
+                  status={contact.status}
                   actions={
                     <button className="btn btn-primary" onClick={() => startChat(contact.uid)} style={{ padding: '6px 12px', fontSize: '13px' }}>
                       Secure Chat

@@ -94,6 +94,20 @@ export function registerSocketHandlers(io: Server): void {
     setUserSocket(userId, socket.id);
     console.log(`[Socket] Authenticated user ${userId} connected (${socket.id})`);
 
+    // Mark user as online in DB
+    const connectedUser = users.find(u => u.id === userId);
+    if (connectedUser) {
+      connectedUser.status = 'online';
+      connectedUser.lastSeen = new Date();
+      saveDb();
+      // Broadcast status change
+      socket.broadcast.emit('user-status-changed', {
+        userId,
+        status: 'online',
+        lastSeen: connectedUser.lastSeen.toISOString(),
+      });
+    }
+
     // ── 'register' event is now a no-op; identity is set from the token ──────
     // Kept for backwards-compat but IGNORED — client cannot set their own userId
     socket.on('register', () => {
@@ -338,10 +352,19 @@ export function registerSocketHandlers(io: Server): void {
 
     socket.on('user-status', (data: UserStatusPayload) => {
       // Broadcast to ALL connected users (public status change)
-      socket.broadcast.emit('user-status-changed', {
-        userId, // always from verified identity, not data.userId
-        status: data.status,
-      });
+      const userObj = users.find(u => u.id === userId);
+      if (userObj) {
+        userObj.status = data.status;
+        if (data.status === 'offline') {
+          userObj.lastSeen = new Date();
+        }
+        saveDb();
+        socket.broadcast.emit('user-status-changed', {
+          userId, // always from verified identity, not data.userId
+          status: data.status,
+          lastSeen: userObj.lastSeen.toISOString(),
+        });
+      }
     });
 
     // ─── WebRTC Call Signaling ───────────────────────────────────────────────
@@ -398,8 +421,23 @@ export function registerSocketHandlers(io: Server): void {
     socket.on('disconnect', (reason) => {
       console.log(`[Socket] User ${userId} disconnected: ${socket.id}, reason: ${reason}`);
       removeSocketById(socket.id);
-      // Notify others that this user may be offline
-      socket.broadcast.emit('user-status-changed', { userId, status: 'offline' });
+      
+      // Only set offline if no other sockets are connected for this user
+      const stillConnected = getSocketIdForUser(userId) !== null;
+      if (!stillConnected) {
+        const userObj = users.find(u => u.id === userId);
+        if (userObj) {
+          userObj.status = 'offline';
+          userObj.lastSeen = new Date();
+          saveDb();
+          // Notify others that this user is offline
+          socket.broadcast.emit('user-status-changed', {
+            userId,
+            status: 'offline',
+            lastSeen: userObj.lastSeen.toISOString(),
+          });
+        }
+      }
     });
   });
 }

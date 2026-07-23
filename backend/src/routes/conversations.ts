@@ -33,7 +33,7 @@ router.get('/', (req: AuthenticatedRequest, res: Response) => {
         displayName: u.displayName,
         avatarUrl: u.avatarUrl,
         status: u.status,
-        lastSeen: u.status === 'offline' ? 'Recently' : '',
+        lastSeen: u.lastSeen ? u.lastSeen.toISOString() : '',
         bio: u.bio,
       }));
 
@@ -107,7 +107,7 @@ router.post('/', (req: AuthenticatedRequest, res: Response) => {
             displayName: u.displayName,
             avatarUrl: u.avatarUrl,
             status: u.status,
-            lastSeen: u.status === 'offline' ? 'Recently' : '',
+            lastSeen: u.lastSeen ? u.lastSeen.toISOString() : '',
             bio: u.bio,
           }));
 
@@ -173,7 +173,7 @@ router.post('/', (req: AuthenticatedRequest, res: Response) => {
       displayName: selfUser.displayName,
       avatarUrl: selfUser.avatarUrl,
       status: selfUser.status,
-      lastSeen: '',
+      lastSeen: selfUser.lastSeen ? selfUser.lastSeen.toISOString() : '',
       bio: selfUser.bio,
     },
     {
@@ -183,7 +183,7 @@ router.post('/', (req: AuthenticatedRequest, res: Response) => {
       displayName: recipient.displayName,
       avatarUrl: recipient.avatarUrl,
       status: recipient.status,
-      lastSeen: recipient.status === 'offline' ? 'Recently' : '',
+      lastSeen: recipient.lastSeen ? recipient.lastSeen.toISOString() : '',
       bio: recipient.bio,
     },
   ];

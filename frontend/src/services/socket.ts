@@ -120,6 +120,12 @@ export const connectSocket = (idToken?: string): Socket => {
     useChatStore.getState().updatePollState(conversationId, messageId, pollData);
   });
 
+  socket.on('user-status-changed', (payload: any) => {
+    const { userId, status, lastSeen } = payload || {};
+    if (!userId || !status) return;
+    useChatStore.getState().updateUserStatus(userId, status, lastSeen);
+  });
+
   return socket;
 };
 

@@ -25,6 +25,7 @@ export const AvatarDisplay: React.FC<AvatarDisplayProps> = ({
   online,
   status
 }) => {
+  const hasStatus = online !== undefined || status !== undefined;
   const isOnline = online !== undefined ? online : status === 'online';
   const initials = name ? name.charAt(0).toUpperCase() : '?';
 
@@ -67,7 +68,7 @@ export const AvatarDisplay: React.FC<AvatarDisplayProps> = ({
         </div>
       )}
       
-      {isOnline !== undefined && (
+      {hasStatus && (
         <span
           className={`status-dot ${isOnline ? 'online' : 'offline'}`}
           style={{
