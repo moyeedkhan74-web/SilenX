@@ -39,10 +39,52 @@ const ConversationMemberSchema = new Schema({
   muted: { type: Boolean, required: true, default: false },
 });
 
+// Group Schema
+const GroupSchema = new Schema({
+  id: { type: String, required: true, unique: true, index: true },
+  name: { type: String, required: true },
+  description: { type: String, default: '' },
+  avatarUrl: { type: String, default: null },
+  createdBy: { type: String, required: true, index: true },
+  createdAt: { type: Date, required: true, default: Date.now },
+  updatedAt: { type: Date, required: true, default: Date.now },
+  members: [{ type: String, index: true }],
+  admins: [{ type: String, index: true }],
+  settings: {
+    whoCanSendMessages: { type: String, enum: ['all', 'admins', 'owner'], default: 'all' },
+    whoCanAddMembers: { type: String, enum: ['all', 'admins', 'owner'], default: 'admins' },
+    muted: { type: Boolean, default: false },
+  },
+});
+
+// GroupMember Schema
+const GroupMemberSchema = new Schema({
+  id: { type: String, required: true, unique: true, index: true },
+  groupId: { type: String, required: true, index: true },
+  userId: { type: String, required: true, index: true },
+  role: { type: String, enum: ['owner', 'admin', 'member'], default: 'member' },
+  joinedAt: { type: Date, required: true, default: Date.now },
+  mutedUntil: { type: Date, default: null },
+  lastReadMessageId: { type: String, default: null },
+});
+
+// GroupInvite Schema
+const GroupInviteSchema = new Schema({
+  id: { type: String, required: true, unique: true, index: true },
+  groupId: { type: String, required: true, index: true },
+  code: { type: String, required: true, unique: true, index: true },
+  createdBy: { type: String, required: true },
+  createdAt: { type: Date, required: true, default: Date.now },
+  expiresAt: { type: Date, required: true },
+  joinApprovalRequired: { type: Boolean, default: false },
+  active: { type: Boolean, default: true },
+});
+
 // Message Schema
 const MessageSchema = new Schema({
   id: { type: String, required: true, unique: true, index: true },
   conversationId: { type: String, required: true, index: true },
+  groupId: { type: String, default: null, index: true },
   senderId: { type: String, required: true },
   encryptedContent: { type: String, required: true },
   contentType: { type: String, required: true },
@@ -114,9 +156,28 @@ const FriendSchema = new Schema({
   createdAt: { type: Date, required: true, default: Date.now },
 });
 
+// CallLog Schema
+const CallLogSchema = new Schema({
+  id: { type: String, required: true, unique: true, index: true },
+  conversationId: { type: String, required: true, index: true },
+  groupId: { type: String, default: null, index: true },
+  initiatorId: { type: String, required: true, index: true },
+  receiverId: { type: String, default: null, index: true },
+  participants: [{ type: String, index: true }],
+  callType: { type: String, enum: ['audio', 'video'], required: true },
+  status: { type: String, enum: ['pending', 'accepted', 'rejected', 'missed', 'ended'], required: true },
+  startedAt: { type: Date, required: true, default: Date.now },
+  endedAt: { type: Date, default: null },
+  durationSeconds: { type: Number, default: null },
+});
+
 export const UserModel = mongoose.model('User', UserSchema);
 export const ConversationModel = mongoose.model('Conversation', ConversationSchema);
 export const ConversationMemberModel = mongoose.model('ConversationMember', ConversationMemberSchema);
+export const GroupModel = mongoose.model('Group', GroupSchema);
+export const GroupMemberModel = mongoose.model('GroupMember', GroupMemberSchema);
+export const GroupInviteModel = mongoose.model('GroupInvite', GroupInviteSchema);
 export const MessageModel = mongoose.model('Message', MessageSchema);
 export const FriendRequestModel = mongoose.model('FriendRequest', FriendRequestSchema);
 export const FriendModel = mongoose.model('Friend', FriendSchema);
+export const CallLogModel = mongoose.model('CallLog', CallLogSchema);

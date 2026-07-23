@@ -1,4 +1,4 @@
-import { User, Conversation, ConversationMember, Message, ContactRequest, FriendRequest, Friend } from '../types';
+import { User, Conversation, ConversationMember, Message, ContactRequest, FriendRequest, Friend, Group, GroupMember, GroupInvite, CallLog } from '../types';
 
 // In-Memory Database — starts empty, populated from db.json on startup
 export const users: User[] = [];
@@ -7,7 +7,15 @@ export const conversations: Conversation[] = [];
 
 export const conversationMembers: ConversationMember[] = [];
 
+export const groups: Group[] = [];
+
+export const groupMembers: GroupMember[] = [];
+
+export const groupInvites: GroupInvite[] = [];
+
 export const messages: Message[] = [];
+
+export const callLogs: CallLog[] = [];
 
 import fs from 'fs';
 import path from 'path';
@@ -21,7 +29,7 @@ export const friends: Friend[] = [];
 const DB_FILE = path.join(__dirname, '../../db.json');
 
 import mongoose from 'mongoose';
-import { UserModel, ConversationModel, ConversationMemberModel, MessageModel, FriendRequestModel, FriendModel } from './models';
+import { UserModel, ConversationModel, ConversationMemberModel, GroupModel, GroupMemberModel, GroupInviteModel, MessageModel, FriendRequestModel, FriendModel, CallLogModel } from './models';
 
 let isSyncing = false;
 let hasPendingChanges = false;
@@ -95,7 +103,11 @@ async function performSync() {
       users,
       conversations,
       conversationMembers,
+      groups,
+      groupMembers,
+      groupInvites,
       messages,
+      callLogs,
       friendRequests,
       friends
     };
@@ -111,7 +123,11 @@ async function performSync() {
       await syncCollection(UserModel, users);
       await syncCollection(ConversationModel, conversations);
       await syncCollection(ConversationMemberModel, conversationMembers);
+      await syncCollection(GroupModel, groups);
+      await syncCollection(GroupMemberModel, groupMembers);
+      await syncCollection(GroupInviteModel, groupInvites);
       await syncCollection(MessageModel, messages);
+      await syncCollection(CallLogModel, callLogs);
       await syncCollection(FriendRequestModel, friendRequests);
       await syncCollection(FriendModel, friends);
       console.log('[DB] Synchronized memory store with MongoDB');
@@ -167,7 +183,11 @@ export async function connectDb() {
       if (data.users && data.users.length > 0) await UserModel.insertMany(data.users);
       if (data.conversations && data.conversations.length > 0) await ConversationModel.insertMany(data.conversations);
       if (data.conversationMembers && data.conversationMembers.length > 0) await ConversationMemberModel.insertMany(data.conversationMembers);
+      if (data.groups && data.groups.length > 0) await GroupModel.insertMany(data.groups);
+      if (data.groupMembers && data.groupMembers.length > 0) await GroupMemberModel.insertMany(data.groupMembers);
+      if (data.groupInvites && data.groupInvites.length > 0) await GroupInviteModel.insertMany(data.groupInvites);
       if (data.messages && data.messages.length > 0) await MessageModel.insertMany(data.messages);
+      if (data.callLogs && data.callLogs.length > 0) await CallLogModel.insertMany(data.callLogs);
       if (data.friendRequests && data.friendRequests.length > 0) await FriendRequestModel.insertMany(data.friendRequests);
       if (data.friends && data.friends.length > 0) await FriendModel.insertMany(data.friends);
       console.log('[DB] Seed successful!');
@@ -202,6 +222,30 @@ export async function connectDb() {
     updatedAt: c.updatedAt ? new Date(c.updatedAt) : new Date(),
   })));
 
+  const dbGroups = await GroupModel.find({}).lean();
+  groups.length = 0;
+  groups.push(...dbGroups.map((g: any) => ({
+    ...g,
+    createdAt: g.createdAt ? new Date(g.createdAt) : new Date(),
+    updatedAt: g.updatedAt ? new Date(g.updatedAt) : new Date(),
+  })));
+
+  const dbGroupMembers = await GroupMemberModel.find({}).lean();
+  groupMembers.length = 0;
+  groupMembers.push(...dbGroupMembers.map((m: any) => ({
+    ...m,
+    joinedAt: m.joinedAt ? new Date(m.joinedAt) : new Date(),
+    mutedUntil: m.mutedUntil ? new Date(m.mutedUntil) : null,
+  })));
+
+  const dbGroupInvites = await GroupInviteModel.find({}).lean();
+  groupInvites.length = 0;
+  groupInvites.push(...dbGroupInvites.map((i: any) => ({
+    ...i,
+    createdAt: i.createdAt ? new Date(i.createdAt) : new Date(),
+    expiresAt: i.expiresAt ? new Date(i.expiresAt) : new Date(),
+  })));
+
   const dbMembers = await ConversationMemberModel.find({}).lean();
   conversationMembers.length = 0;
   conversationMembers.push(...dbMembers.map((m: any) => ({
@@ -217,6 +261,14 @@ export async function connectDb() {
     createdAt: m.createdAt ? new Date(m.createdAt) : new Date(),
     editedAt: m.editedAt ? new Date(m.editedAt) : null,
     deletedAt: m.deletedAt ? new Date(m.deletedAt) : null,
+  })));
+
+  const dbCallLogs = await CallLogModel.find({}).lean();
+  callLogs.length = 0;
+  callLogs.push(...dbCallLogs.map((c: any) => ({
+    ...c,
+    startedAt: c.startedAt ? new Date(c.startedAt) : new Date(),
+    endedAt: c.endedAt ? new Date(c.endedAt) : null,
   })));
 
   const dbRequests = await FriendRequestModel.find({}).lean();
@@ -261,6 +313,30 @@ export function loadDb() {
           updatedAt: c.updatedAt ? new Date(c.updatedAt) : new Date(),
         })));
       }
+      if (data.groups) {
+        groups.length = 0;
+        groups.push(...data.groups.map((g: any) => ({
+          ...g,
+          createdAt: g.createdAt ? new Date(g.createdAt) : new Date(),
+          updatedAt: g.updatedAt ? new Date(g.updatedAt) : new Date(),
+        })));
+      }
+      if (data.groupMembers) {
+        groupMembers.length = 0;
+        groupMembers.push(...data.groupMembers.map((m: any) => ({
+          ...m,
+          joinedAt: m.joinedAt ? new Date(m.joinedAt) : new Date(),
+          mutedUntil: m.mutedUntil ? new Date(m.mutedUntil) : null,
+        })));
+      }
+      if (data.groupInvites) {
+        groupInvites.length = 0;
+        groupInvites.push(...data.groupInvites.map((i: any) => ({
+          ...i,
+          createdAt: i.createdAt ? new Date(i.createdAt) : new Date(),
+          expiresAt: i.expiresAt ? new Date(i.expiresAt) : new Date(),
+        })));
+      }
       if (data.conversationMembers) {
         conversationMembers.length = 0;
         conversationMembers.push(...data.conversationMembers.map((m: any) => ({
@@ -276,6 +352,14 @@ export function loadDb() {
           createdAt: m.createdAt ? new Date(m.createdAt) : new Date(),
           editedAt: m.editedAt ? new Date(m.editedAt) : null,
           deletedAt: m.deletedAt ? new Date(m.deletedAt) : null,
+        })));
+      }
+      if (data.callLogs) {
+        callLogs.length = 0;
+        callLogs.push(...data.callLogs.map((c: any) => ({
+          ...c,
+          startedAt: c.startedAt ? new Date(c.startedAt) : new Date(),
+          endedAt: c.endedAt ? new Date(c.endedAt) : null,
         })));
       }
       if (data.friendRequests) {

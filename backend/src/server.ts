@@ -10,6 +10,8 @@ import authRoutes from './routes/auth';
 import userRoutes from './routes/users';
 import conversationRoutes from './routes/conversations';
 import callRoutes from './routes/calls';
+import groupRoutes from './routes/groups';
+import groupCallRoutes from './routes/groupCalls';
 import requestRoutes from './routes/requests';
 import { connectDb } from './store/db';
 
@@ -93,6 +95,8 @@ app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/conversations', conversationRoutes);
 app.use('/api/calls', callRoutes);
+app.use('/api/groups', groupRoutes);
+app.use('/api/group-calls', groupCallRoutes);
 app.use('/api/requests', requestRoutes);
 
 // ─── Serve Frontend (production) ───────────────────────────

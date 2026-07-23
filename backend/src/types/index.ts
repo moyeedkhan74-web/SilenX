@@ -37,6 +37,7 @@ export interface Conversation {
   createdBy: string;
   createdAt: Date;
   updatedAt: Date;
+  groupId?: string;
 }
 
 export interface ConversationMember {
@@ -51,6 +52,7 @@ export interface ConversationMember {
 export interface Message {
   id: string;
   conversationId: string;
+  groupId?: string;
   senderId: string;
   encryptedContent: string;
   contentType: ContentType;
@@ -104,9 +106,62 @@ export interface MessageRead {
   readAt: Date;
 }
 
+export interface Group {
+  id: string;
+  name: string;
+  description?: string;
+  avatarUrl?: string | null;
+  createdBy: string;
+  createdAt: Date;
+  updatedAt: Date;
+  members: string[];
+  admins: string[];
+  settings: {
+    whoCanSendMessages: 'all' | 'admins' | 'owner';
+    whoCanAddMembers: 'all' | 'admins' | 'owner';
+    muted: boolean;
+  };
+}
+
+export interface GroupMember {
+  id: string;
+  groupId: string;
+  userId: string;
+  role: 'owner' | 'admin' | 'member';
+  joinedAt: Date;
+  mutedUntil: Date | null;
+  lastReadMessageId: string | null;
+}
+
+export interface GroupInvite {
+  id: string;
+  groupId: string;
+  code: string;
+  createdBy: string;
+  createdAt: Date;
+  expiresAt: Date;
+  joinApprovalRequired: boolean;
+  active: boolean;
+}
+
+export interface CallLog {
+  id: string;
+  conversationId: string;
+  groupId?: string;
+  initiatorId: string;
+  receiverId?: string;
+  participants: string[];
+  callType: CallType;
+  status: CallStatus;
+  startedAt: Date;
+  endedAt: Date | null;
+  durationSeconds: number | null;
+}
+
 export interface Call {
   id: string;
   conversationId: string;
+  groupId?: string;
   initiatorId: string;
   receiverId: string;
   callType: CallType;
