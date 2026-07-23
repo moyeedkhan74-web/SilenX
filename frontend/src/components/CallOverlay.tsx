@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import './CallOverlay.css';
 import ActiveCallScreen from './ActiveCallScreen';
 import IncomingCallScreen from './IncomingCallScreen';
@@ -18,8 +18,16 @@ const CallOverlay: React.FC = () => {
     toggleVideo,
   } = useCallStore();
 
-  const localStream = webrtcService.getLocalStream();
-  const remoteStream = webrtcService.getRemoteStream();
+  const [localStream, setLocalStream] = useState<MediaStream | null>(webrtcService.getLocalStream());
+  const [remoteStream, setRemoteStream] = useState<MediaStream | null>(webrtcService.getRemoteStream());
+
+  useEffect(() => {
+    const unsubscribe = webrtcService.subscribeToStreamUpdates((local, remote) => {
+      setLocalStream(local);
+      setRemoteStream(remote);
+    });
+    return unsubscribe;
+  }, []);
 
   if (!isInCall) return null;
 

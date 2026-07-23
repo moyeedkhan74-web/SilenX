@@ -45,6 +45,9 @@ export class WebRTCService {
   private currentCallType: CallType | null = null;
   private isCaller = false;
   private localTracksAdded = false;
+  private pendingIceCandidates: RTCIceCandidateInit[] = [];
+  private remoteDescriptionSet = false;
+  private streamListeners = new Set<(local: MediaStream | null, remote: MediaStream | null) => void>();
 
   public initialize(socket: Socket): void {
     if (this.currentSocket === socket) {
@@ -89,6 +92,22 @@ export class WebRTCService {
 
     if (this.remoteVideoElement && this.remoteStream) {
       this.remoteVideoElement.srcObject = this.remoteStream;
+    }
+  }
+
+  public subscribeToStreamUpdates(
+    listener: (local: MediaStream | null, remote: MediaStream | null) => void
+  ): () => void {
+    this.streamListeners.add(listener);
+    listener(this.localStream, this.remoteStream);
+    return () => {
+      this.streamListeners.delete(listener);
+    };
+  }
+
+  private notifyStreamListeners(): void {
+    for (const listener of this.streamListeners) {
+      listener(this.localStream, this.remoteStream);
     }
   }
 
@@ -194,11 +213,13 @@ export class WebRTCService {
       };
 
       this.localStream = await navigator.mediaDevices.getUserMedia(constraints);
+      console.debug('[WebRTC] getUserMedia success, tracks:', this.localStream.getTracks().map((track) => track.kind));
 
       if (this.localVideoElement) {
         this.localVideoElement.srcObject = this.localStream;
       }
 
+      this.notifyStreamListeners();
       return true;
     } catch (error) {
       console.error('[WebRTC] Error accessing media devices:', error);
@@ -228,12 +249,15 @@ export class WebRTCService {
         console.debug('[WebRTC] ontrack event', event.streams.length, event.streams);
         if (!this.remoteStream) {
           this.remoteStream = new MediaStream();
-          if (this.remoteVideoElement) {
-            this.remoteVideoElement.srcObject = this.remoteStream;
-          }
         }
 
         this.remoteStream.addTrack(event.track);
+
+        if (this.remoteVideoElement) {
+          this.remoteVideoElement.srcObject = this.remoteStream;
+        }
+
+        this.notifyStreamListeners();
       };
 
       this.peerConnection.onconnectionstatechange = () => {
@@ -254,6 +278,27 @@ export class WebRTCService {
     } catch (error) {
       console.error('[WebRTC] Error creating peer connection:', error);
       this.peerConnection = null;
+    }
+  }
+
+  private async ensureRemoteDescriptionSet(description: RTCSessionDescriptionInit): Promise<void> {
+    if (!this.peerConnection) {
+      throw new Error('[WebRTC] cannot set remote description: peerConnection is not initialized');
+    }
+
+    await this.peerConnection.setRemoteDescription(new RTCSessionDescription(description));
+    this.remoteDescriptionSet = true;
+
+    if (this.pendingIceCandidates.length > 0) {
+      console.debug('[WebRTC] draining pending ICE candidate queue', this.pendingIceCandidates.length);
+      for (const candidate of this.pendingIceCandidates) {
+        try {
+          await this.peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+        } catch (error) {
+          console.warn('[WebRTC] Error adding buffered ICE candidate:', error, candidate);
+        }
+      }
+      this.pendingIceCandidates = [];
     }
   }
 
@@ -363,7 +408,7 @@ export class WebRTCService {
     }
 
     try {
-      await this.peerConnection.setRemoteDescription(new RTCSessionDescription(payload.sdp));
+      await this.ensureRemoteDescriptionSet(payload.sdp);
       const answer = await this.peerConnection.createAnswer();
       await this.peerConnection.setLocalDescription(answer);
 
@@ -386,7 +431,7 @@ export class WebRTCService {
     }
 
     try {
-      await this.peerConnection.setRemoteDescription(new RTCSessionDescription(payload.sdp));
+      await this.ensureRemoteDescriptionSet(payload.sdp);
     } catch (error) {
       console.error('[WebRTC] Error handling remote answer:', error);
     }
@@ -396,9 +441,14 @@ export class WebRTCService {
     if (!this.peerConnection || !payload?.candidate) {
       return;
     }
-
+ 
     console.debug('[WebRTC] received ICE candidate from', payload.senderId, payload.candidate);
     try {
+      if (!this.remoteDescriptionSet) {
+        console.debug('[WebRTC] buffering ICE candidate until remote description is set');
+        this.pendingIceCandidates.push(payload.candidate);
+        return;
+      }
       await this.peerConnection.addIceCandidate(new RTCIceCandidate(payload.candidate));
     } catch (error) {
       console.warn('[WebRTC] Error adding ICE candidate:', error);
@@ -430,13 +480,17 @@ export class WebRTCService {
     }
 
     this.localTracksAdded = false;
-
+    this.remoteDescriptionSet = false;
+    this.pendingIceCandidates = [];
+ 
     if (this.localVideoElement) {
       this.localVideoElement.srcObject = null;
     }
     if (this.remoteVideoElement) {
       this.remoteVideoElement.srcObject = null;
     }
+
+    this.notifyStreamListeners();
   }
 }
 

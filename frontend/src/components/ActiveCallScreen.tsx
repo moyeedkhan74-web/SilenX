@@ -36,6 +36,7 @@ export default function ActiveCallScreen({
 }: ActiveCallScreenProps) {
   const [seconds, setSeconds] = useState(0);
   const [speakerOn, setSpeakerOn] = useState(true);
+  const [audioPlaybackBlocked, setAudioPlaybackBlocked] = useState(false);
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
   const remoteAudioRef = useRef<HTMLAudioElement>(null);
@@ -68,9 +69,24 @@ export default function ActiveCallScreen({
       remoteAudioRef.current.volume = speakerOn ? 1 : 0.6;
       remoteAudioRef.current
         .play()
-        .catch((error) => console.warn('[ActiveCallScreen] remote audio autoplay blocked', error));
+        .then(() => setAudioPlaybackBlocked(false))
+        .catch((error) => {
+          console.warn('[ActiveCallScreen] remote audio autoplay blocked', error);
+          setAudioPlaybackBlocked(true);
+        });
     }
   }, [remoteStream, speakerOn]);
+
+  const enableAudioPlayback = async () => {
+    if (remoteAudioRef.current) {
+      try {
+        await remoteAudioRef.current.play();
+        setAudioPlaybackBlocked(false);
+      } catch (error) {
+        console.warn('[ActiveCallScreen] enableAudioPlayback failed', error);
+      }
+    }
+  };
 
   const showRemoteVideo = callType === 'video' && remoteStream;
 
@@ -95,7 +111,16 @@ export default function ActiveCallScreen({
       )}
 
       {callType === 'audio' && (
-        <audio ref={remoteAudioRef} autoPlay />
+        <>
+          <audio ref={remoteAudioRef} autoPlay />
+          {audioPlaybackBlocked && (
+            <div className="active-call__audio-fallback">
+              <button type="button" className="audio-fallback-button" onClick={enableAudioPlayback}>
+                Tap to enable audio
+              </button>
+            </div>
+          )}
+        </>
       )}
 
       <div className="active-call__top">
@@ -345,6 +370,29 @@ export default function ActiveCallScreen({
 
         .ctrl-btn--end:hover {
           opacity: 0.92;
+        }
+
+        .active-call__audio-fallback {
+          position: absolute;
+          left: 50%;
+          bottom: 140px;
+          transform: translateX(-50%);
+          z-index: 2;
+        }
+
+        .audio-fallback-button {
+          color: #fff;
+          background: rgba(0, 0, 0, 0.55);
+          border: 1px solid rgba(255, 255, 255, 0.2);
+          border-radius: 999px;
+          padding: 10px 18px;
+          font-size: 14px;
+          cursor: pointer;
+          backdrop-filter: blur(12px);
+        }
+
+        .audio-fallback-button:hover {
+          transform: translateY(-1px);
         }
       `}</style>
     </div>
