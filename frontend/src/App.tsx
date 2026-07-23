@@ -17,36 +17,38 @@ import type { UserStatus } from './types';
 import './App.css';
 import { ThemeProvider } from './theme/ThemeContext';
 
+const BootLoadingView = () => (
+  <div className="app-loading-screen" role="status" aria-live="polite">
+    <div className="app-loading-backdrop" aria-hidden="true">
+      <div className="app-loading-orb orb-1" />
+      <div className="app-loading-orb orb-2" />
+      <div className="app-loading-orb orb-3" />
+    </div>
+
+    <div className="app-loading-card">
+      <div className="app-loading-logo">SX</div>
+      <div className="app-loading-content">
+        <span className="app-loading-eyebrow">Secure Workspace</span>
+        <h1>Preparing your SlienX experience…</h1>
+        <p>Syncing your secure conversations, calls, and identity.</p>
+        <div className="app-loading-bar" aria-hidden="true">
+          <span className="app-loading-bar-fill" />
+        </div>
+        <div className="app-loading-dots" aria-hidden="true">
+          <span />
+          <span />
+          <span />
+        </div>
+      </div>
+    </div>
+  </div>
+);
+
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { isAuthenticated, initialized } = useAuthStore();
 
   if (!initialized) {
-    return (
-      <div className="app-loading-screen" role="status" aria-live="polite">
-        <div className="app-loading-backdrop" aria-hidden="true">
-          <div className="app-loading-orb orb-1" />
-          <div className="app-loading-orb orb-2" />
-          <div className="app-loading-orb orb-3" />
-        </div>
-
-        <div className="app-loading-card">
-          <div className="app-loading-logo">SX</div>
-          <div className="app-loading-content">
-            <span className="app-loading-eyebrow">Secure Workspace</span>
-            <h1>Preparing your SlienX experience…</h1>
-            <p>Syncing your secure conversations, calls, and identity.</p>
-            <div className="app-loading-bar" aria-hidden="true">
-              <span className="app-loading-bar-fill" />
-            </div>
-            <div className="app-loading-dots" aria-hidden="true">
-              <span />
-              <span />
-              <span />
-            </div>
-          </div>
-        </div>
-      </div>
-    );
+    return <BootLoadingView />;
   }
 
   if (!isAuthenticated) {
@@ -60,6 +62,7 @@ function App() {
   const login = useAuthStore((state) => state.login);
   const logout = useAuthStore((state) => state.logout);
   const setInitialized = useAuthStore((state) => state.setInitialized);
+  const initialized = useAuthStore((state) => state.initialized);
 
   useEffect(() => {
     if (!auth) {
@@ -110,6 +113,10 @@ function App() {
 
     return () => unsubscribe();
   }, [login, logout, setInitialized]);
+
+  if (!initialized) {
+    return <BootLoadingView />;
+  }
 
   return (
     <ThemeProvider>
