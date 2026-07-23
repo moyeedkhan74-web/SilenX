@@ -268,7 +268,7 @@ export class WebRTCService {
     }
   }
 
-  private async handleIncomingCall(payload: CallIncomingPayload): Promise<void> {
+  private handleIncomingCall = async (payload: CallIncomingPayload): Promise<void> => {
     if (!payload?.callerId) {
       return;
     }
@@ -282,9 +282,9 @@ export class WebRTCService {
     this.currentCallType = payload.callType;
     this.isCaller = false;
     useCallStore.getState().receiveCall(payload.callerId, payload.callerName, payload.callType);
-  }
+  };
 
-  private async handleCallAccepted(payload: CallAcceptedPayload): Promise<void> {
+  private handleCallAccepted = async (payload: CallAcceptedPayload): Promise<void> => {
     if (!this.isCaller || !this.targetUserId || payload.responderId !== this.targetUserId || !this.currentCallType) {
       return;
     }
@@ -297,21 +297,21 @@ export class WebRTCService {
 
     useCallStore.getState().acceptCall();
     await this.createOffer();
-  }
+  };
 
-  private handleCallRejected(_payload: CallRejectedPayload): void {
+  private handleCallRejected = (_payload: CallRejectedPayload): void => {
     if (!this.isCaller) {
       return;
     }
 
     this.resetCallState();
-  }
+  };
 
-  private handleRemoteCallEnded(_payload: CallEndedPayload): void {
+  private handleRemoteCallEnded = (_payload: CallEndedPayload): void => {
     this.resetCallState();
-  }
+  };
 
-  private async handleRemoteOffer(payload: SDPReceivedPayload): Promise<void> {
+  private handleRemoteOffer = async (payload: SDPReceivedPayload): Promise<void> => {
     if (!payload?.senderId) {
       return;
     }
@@ -344,9 +344,9 @@ export class WebRTCService {
       console.error('[WebRTC] Error handling remote offer:', error);
       this.resetCallState();
     }
-  }
+  };
 
-  private async handleRemoteAnswer(payload: SDPReceivedPayload): Promise<void> {
+  private handleRemoteAnswer = async (payload: SDPReceivedPayload): Promise<void> => {
     if (!this.peerConnection) {
       return;
     }
@@ -356,9 +356,9 @@ export class WebRTCService {
     } catch (error) {
       console.error('[WebRTC] Error handling remote answer:', error);
     }
-  }
+  };
 
-  private async handleIceCandidateReceived(payload: ICECandidateReceivedPayload): Promise<void> {
+  private handleIceCandidateReceived = async (payload: ICECandidateReceivedPayload): Promise<void> => {
     if (!this.peerConnection || !payload?.candidate) {
       return;
     }
@@ -368,7 +368,7 @@ export class WebRTCService {
     } catch (error) {
       console.warn('[WebRTC] Error adding ICE candidate:', error);
     }
-  }
+  };
 
   private resetCallState(): void {
     useCallStore.getState().endCall();
