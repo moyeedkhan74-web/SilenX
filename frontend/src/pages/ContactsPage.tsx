@@ -6,6 +6,7 @@ import { useAuthStore } from '../store/authStore';
 import ContactCard from '../components/features/ContactCard';
 import EmptyState from '../components/ui/EmptyState';
 import AddContactModal from '../components/AddContactModal';
+import CreateGroupModal from '../components/CreateGroupModal';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import '../components/ContactsTab.css';
 
@@ -27,6 +28,7 @@ export const ContactsPage: React.FC = () => {
   const [requests, setRequests] = useState<RequestItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isAddOpen, setIsAddOpen] = useState(false);
+  const [isGroupOpen, setIsGroupOpen] = useState(false);
   const { fetchConversations, createConversation, setActiveConversation } = useChatStore();
   const currentUser = useAuthStore((s) => s.user);
 
@@ -139,13 +141,22 @@ export const ContactsPage: React.FC = () => {
     <div className="contacts-tab" style={{ padding: '24px', overflowY: 'auto', height: '100%', boxSizing: 'border-box' }}>
       <div className="contacts-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
         <h2>Contacts</h2>
-        <button 
-          className="add-contact-btn" 
-          onClick={() => setIsAddOpen(true)}
-          style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
-        >
-          <UserPlus size={16} /> Add Contact
-        </button>
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+          <button 
+            className="add-contact-btn" 
+            onClick={() => setIsGroupOpen(true)}
+            style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+          >
+            <UserPlus size={16} /> Create Group
+          </button>
+          <button 
+            className="add-contact-btn" 
+            onClick={() => setIsAddOpen(true)}
+            style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+          >
+            <UserPlus size={16} /> Add Contact
+          </button>
+        </div>
       </div>
 
       {isLoading ? (
@@ -227,6 +238,25 @@ export const ContactsPage: React.FC = () => {
         onAddComplete={() => {
           setIsAddOpen(false);
           loadRequests();
+        }}
+      />
+
+      <CreateGroupModal
+        isOpen={isGroupOpen}
+        contacts={acceptedContacts.map((contact) => ({
+          id: contact.id,
+          uid: contact.uid,
+          displayName: contact.displayName,
+          avatarUrl: contact.avatarUrl,
+          status: contact.status,
+        }))}
+        onClose={() => setIsGroupOpen(false)}
+        onCreateSuccess={(conversationId) => {
+          setIsGroupOpen(false);
+          setActiveConversation(conversationId);
+          window.location.hash = '#/chats';
+          window.history.pushState({}, '', '/chats');
+          window.dispatchEvent(new PopStateEvent('popstate'));
         }}
       />
     </div>

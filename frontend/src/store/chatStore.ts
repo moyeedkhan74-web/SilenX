@@ -14,6 +14,7 @@ interface ChatState {
   fetchConversations: () => Promise<void>;
   fetchMessages: (id: string) => Promise<void>;
   createConversation: (recipientUid: string) => Promise<Conversation | null>;
+  createGroup: (payload: { name: string; description?: string; members: string[] }) => Promise<Conversation | null>;
   hydrateFromStorage: () => void;
 
   // Local modifications (optimistic updates)
@@ -167,6 +168,68 @@ export const useChatStore = create<ChatState>((set, get) => ({
     } catch (err) {
       console.error('Failed to create conversation on server:', err);
     }
+    return null;
+  },
+
+  createGroup: async (payload) => {
+    try {
+      const token = useAuthStore.getState().token;
+      if (!token) return null;
+
+      const res = await fetch(`${API_URL}/api/groups`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        console.error('Failed to create group on server:', body?.message || res.statusText);
+        return null;
+      }
+
+      const response = await res.json();
+      const groupMembers = (response.membersList || []).map((member: any) => ({
+        id: member.id,
+        uid: member.uid,
+        email: member.email,
+        displayName: member.displayName,
+        avatarUrl: member.avatarUrl,
+        status: member.status || 'offline',
+        lastSeen: member.lastSeen || '',
+        bio: member.bio || '',
+        showOnlineStatus: member.showOnlineStatus,
+      }));
+
+      const newConvo: Conversation = {
+        id: response.conversationId || response.id,
+        type: 'group',
+        name: response.name,
+        avatarUrl: response.avatarUrl || null,
+        lastMessage: 'Group ready',
+        lastMessageTime: '',
+        unreadCount: 0,
+        members: groupMembers,
+        isPinned: false,
+        isMuted: false,
+      };
+
+      const currentConvos = get().conversations;
+      if (!currentConvos.some((c) => c.id === newConvo.id)) {
+        const nextConversations = [newConvo, ...currentConvos];
+        set({ conversations: nextConversations });
+        persistState({ conversations: nextConversations });
+      }
+
+      await get().fetchConversations();
+      return newConvo;
+    } catch (err) {
+      console.error('Failed to create group on server:', err);
+    }
+
     return null;
   },
 
