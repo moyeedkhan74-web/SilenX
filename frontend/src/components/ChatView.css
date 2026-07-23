@@ -35,8 +35,8 @@
 }
 
 .chatview-header {
-  height: 64px;
-  padding: 0 16px;
+  min-height: 64px;
+  padding: 0 12px 0 10px;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -50,7 +50,7 @@
 .chatview-header-info {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
   flex: 1;
   min-width: 0;
 }
@@ -58,13 +58,16 @@
 .chatview-header-meta {
   display: flex;
   flex-direction: column;
+  justify-content: center;
   min-width: 0;
+  gap: 2px;
 }
 
 .chatview-header-name {
   margin: 0;
-  font-size: 15px;
+  font-size: clamp(14px, 3.6vw, 15px);
   font-weight: 700;
+  line-height: 1.2;
   color: var(--text-primary);
   display: flex;
   align-items: center;
@@ -86,9 +89,9 @@
 }
 
 .chatview-status-subtext {
-  font-size: 12px;
+  font-size: clamp(11px, 3vw, 12px);
   color: var(--color-success);
-  margin-top: 2px;
+  line-height: 1.2;
 }
 .chatview-status-subtext.online::before {
   content: '';
@@ -102,12 +105,14 @@
 
 .chatview-header-actions {
   display: flex;
+  align-items: center;
   gap: 2px;
+  padding-right: 2px;
 }
 
 .icon-btn {
-  width: 38px;
-  height: 38px;
+  width: 36px;
+  height: 36px;
   border-radius: var(--radius-md);
   border: none;
   background: transparent;
@@ -168,11 +173,11 @@
 
 .chatview-messages {
   flex: 1;
-  padding: 24px;
+  padding: clamp(12px, 3vw, 24px);
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 10px;
   z-index: 1;
 }
 
@@ -202,7 +207,7 @@
 .msg-wrapper {
   display: flex;
   flex-direction: column;
-  max-width: 72%;
+  max-width: min(80%, 320px);
 }
 .msg-wrapper.self { 
   align-self: flex-end; 
@@ -232,15 +237,15 @@
 
 .msg-bubble {
   max-width: 100%;
-  padding: 10px 14px;
-  font-size: 15px;
-  line-height: 1.55;
+  padding: 9px 12px;
+  font-size: clamp(13.5px, 2.9vw, 15px);
+  line-height: 1.5;
   position: relative;
   cursor: default;
   user-select: text;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 5px;
   transition: transform 180ms ease, box-shadow 180ms ease;
 }
 .msg-bubble:hover {
@@ -494,11 +499,13 @@
   pointer-events: none;
 }
 .media-file-card {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
   align-items: center;
-  gap: 10px;
-  min-width: min(320px, 72vw);
-  padding: 10px 12px;
+  gap: 8px;
+  width: min(100%, 280px);
+  min-width: 0;
+  padding: 8px 10px;
   border-radius: 14px;
   border: 1px solid var(--border-color);
   background: var(--color-surface-soft);
@@ -519,14 +526,14 @@
   flex: 1;
 }
 .media-file-name {
-  font-size: 13px;
+  font-size: clamp(12px, 2.8vw, 13px);
   font-weight: 700;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .media-file-size {
-  font-size: 11px;
+  font-size: clamp(10px, 2.6vw, 11px);
   color: var(--text-secondary);
 }
 .media-file-download-btn,
@@ -537,11 +544,11 @@
   gap: 6px;
   border: none;
   border-radius: 999px;
-  padding: 8px 12px;
+  padding: 6px 10px;
   cursor: pointer;
   background: var(--color-primary);
   color: var(--color-on-accent);
-  font-size: 12px;
+  font-size: clamp(11px, 2.7vw, 12px);
   font-weight: 700;
 }
 .media-viewer-overlay {
@@ -714,8 +721,8 @@
   display: flex;
   align-items: center;
   gap: 4px;
-  margin-top: 5px;
-  font-size: 11px;
+  margin-top: 3px;
+  font-size: clamp(10px, 2.6vw, 11px);
 }
 .msg-meta .msg-receipt { color: rgba(255,255,255,0.5); }
 .msg-meta .msg-receipt.read { color: var(--color-secondary); }
@@ -819,13 +826,13 @@
 
 .input-row {
   display: flex;
-  align-items: flex-end;
-  gap: 8px;
-  padding: 10px 12px;
+  align-items: center;
+  gap: 6px;
+  padding: 8px;
 }
 .input-icon-btn {
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   border: none;
   background: transparent;
@@ -841,10 +848,11 @@
 
 .input-box {
   flex: 1;
+  min-width: 0;
   background: var(--input-bg);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-xl);
-  padding: 10px 16px;
+  padding: 8px 12px;
   transition: border-color 200ms ease, box-shadow 200ms ease, transform 200ms ease;
 }
 .input-box:focus-within {
@@ -857,12 +865,12 @@
   background: transparent;
   border: none;
   outline: none;
-  font-size: 15px;
+  font-size: clamp(14px, 3vw, 15px);
   color: var(--text-primary);
   resize: none;
   min-height: 22px;
   max-height: 100px;
-  line-height: 1.55;
+  line-height: 1.45;
   font-family: var(--font);
 }
 .msg-textarea::placeholder { color: var(--text-tertiary); }
@@ -966,10 +974,11 @@
 
 .voice-recording-bar {
   flex: 1;
+  min-width: 0;
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px 16px;
+  gap: 8px;
+  padding: 8px 12px;
   background: var(--input-bg, var(--bg-primary));
   border: 1px solid var(--color-error, #e53935);
   border-radius: var(--radius-xl);
@@ -993,14 +1002,14 @@
 }
 
 .voice-recording-time {
-  font-size: 15px;
+  font-size: clamp(13px, 3vw, 15px);
   font-weight: 700;
   color: var(--text-primary);
   font-variant-numeric: tabular-nums;
 }
 
 .voice-recording-label {
-  font-size: 13px;
+  font-size: clamp(12px, 2.8vw, 13px);
   color: var(--text-secondary);
 }
 
@@ -1202,7 +1211,14 @@
 .rich-voice-bubble {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
+  width: min(100%, 280px);
+  padding-inline: 2px;
+}
+
+.rich-voice-bubble > div:last-child {
+  width: 100%;
+  min-width: 0;
 }
 .rich-voice-icon {
   width: 40px;
