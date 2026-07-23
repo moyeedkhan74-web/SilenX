@@ -121,51 +121,116 @@ export class WebRTCService {
     return this.remoteStream;
   }
 
+  private ringInterval: any = null;
+  private currentFacingMode: 'user' | 'environment' = 'user';
+
   private async startRingTone(isOutgoing: boolean): Promise<void> {
     try {
       const AudioContextCtor = window.AudioContext || (window as any).webkitAudioContext;
-      if (!AudioContextCtor) {
-        return;
-      }
+      if (!AudioContextCtor) return;
 
-      if (this.audioContext) {
-        return;
-      }
+      this.stopRingTone();
 
       const ctx = new AudioContextCtor();
-      const oscillator = ctx.createOscillator();
-      const gain = ctx.createGain();
-
-      oscillator.type = 'triangle';
-      oscillator.frequency.value = isOutgoing ? 480 : 420;
-      gain.gain.value = 0.08;
-
-      oscillator.connect(gain);
-      gain.connect(ctx.destination);
-      oscillator.start();
-
-      await ctx.resume();
-
       this.audioContext = ctx;
-      this.ringOscillator = oscillator;
+
+      const playPulse = () => {
+        if (!this.audioContext || this.audioContext.state === 'closed') return;
+        try {
+          const now = ctx.currentTime;
+          const osc1 = ctx.createOscillator();
+          const osc2 = ctx.createOscillator();
+          const gain = ctx.createGain();
+
+          osc1.type = 'sine';
+          osc2.type = 'sine';
+          osc1.frequency.value = isOutgoing ? 440 : 425;
+          osc2.frequency.value = isOutgoing ? 480 : 450;
+
+          gain.gain.setValueAtTime(0.001, now);
+          gain.gain.exponentialRampToValueAtTime(0.05, now + 0.08);
+          gain.gain.setValueAtTime(0.05, now + 1.2);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 1.4);
+
+          osc1.connect(gain);
+          osc2.connect(gain);
+          gain.connect(ctx.destination);
+
+          osc1.start(now);
+          osc2.start(now);
+          osc1.stop(now + 1.4);
+          osc2.stop(now + 1.4);
+        } catch {
+          // ignore
+        }
+      };
+
+      await ctx.resume().catch(() => null);
+      playPulse();
+      this.ringInterval = setInterval(playPulse, 3200);
     } catch (error) {
       console.warn('[WebRTC] Ring tone could not be started', error);
     }
   }
 
   private stopRingTone(): void {
+    if (this.ringInterval) {
+      clearInterval(this.ringInterval);
+      this.ringInterval = null;
+    }
+
     if (this.ringOscillator) {
-      try {
-        this.ringOscillator.stop();
-      } catch {
-        // ignore
-      }
+      try { this.ringOscillator.stop(); } catch {}
     }
+
     if (this.audioContext) {
-      this.audioContext.close().catch(() => null);
+      try {
+        this.audioContext.close().catch(() => null);
+      } catch {}
     }
+
     this.audioContext = null;
     this.ringOscillator = null;
+  }
+
+  public async switchCamera(): Promise<boolean> {
+    if (!this.localStream || this.currentCallType !== 'video') {
+      return false;
+    }
+
+    const currentTrack = this.localStream.getVideoTracks()[0];
+    if (!currentTrack) {
+      return false;
+    }
+
+    const nextFacingMode = this.currentFacingMode === 'user' ? 'environment' : 'user';
+
+    try {
+      const newStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: nextFacingMode } },
+      });
+
+      const newTrack = newStream.getVideoTracks()[0];
+      if (!newTrack) return false;
+
+      if (this.peerConnection) {
+        const sender = this.peerConnection.getSenders().find((s) => s.track?.kind === 'video');
+        if (sender) {
+          await sender.replaceTrack(newTrack);
+        }
+      }
+
+      currentTrack.stop();
+      this.localStream.removeTrack(currentTrack);
+      this.localStream.addTrack(newTrack);
+      this.currentFacingMode = nextFacingMode;
+
+      this.notifyStreamListeners();
+      return true;
+    } catch (error) {
+      console.warn('[WebRTC] Error switching camera:', error);
+      return false;
+    }
   }
 
   public async startCall(

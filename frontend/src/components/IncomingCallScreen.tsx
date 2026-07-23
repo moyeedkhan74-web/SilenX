@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React from 'react';
 import { Avatar } from './Avatar';
 import { Phone, PhoneOff, Video, Mic, X } from 'lucide-react';
 import type { CallType } from '../types';
@@ -32,51 +32,7 @@ const IncomingCallScreen: React.FC<IncomingCallScreenProps> = ({
     : 'Tap Accept to answer or Decline to reject.';
   const typeIcon = isVideo ? <Video size={16} /> : <Mic size={16} />;
 
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const oscillatorRef = useRef<OscillatorNode | null>(null);
-  const [toneBlocked, setToneBlocked] = useState(false);
 
-  useEffect(() => {
-    const AudioContextCtor = window.AudioContext || (window as any).webkitAudioContext;
-    if (!AudioContextCtor) return;
-
-    const tryStartTone = async () => {
-      try {
-        const ctx = new AudioContextCtor();
-        const oscillator = ctx.createOscillator();
-        const gain = ctx.createGain();
-
-        oscillator.type = 'sine';
-        oscillator.frequency.value = isCaller ? 440 : 480;
-        gain.gain.value = 0.06;
-
-        oscillator.connect(gain);
-        gain.connect(ctx.destination);
-
-        oscillator.start();
-        await ctx.resume();
-
-        audioContextRef.current = ctx;
-        oscillatorRef.current = oscillator;
-      } catch (error) {
-        console.warn('[IncomingCallScreen] Audio ringtone blocked', error);
-        setToneBlocked(true);
-      }
-    };
-
-    tryStartTone();
-
-    return () => {
-      if (oscillatorRef.current) {
-        try { oscillatorRef.current.stop(); } catch {}
-      }
-      if (audioContextRef.current) {
-        audioContextRef.current.close().catch(() => null);
-      }
-      audioContextRef.current = null;
-      oscillatorRef.current = null;
-    };
-  }, [isCaller]);
 
   return (
     <div className="incoming-call-screen" role="alertdialog" aria-labelledby="call-title" aria-describedby="call-subtitle">
@@ -106,11 +62,6 @@ const IncomingCallScreen: React.FC<IncomingCallScreenProps> = ({
           <h2 id="call-title">{displayName}</h2>
           <p id="call-subtitle" className="incoming-call-subtitle">{statusText}</p>
           <p className="incoming-call-note">{subtitle}</p>
-          {toneBlocked && !isCaller && (
-            <p className="incoming-call-note incoming-call-note--warn">
-              🔔 Tap Accept below to start call
-            </p>
-          )}
         </div>
 
         {/* Action Controls */}

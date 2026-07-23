@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { Mic, MicOff, Video, VideoOff, Volume2, VolumeX, PhoneOff, Maximize2, Minimize2 } from 'lucide-react';
+import { Mic, MicOff, Video, VideoOff, Volume2, VolumeX, PhoneOff, Maximize2, Minimize2, RefreshCw } from 'lucide-react';
 import { Avatar } from './Avatar';
+import { webrtcService } from '../services/webrtc';
 
 interface ActiveCallScreenProps {
   callerName: string;
@@ -227,18 +228,33 @@ export default function ActiveCallScreen({
 
         {/* Camera Toggle Button (Video Calls Only) */}
         {isVideo && (
-          <div className="ctrl-btn-wrapper">
-            <button
-              type="button"
-              className={`ctrl-btn ${isCameraOff ? 'ctrl-btn--camera-off' : 'ctrl-btn--on'}`}
-              onClick={onToggleCamera}
-              aria-label={isCameraOff ? 'Turn camera on' : 'Turn camera off'}
-              title={isCameraOff ? 'Turn Camera On' : 'Turn Camera Off'}
-            >
-              {isCameraOff ? <VideoOff size={22} /> : <Video size={22} />}
-            </button>
-            <span className="ctrl-btn-label">{isCameraOff ? 'Cam Off' : 'Cam On'}</span>
-          </div>
+          <>
+            <div className="ctrl-btn-wrapper">
+              <button
+                type="button"
+                className={`ctrl-btn ${isCameraOff ? 'ctrl-btn--camera-off' : 'ctrl-btn--on'}`}
+                onClick={onToggleCamera}
+                aria-label={isCameraOff ? 'Turn camera on' : 'Turn camera off'}
+                title={isCameraOff ? 'Turn Camera On' : 'Turn Camera Off'}
+              >
+                {isCameraOff ? <VideoOff size={22} /> : <Video size={22} />}
+              </button>
+              <span className="ctrl-btn-label">{isCameraOff ? 'Cam Off' : 'Cam On'}</span>
+            </div>
+
+            <div className="ctrl-btn-wrapper">
+              <button
+                type="button"
+                className="ctrl-btn ctrl-btn--on"
+                onClick={() => webrtcService.switchCamera()}
+                aria-label="Flip camera angle"
+                title="Flip Camera Angle (Front/Back)"
+              >
+                <RefreshCw size={20} />
+              </button>
+              <span className="ctrl-btn-label">Flip Cam</span>
+            </div>
+          </>
         )}
 
         {/* Fullscreen Toggle Button */}
