@@ -7,9 +7,11 @@ export interface GoogleAuthResponse {
     uid: string;
     email: string;
     displayName: string;
-    avatarUrl: string | null;
+    avatarUrl?: string | null;
     status: UserStatus;
+    lastSeen?: string;
     bio?: string;
+    showOnlineStatus?: boolean;
   };
 }
 
