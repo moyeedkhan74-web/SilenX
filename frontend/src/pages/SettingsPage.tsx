@@ -42,8 +42,8 @@ export const SettingsPage: React.FC = () => {
   };
 
   return (
-    <div className="settings-tab" style={{ padding: '24px', overflowY: 'auto', height: '100%', boxSizing: 'border-box' }}>
-      <div style={{ maxWidth: '600px', margin: '0 auto' }}>
+    <div className="settings-tab">
+      <div style={{ maxWidth: '600px', width: '100%', margin: '0 auto' }}>
         <h2>Settings</h2>
         <SettingsPanel onDeleteAccountClick={handleDeleteAccount} />
       </div>
