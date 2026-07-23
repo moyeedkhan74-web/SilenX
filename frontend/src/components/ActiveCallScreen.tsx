@@ -56,6 +56,9 @@ export default function ActiveCallScreen({
     if (remoteVideoRef.current && remoteStream) {
       remoteVideoRef.current.srcObject = remoteStream;
       remoteVideoRef.current.volume = speakerOn ? 1 : 0.6;
+      remoteVideoRef.current
+        .play()
+        .catch((error) => console.warn('[ActiveCallScreen] remote video autoplay blocked', error));
     }
   }, [remoteStream, speakerOn]);
 
@@ -63,6 +66,9 @@ export default function ActiveCallScreen({
     if (remoteAudioRef.current && remoteStream) {
       remoteAudioRef.current.srcObject = remoteStream;
       remoteAudioRef.current.volume = speakerOn ? 1 : 0.6;
+      remoteAudioRef.current
+        .play()
+        .catch((error) => console.warn('[ActiveCallScreen] remote audio autoplay blocked', error));
     }
   }, [remoteStream, speakerOn]);
 
