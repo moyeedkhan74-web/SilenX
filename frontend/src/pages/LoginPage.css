@@ -12,21 +12,26 @@
 }
 
 .login-page {
-  min-height: 100vh;
+  min-height: 100dvh;
+  min-height: 100svh;
+  width: 100%;
+  max-width: 100%;
   position: relative;
   display: flex;
   flex-direction: column;
   padding: 0;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
   background:
     radial-gradient(circle at top left, rgba(31, 209, 168, 0.14), transparent 30%),
     radial-gradient(circle at top right, rgba(14, 165, 233, 0.16), transparent 28%),
     linear-gradient(180deg, #060a12, #08111d 55%, #07101a);
+  background-attachment: fixed;
   color: var(--text-hi);
 }
 
 .login-auth-overlay {
-  position: absolute;
+  position: fixed;
   inset: 0;
   z-index: 20;
   display: grid;
@@ -201,10 +206,11 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 28px 48px;
+  padding: 28px clamp(20px, 4vw, 48px);
   max-width: 1180px;
   width: 100%;
   margin: 0 auto;
+  box-sizing: border-box;
   animation: fadeDown 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 
@@ -251,8 +257,9 @@
   max-width: 1180px;
   width: 100%;
   margin: 0 auto;
-  padding: 24px 48px 60px;
+  padding: 24px clamp(20px, 4vw, 48px) 60px;
   gap: 80px;
+  box-sizing: border-box;
 }
 
 .hero-copy {
@@ -468,10 +475,11 @@
   max-width: 1180px;
   width: 100%;
   margin: 0 auto;
-  padding: 24px 48px 32px;
+  padding: 24px clamp(20px, 4vw, 48px) calc(28px + env(safe-area-inset-bottom));
   font-size: 13px;
   color: var(--text-faint);
   border-top: 1px solid rgba(255, 255, 255, 0.06);
+  box-sizing: border-box;
   opacity: 0;
   animation: fadeUp 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) 0.8s both;
 }
@@ -491,15 +499,23 @@
 }
 
 @media (max-width: 920px) {
+  .login-page {
+    min-height: 100dvh;
+    min-height: 100svh;
+  }
+
   .hero {
     flex-direction: column;
     gap: 48px;
     padding-top: 8px;
+    align-items: stretch;
   }
 
   .hero-copy {
     max-width: 520px;
     text-align: center;
+    width: 100%;
+    margin: 0 auto;
   }
 
   .hero-copy > p {
@@ -523,10 +539,11 @@
 
   .hero {
     padding: 0 20px 40px;
+    gap: 32px;
   }
 
   .footer {
-    padding: 20px 20px 28px;
+    padding: 20px 20px calc(24px + env(safe-area-inset-bottom));
     flex-direction: column;
     gap: 14px;
     text-align: center;
@@ -603,6 +620,7 @@
     padding: 30px 18px 24px;
     border-radius: 18px;
     max-width: 100%;
+    width: min(100%, 440px);
   }
 
   .card h1 {
