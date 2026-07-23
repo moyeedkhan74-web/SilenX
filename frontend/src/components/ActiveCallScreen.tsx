@@ -35,8 +35,10 @@ export default function ActiveCallScreen({
   onEndCall,
 }: ActiveCallScreenProps) {
   const [seconds, setSeconds] = useState(0);
+  const [speakerOn, setSpeakerOn] = useState(true);
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
+  const remoteAudioRef = useRef<HTMLAudioElement>(null);
   const initial = callerName?.charAt(0)?.toUpperCase() || '?';
 
   useEffect(() => {
@@ -53,8 +55,16 @@ export default function ActiveCallScreen({
   useEffect(() => {
     if (remoteVideoRef.current && remoteStream) {
       remoteVideoRef.current.srcObject = remoteStream;
+      remoteVideoRef.current.volume = speakerOn ? 1 : 0.6;
     }
-  }, [remoteStream]);
+  }, [remoteStream, speakerOn]);
+
+  useEffect(() => {
+    if (remoteAudioRef.current && remoteStream) {
+      remoteAudioRef.current.srcObject = remoteStream;
+      remoteAudioRef.current.volume = speakerOn ? 1 : 0.6;
+    }
+  }, [remoteStream, speakerOn]);
 
   const showRemoteVideo = callType === 'video' && remoteStream;
 
@@ -76,6 +86,10 @@ export default function ActiveCallScreen({
 
       {callType === 'video' && localStream && !isCameraOff && (
         <video ref={localVideoRef} className="active-call__local-video" autoPlay playsInline muted />
+      )}
+
+      {callType === 'audio' && (
+        <audio ref={remoteAudioRef} autoPlay />
       )}
 
       <div className="active-call__top">
@@ -111,6 +125,27 @@ export default function ActiveCallScreen({
               <rect x="9" y="2" width="6" height="12" rx="3" />
               <path d="M5 10v2a7 7 0 0014 0v-2" />
               <path d="M12 19v3" />
+            </svg>
+          )}
+        </button>
+
+        <button
+          type="button"
+          className={`ctrl-btn ${speakerOn ? 'ctrl-btn--active' : ''}`}
+          onClick={() => setSpeakerOn((value) => !value)}
+          aria-label={speakerOn ? 'Speaker on' : 'Speaker off'}
+          title={speakerOn ? 'Speaker on' : 'Speaker off'}
+        >
+          {speakerOn ? (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M5 9h4l5-5v16l-5-5H5z" />
+              <path d="M15 8c1.5 1.5 1.5 3.5 0 5" />
+              <path d="M18 5c3 3 3 7 0 10" />
+            </svg>
+          ) : (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M5 9h4l5-5v16l-5-5H5z" />
+              <path d="M19 5l-14 14" />
             </svg>
           )}
         </button>
