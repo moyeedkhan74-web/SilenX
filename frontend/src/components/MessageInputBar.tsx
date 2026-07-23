@@ -18,6 +18,13 @@ interface MessageInputBarProps {
   onTypingChange?: (isTyping: boolean) => void;
 }
 
+interface GiphyGifResult {
+  id: string;
+  title: string;
+  preview: string;
+  url: string;
+}
+
 const TABS = ['emoji', 'sticker', 'gif'] as const;
 type PickerTab = (typeof TABS)[number];
 
@@ -28,7 +35,12 @@ export function MessageInputBar({ onSend, onSendRichMessage, replyTo, onCancelRe
   const [attachOpen, setAttachOpen] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
+  const [gifQuery, setGifQuery] = useState('');
+  const [gifResults, setGifResults] = useState<GiphyGifResult[]>([]);
+  const [gifLoading, setGifLoading] = useState(false);
+  const [gifError, setGifError] = useState('');
   const textRef = useRef<HTMLTextAreaElement>(null);
+  const giphyRequestId = useRef(0);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<number | null>(null);
@@ -45,6 +57,61 @@ export function MessageInputBar({ onSend, onSendRichMessage, replyTo, onCancelRe
       textRef.current?.focus();
     }
   }, [replyTo]);
+
+  const searchGifs = useCallback(async (query: string) => {
+    const apiKey = (import.meta.env.VITE_GIPHY_API_KEY as string | undefined)?.trim() || 'FJc0d6OAjgypqFa3I1rCIQuiGieP8qVs';
+    if (!apiKey) {
+      setGifError('Set VITE_GIPHY_API_KEY to enable GIF search.');
+      setGifResults([]);
+      return;
+    }
+
+    setGifLoading(true);
+    setGifError('');
+    const requestId = ++giphyRequestId.current;
+    const endpoint = query.trim()
+      ? `https://api.giphy.com/v1/gifs/search?api_key=${encodeURIComponent(apiKey)}&q=${encodeURIComponent(query)}&limit=18&rating=g`
+      : `https://api.giphy.com/v1/gifs/trending?api_key=${encodeURIComponent(apiKey)}&limit=18&rating=g`;
+
+    try {
+      const response = await fetch(endpoint);
+      const payload = await response.json() as { data?: Array<any> };
+      if (!response.ok || !payload.data) {
+        throw new Error('Giphy request failed');
+      }
+
+      const results = (payload.data || [])
+        .map((item: any) => ({
+          id: item?.id || `${Date.now()}-${Math.random()}`,
+          title: item?.title || 'GIF',
+          preview: item?.images?.fixed_width_small?.url || item?.images?.downsized?.url || item?.images?.original?.url || '',
+          url: item?.images?.original?.url || item?.images?.downsized_large?.url || item?.images?.fixed_width?.url || '',
+        }))
+        .filter((item: GiphyGifResult) => item.preview && item.url);
+
+      if (requestId === giphyRequestId.current) {
+        setGifResults(results);
+      }
+    } catch (error) {
+      console.error('[MessageInputBar] Failed to load GIFs', error);
+      if (requestId === giphyRequestId.current) {
+        setGifError('Unable to load GIFs right now.');
+        setGifResults([]);
+      }
+    } finally {
+      if (requestId === giphyRequestId.current) {
+        setGifLoading(false);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    if (pickerTab !== 'gif') {
+      return;
+    }
+
+    void searchGifs(gifQuery);
+  }, [pickerTab, gifQuery, searchGifs]);
 
   const handleSend = () => {
     if (!text.trim()) return;
@@ -156,6 +223,18 @@ export function MessageInputBar({ onSend, onSendRichMessage, replyTo, onCancelRe
     onSendRichMessage?.({ text: `📅 ${data.title}`, contentType: 'event', eventData: data });
   };
 
+  const handleSelectGif = (gif: GiphyGifResult) => {
+    onSendRichMessage?.({
+      text: `🖼️ ${gif.title}`,
+      contentType: 'image',
+      mediaUrl: gif.url,
+      fileName: `${gif.title}.gif`,
+      fileType: 'image/gif',
+    });
+    setPickerOpen(false);
+    setAttachOpen(false);
+  };
+
   const formatTime = (secs: number) => {
     const mm = String(Math.floor(secs / 60)).padStart(2, '0');
     const ss = String(secs % 60).padStart(2, '0');
@@ -220,8 +299,38 @@ export function MessageInputBar({ onSend, onSendRichMessage, replyTo, onCancelRe
             </div>
           )}
           {pickerTab === 'gif' && (
-            <div className="gif-placeholder">
-              <p>GIF search — connect to GIPHY API</p>
+            <div className="gif-picker">
+              <div className="gif-search-row">
+                <input
+                  className="gif-search-input"
+                  type="text"
+                  value={gifQuery}
+                  onChange={(event) => setGifQuery(event.target.value)}
+                  placeholder="Search GIFs"
+                />
+              </div>
+
+              {gifLoading ? (
+                <div className="gif-empty-state">Loading GIFs…</div>
+              ) : gifError ? (
+                <div className="gif-empty-state">{gifError}</div>
+              ) : gifResults.length === 0 ? (
+                <div className="gif-empty-state">No GIFs found. Try another search.</div>
+              ) : (
+                <div className="gif-grid">
+                  {gifResults.map((gif) => (
+                    <button
+                      key={gif.id}
+                      type="button"
+                      className="gif-card"
+                      onClick={() => handleSelectGif(gif)}
+                      aria-label={`Send ${gif.title}`}
+                    >
+                      <img src={gif.preview} alt={gif.title} className="gif-thumb" />
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>
