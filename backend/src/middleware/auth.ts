@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { getAdminAuth } from '../config/firebaseAdmin';
-import { users } from '../store/db';
+import { users, saveDb } from '../store/db';
 
 /**
  * Extends Express Request so downstream handlers can read `req.currentUser`.
@@ -62,6 +62,24 @@ export async function requireAuth(
     }
 
     req.currentUser = { firebaseUid, dbId: dbUser.id };
+
+    // Touch lastSeen on every authenticated request (activity-based presence tracking)
+    const wasOffline = dbUser.status === 'offline';
+    dbUser.lastSeen = new Date();
+    if (wasOffline) {
+      dbUser.status = 'online';
+      saveDb();
+      // Broadcast presence change to all connected sockets
+      const ioInstance = (req.app as any).get('io');
+      if (ioInstance) {
+        ioInstance.emit('user-status-changed', {
+          userId: dbUser.id,
+          status: 'online',
+          lastSeen: dbUser.lastSeen.toISOString(),
+        });
+      }
+    }
+
     next();
   } catch (err: any) {
     console.warn('[Auth] Token verification failed:', err?.errorInfo?.code || err?.message);

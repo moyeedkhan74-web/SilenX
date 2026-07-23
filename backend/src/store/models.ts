@@ -11,6 +11,7 @@ const UserSchema = new Schema({
   avatarUrl: { type: String, default: null },
   status: { type: String, required: true, default: 'offline' },
   lastSeen: { type: Date, required: true, default: Date.now },
+  showOnlineStatus: { type: Boolean, default: true },
   bio: { type: String, default: '' },
   createdAt: { type: Date, required: true, default: Date.now },
   updatedAt: { type: Date, required: true, default: Date.now },

@@ -38,15 +38,35 @@ router.put('/me', (req: AuthenticatedRequest, res: Response) => {
     return;
   }
 
-  const { displayName, bio, status, avatarUrl, phone } = req.body;
+  const { displayName, bio, status, avatarUrl, phone, showOnlineStatus } = req.body;
   // Note: email changes are intentionally ignored; email comes from the verified token.
   if (displayName) selfUser.displayName = displayName;
   if (bio !== undefined) selfUser.bio = bio;
   if (status) selfUser.status = status;
   if (typeof avatarUrl === 'string') selfUser.avatarUrl = avatarUrl;
   if (typeof phone === 'string') (selfUser as any).phone = phone;
+
+  const prevShowOnlineStatus = (selfUser as any).showOnlineStatus;
+  if (typeof showOnlineStatus === 'boolean') {
+    (selfUser as any).showOnlineStatus = showOnlineStatus;
+  }
+
   selfUser.updatedAt = new Date();
   saveDb();
+
+  // If showOnlineStatus changed, broadcast presence update so others see the correct status
+  if (typeof showOnlineStatus === 'boolean' && showOnlineStatus !== prevShowOnlineStatus) {
+    const ioInstance = (req.app as any).get('io');
+    if (ioInstance) {
+      // If disabling, broadcast offline to hide presence. If enabling, re-broadcast real status.
+      ioInstance.emit('user-status-changed', {
+        userId: selfUser.id,
+        status: showOnlineStatus ? selfUser.status : 'offline',
+        lastSeen: showOnlineStatus ? selfUser.lastSeen.toISOString() : null,
+      });
+    }
+  }
+
   res.status(200).json(selfUser);
 });
 

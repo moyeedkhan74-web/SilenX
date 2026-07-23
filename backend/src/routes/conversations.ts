@@ -13,6 +13,24 @@ const router = Router();
 // All conversation routes are authenticated
 router.use(requireAuth as any);
 
+/**
+ * Map a user object to a safe public payload, respecting their showOnlineStatus privacy setting.
+ * If showOnlineStatus is false, other users see them as offline with no lastSeen.
+ */
+function mapMemberPublic(u: typeof users[0]) {
+  const showOnline = (u as any).showOnlineStatus !== false;
+  return {
+    id: u.id,
+    uid: u.uid,
+    email: u.email,
+    displayName: u.displayName,
+    avatarUrl: u.avatarUrl,
+    status: showOnline ? u.status : 'offline',
+    lastSeen: showOnline ? (u.lastSeen ? u.lastSeen.toISOString() : '') : '',
+    bio: u.bio,
+  };
+}
+
 // GET /api/conversations — List the authenticated user's conversations
 router.get('/', (req: AuthenticatedRequest, res: Response) => {
   const currentUserId = req.currentUser!.dbId;
@@ -26,16 +44,7 @@ router.get('/', (req: AuthenticatedRequest, res: Response) => {
     const detailedMembers = memberRels
       .map(mr => users.find(u => u.id === mr.userId))
       .filter((u): u is typeof users[0] => !!u)
-      .map(u => ({
-        id: u.id,
-        uid: u.uid,
-        email: u.email,
-        displayName: u.displayName,
-        avatarUrl: u.avatarUrl,
-        status: u.status,
-        lastSeen: u.lastSeen ? u.lastSeen.toISOString() : '',
-        bio: u.bio,
-      }));
+      .map(mapMemberPublic);
 
     const convoMessages = messages
       .filter(m => m.conversationId === c.id)
@@ -100,16 +109,7 @@ router.post('/', (req: AuthenticatedRequest, res: Response) => {
         const detailedMembers = memberRels
           .map(mr => users.find(u => u.id === mr.userId))
           .filter((u): u is typeof users[0] => !!u)
-          .map(u => ({
-            id: u.id,
-            uid: u.uid,
-            email: u.email,
-            displayName: u.displayName,
-            avatarUrl: u.avatarUrl,
-            status: u.status,
-            lastSeen: u.lastSeen ? u.lastSeen.toISOString() : '',
-            bio: u.bio,
-          }));
+          .map(mapMemberPublic);
 
         const convoMessages = messages.filter(m => m.conversationId === existingConvo.id);
         const lastMessage = convoMessages[convoMessages.length - 1];
@@ -165,28 +165,7 @@ router.post('/', (req: AuthenticatedRequest, res: Response) => {
   saveDb();
 
   const selfUser = users.find(u => u.id === currentUserId)!;
-  const detailedMembers = [
-    {
-      id: selfUser.id,
-      uid: selfUser.uid,
-      email: selfUser.email,
-      displayName: selfUser.displayName,
-      avatarUrl: selfUser.avatarUrl,
-      status: selfUser.status,
-      lastSeen: selfUser.lastSeen ? selfUser.lastSeen.toISOString() : '',
-      bio: selfUser.bio,
-    },
-    {
-      id: recipient.id,
-      uid: recipient.uid,
-      email: recipient.email,
-      displayName: recipient.displayName,
-      avatarUrl: recipient.avatarUrl,
-      status: recipient.status,
-      lastSeen: recipient.lastSeen ? recipient.lastSeen.toISOString() : '',
-      bio: recipient.bio,
-    },
-  ];
+  const detailedMembers = [mapMemberPublic(selfUser), mapMemberPublic(recipient)];
 
   res.status(201).json({
     id: newConvo.id,

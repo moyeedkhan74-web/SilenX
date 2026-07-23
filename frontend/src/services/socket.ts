@@ -5,6 +5,9 @@ import { useAuthStore } from '../store/authStore';
 import type { ChatMessage } from '../types';
 
 let socket: Socket | null = null;
+let heartbeatInterval: ReturnType<typeof setInterval> | null = null;
+
+const HEARTBEAT_INTERVAL_MS = 20_000; // 20 seconds
 
 /**
  * Connect (or reconnect) the Socket.io client.
@@ -48,10 +51,21 @@ export const connectSocket = (idToken?: string): Socket => {
 
   socket.on('connect', () => {
     console.log(`[Socket] Connected: ${socket?.id}`);
+    // Start heartbeat pings to keep the server aware we are active
+    if (heartbeatInterval) clearInterval(heartbeatInterval);
+    heartbeatInterval = setInterval(() => {
+      if (socket?.connected) {
+        socket.emit('heartbeat');
+      }
+    }, HEARTBEAT_INTERVAL_MS);
   });
 
   socket.on('disconnect', (reason) => {
     console.log(`[Socket] Disconnected: ${reason}`);
+    if (heartbeatInterval) {
+      clearInterval(heartbeatInterval);
+      heartbeatInterval = null;
+    }
   });
 
   socket.on('connect_error', (error) => {
@@ -132,6 +146,10 @@ export const connectSocket = (idToken?: string): Socket => {
 export const getSocket = (): Socket | null => socket;
 
 export const disconnectSocket = (): void => {
+  if (heartbeatInterval) {
+    clearInterval(heartbeatInterval);
+    heartbeatInterval = null;
+  }
   if (socket) {
     socket.disconnect();
     socket = null;

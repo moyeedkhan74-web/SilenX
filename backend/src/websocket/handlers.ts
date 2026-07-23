@@ -114,6 +114,25 @@ export function registerSocketHandlers(io: Server): void {
       // intentionally empty
     });
 
+    // ─── Heartbeat ──────────────────────────────────────────────────────────
+    // Client sends 'heartbeat' every ~20 seconds to signal activity
+    socket.on('heartbeat', () => {
+      const userObj = users.find(u => u.id === userId);
+      if (userObj) {
+        userObj.lastSeen = new Date();
+        // If somehow marked offline but still has socket, restore online
+        if (userObj.status !== 'online') {
+          userObj.status = 'online';
+          saveDb();
+          socket.broadcast.emit('user-status-changed', {
+            userId,
+            status: 'online',
+            lastSeen: userObj.lastSeen.toISOString(),
+          });
+        }
+      }
+    });
+
     // ─── Messaging ──────────────────────────────────────────────────────────
 
     socket.on('send-message', (data: SendMessagePayload) => {
@@ -440,4 +459,40 @@ export function registerSocketHandlers(io: Server): void {
       }
     });
   });
+
+  // ─── Inactivity Sweeper ─────────────────────────────────────────────────
+  // Every 30 seconds, scan for users who haven't sent a heartbeat in 60+ seconds
+  // and mark them offline. This handles cases where socket disconnect events
+  // are delayed (e.g., network drops, browser crashes).
+  const INACTIVITY_MS = 60_000;  // mark offline after 60 seconds of silence
+  const SWEEP_INTERVAL_MS = 30_000;
+
+  const inactivityTimer = setInterval(() => {
+    const now = Date.now();
+    let changed = false;
+
+    users.forEach(user => {
+      if (user.status === 'online') {
+        const lastSeenMs = user.lastSeen ? new Date(user.lastSeen).getTime() : 0;
+        if (now - lastSeenMs > INACTIVITY_MS) {
+          user.status = 'offline';
+          user.lastSeen = new Date(lastSeenMs); // keep original last active time
+          changed = true;
+          io.emit('user-status-changed', {
+            userId: user.id,
+            status: 'offline',
+            lastSeen: user.lastSeen.toISOString(),
+          });
+          console.log(`[Presence] Marked ${user.id} offline due to inactivity`);
+        }
+      }
+    });
+
+    if (changed) {
+      saveDb();
+    }
+  }, SWEEP_INTERVAL_MS);
+
+  // Clean up the interval when the process exits
+  process.on('exit', () => clearInterval(inactivityTimer));
 }

@@ -180,6 +180,8 @@ if (fs.existsSync(frontendDist)) {
 }
 
 // ─── WebSocket ─────────────────────────────────────────────
+// Expose io on app so middleware/routes can broadcast without circular deps
+app.set('io', io);
 registerSocketHandlers(io);
 
 const port = Number(process.env.PORT) || 5000;

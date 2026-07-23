@@ -14,6 +14,7 @@ export interface User {
   avatarUrl: string | null;
   status: UserStatus;
   lastSeen: Date;
+  showOnlineStatus: boolean;
   bio: string;
   createdAt: Date;
   updatedAt: Date;

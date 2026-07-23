@@ -58,6 +58,7 @@ router.post('/google', async (req: Request, res: Response) => {
       avatarUrl: avatarUrl || null,
       status: 'online',
       lastSeen: new Date(),
+      showOnlineStatus: true,
       bio: '',
       createdAt: new Date(),
       updatedAt: new Date(),

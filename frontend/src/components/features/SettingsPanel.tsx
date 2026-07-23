@@ -31,6 +31,33 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onDeleteAccountCli
 
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
+  /**
+   * Toggle showOnlineStatus: save locally, persist to backend, and update
+   * the in-memory user record so other components (AvatarDisplay etc.) see the change.
+   */
+  const handleShowOnlineStatusChange = async (value: boolean) => {
+    setShowOnlineStatus(value);  // update local settings store immediately (optimistic)
+    if (!token || !currentUser) return;
+    try {
+      const res = await fetch(`${API_URL}/api/users/me`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ showOnlineStatus: value }),
+      });
+      if (res.ok) {
+        const updatedUser = await res.json();
+        login({ ...currentUser, ...updatedUser }, token);
+      }
+    } catch (err) {
+      console.error('[Settings] Failed to update showOnlineStatus on server', err);
+      // Revert on failure
+      setShowOnlineStatus(!value);
+    }
+  };
+
   const handleProfileSaved = async () => {
     try {
       if (!token) return;
@@ -155,7 +182,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onDeleteAccountCli
             <input
               type="checkbox"
               checked={showOnlineStatus}
-              onChange={(e) => setShowOnlineStatus(e.target.checked)}
+              onChange={(e) => handleShowOnlineStatusChange(e.target.checked)}
             />
             <span className="toggle-slider"></span>
           </label>

@@ -86,18 +86,23 @@ router.get('/', (req: AuthenticatedRequest, res: Response) => {
     const receiverId = r.receiverId || r.toUserId;
     const sender = users.find(u => u.id === senderId);
     const receiver = users.find(u => u.id === receiverId);
+
+    // Respect showOnlineStatus privacy for each party
+    const senderShowsStatus = (sender as any)?.showOnlineStatus !== false;
+    const receiverShowsStatus = (receiver as any)?.showOnlineStatus !== false;
+
     return {
       ...r,
       fromDisplayName: sender?.displayName || r.fromDisplayName || 'Unknown User',
       fromUid: sender?.uid || r.fromUid || 'SEC_UNKNOWN',
       fromAvatarUrl: sender?.avatarUrl || r.fromAvatarUrl || null,
-      fromStatus: sender?.status || 'offline',
-      fromLastSeen: sender?.lastSeen ? sender.lastSeen.toISOString() : null,
+      fromStatus: senderShowsStatus ? (sender?.status || 'offline') : 'offline',
+      fromLastSeen: senderShowsStatus ? (sender?.lastSeen ? sender.lastSeen.toISOString() : null) : null,
       toDisplayName: receiver?.displayName || r.toDisplayName || 'Unknown User',
       toUid: receiver?.uid || r.toUid || 'SEC_UNKNOWN',
       toAvatarUrl: receiver?.avatarUrl || r.toAvatarUrl || null,
-      toStatus: receiver?.status || 'offline',
-      toLastSeen: receiver?.lastSeen ? receiver.lastSeen.toISOString() : null,
+      toStatus: receiverShowsStatus ? (receiver?.status || 'offline') : 'offline',
+      toLastSeen: receiverShowsStatus ? (receiver?.lastSeen ? receiver.lastSeen.toISOString() : null) : null,
     };
   });
 

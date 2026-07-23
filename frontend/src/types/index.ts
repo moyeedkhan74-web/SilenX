@@ -12,6 +12,7 @@ export interface User {
   status: UserStatus;
   lastSeen: string;
   bio: string;
+  showOnlineStatus?: boolean;
 }
 
 export interface Conversation {

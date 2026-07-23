@@ -195,6 +195,7 @@ export const ContactsPage: React.FC = () => {
                   uid={contact.uid}
                   avatarUrl={contact.avatarUrl}
                   status={contact.status}
+                  lastSeen={contact.lastSeen}
                   actions={
                     <button className="btn btn-primary" onClick={() => startChat(contact.uid)} style={{ padding: '6px 12px', fontSize: '13px' }}>
                       Secure Chat

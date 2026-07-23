@@ -61,6 +61,7 @@ function App() {
               status: (serverUser.status as UserStatus) || 'online',
               lastSeen: new Date().toISOString(),
               bio: serverUser.bio || 'Signed in with Google',
+              showOnlineStatus: serverUser.showOnlineStatus !== false,
             },
             idToken
           );
