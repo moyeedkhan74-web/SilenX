@@ -121,16 +121,16 @@ export class WebRTCService {
     return true;
   }
 
-  public async acceptIncomingCall(): Promise<void> {
+  public async acceptIncomingCall(): Promise<boolean> {
     if (!this.targetUserId || !this.currentCallType) {
       console.debug('[WebRTC] acceptIncomingCall skipped, no target or call type');
-      return;
+      return false;
     }
 
     const socket = getSocket();
     if (!socket) {
       console.debug('[WebRTC] acceptIncomingCall skipped, socket unavailable');
-      return;
+      return false;
     }
 
     console.debug('[WebRTC] acceptIncomingCall sending call-accept to', this.targetUserId);
@@ -139,11 +139,11 @@ export class WebRTCService {
     if (!ready) {
       console.debug('[WebRTC] acceptIncomingCall failed to get media or peer connection');
       useCallStore.getState().rejectCall();
-      return;
+      return false;
     }
 
     socket.emit('call-accept', { targetUserId: this.targetUserId });
-    useCallStore.getState().acceptCall();
+    return true;
   }
 
   public rejectCall(): void {

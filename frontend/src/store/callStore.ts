@@ -16,6 +16,7 @@ interface CallState {
   receiveCall: (callerId: string, callerName: string, callerAvatarUrl: string | null, callType: CallType) => void;
   acceptCall: () => void;
   rejectCall: () => void;
+  declineCall: () => void;
   endCall: () => void;
   toggleAudio: () => void;
   toggleVideo: () => void;
@@ -67,6 +68,20 @@ export const useCallStore = create<CallState>((set) => ({
       callStatus: null,
       callerId: null,
       callerName: null,
+      callerAvatarUrl: null,
+      isCaller: false,
+      duration: 0,
+      isAudioMuted: false,
+      isVideoOff: false,
+    }),
+  declineCall: () =>
+    set({
+      isInCall: false,
+      callType: null,
+      callStatus: null,
+      callerId: null,
+      callerName: null,
+      callerAvatarUrl: null,
       isCaller: false,
       duration: 0,
       isAudioMuted: false,

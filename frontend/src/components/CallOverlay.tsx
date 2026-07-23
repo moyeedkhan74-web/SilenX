@@ -1,9 +1,8 @@
 import React, { useEffect, useRef } from 'react';
-import { Phone, X, Video } from 'lucide-react';
 import './CallOverlay.css';
+import IncomingCallScreen from './IncomingCallScreen';
 import { useCallStore } from '../store/callStore';
 import { webrtcService } from '../services/webrtc';
-import { Avatar } from './Avatar';
 
 const CallOverlay: React.FC = () => {
   const {
@@ -15,6 +14,8 @@ const CallOverlay: React.FC = () => {
     duration,
     isAudioMuted,
     isVideoOff,
+    acceptCall,
+    declineCall,
     toggleAudio,
     toggleVideo,
   } = useCallStore();
@@ -39,10 +40,16 @@ const CallOverlay: React.FC = () => {
   };
 
   const handleAccept = async () => {
-    await webrtcService.acceptIncomingCall();
+    console.debug('[CallOverlay] accept button clicked');
+    const accepted = await webrtcService.acceptIncomingCall();
+    if (accepted) {
+      acceptCall();
+    }
   };
 
   const handleReject = () => {
+    console.debug('[CallOverlay] reject button clicked');
+    declineCall();
     webrtcService.rejectCall();
   };
 
@@ -63,48 +70,13 @@ const CallOverlay: React.FC = () => {
   return (
     <div className="call-overlay incoming-animation">
       {callStatus === 'pending' ? (
-        <div className="incoming-call-panel">
-          <div className="incoming-background" />
-          <div className="incoming-card">
-            <div className="incoming-avatar-shell">
-              <div className="incoming-avatar-ring incoming-avatar-ring-1" />
-              <div className="incoming-avatar-ring incoming-avatar-ring-2" />
-              <div className="incoming-avatar-ring incoming-avatar-ring-3" />
-              <div className="incoming-avatar-inner">
-                <Avatar name={callerName || 'Caller'} size={120} avatarUrl={callerAvatarUrl || null} />
-                {callType === 'video' && (
-                  <div className="incoming-camera-badge">
-                    <Video size={14} />
-                  </div>
-                )}
-              </div>
-            </div>
-            <div className="incoming-copy">
-              <h2>{callerName || 'Unknown caller'}</h2>
-              <p className="incoming-subtitle">
-                Incoming {callType} call...
-              </p>
-            </div>
-            <div className="incoming-button-row">
-              <button
-                className="incoming-action-btn reject"
-                onClick={handleReject}
-                type="button"
-                aria-label="Reject call"
-              >
-                <X size={24} />
-              </button>
-              <button
-                className="incoming-action-btn accept"
-                onClick={handleAccept}
-                type="button"
-                aria-label="Accept call"
-              >
-                <Phone size={24} />
-              </button>
-            </div>
-          </div>
-        </div>
+        <IncomingCallScreen
+          callerName={callerName}
+          callerAvatarUrl={callerAvatarUrl}
+          callType={callType}
+          onAccept={handleAccept}
+          onReject={handleReject}
+        />
       ) : (
         <div className="call-active-panel">
           <div className="call-video-container remote">
