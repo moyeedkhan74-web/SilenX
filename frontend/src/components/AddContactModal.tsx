@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Html5Qrcode } from 'html5-qrcode';
-import { Camera, Lock } from 'lucide-react';
+import { Camera, Lock, CheckCircle2 } from 'lucide-react';
 import Modal from './ui/Modal';
 import Input from './ui/Input';
 import Button from './ui/Button';
@@ -45,6 +45,7 @@ export const AddContactModal: React.FC<AddContactModalProps> = ({ isOpen, onClos
   const [isSearching, setIsSearching] = useState(false);
   const [scannerActive, setScannerActive] = useState(false);
   const [scanError, setScanError] = useState('');
+  const [scanSuccess, setScanSuccess] = useState(false);
   const [error, setError] = useState('');
   const [previewUser, setPreviewUser] = useState<FoundUser | null>(null);
   const scannerRef = useRef<Html5Qrcode | null>(null);
@@ -62,6 +63,7 @@ export const AddContactModal: React.FC<AddContactModalProps> = ({ isOpen, onClos
       setUid('');
       setPreviewUser(null);
       setScanError('');
+      setScanSuccess(false);
       setError('');
     }
   }, [isOpen]);
@@ -71,6 +73,7 @@ export const AddContactModal: React.FC<AddContactModalProps> = ({ isOpen, onClos
       stopScanner();
     }
     setError('');
+    setScanSuccess(false);
   }, [activeTab]);
 
   const stopScanner = async () => {
@@ -90,6 +93,7 @@ export const AddContactModal: React.FC<AddContactModalProps> = ({ isOpen, onClos
 
   const scanImageFromFile = async (file: File) => {
     setScanError('');
+    setScanSuccess(false);
     try {
       await stopScanner();
       const html5Qrcode = scannerRef.current ?? new Html5Qrcode('qr-reader');
@@ -97,6 +101,7 @@ export const AddContactModal: React.FC<AddContactModalProps> = ({ isOpen, onClos
       const decodedText = await (html5Qrcode as any).scanFile(file, true);
       const parsedUid = parseUidFromScan(decodedText);
       if (parsedUid) {
+        setScanSuccess(true);
         setUid(parsedUid);
         lookupByUid(parsedUid);
       } else {
@@ -119,6 +124,7 @@ export const AddContactModal: React.FC<AddContactModalProps> = ({ isOpen, onClos
 
   const startScanner = async () => {
     setScanError('');
+    setScanSuccess(false);
     try {
       const html5Qrcode = new Html5Qrcode('qr-reader');
       scannerRef.current = html5Qrcode;
@@ -129,6 +135,7 @@ export const AddContactModal: React.FC<AddContactModalProps> = ({ isOpen, onClos
         (decodedText) => {
           const parsedUid = parseUidFromScan(decodedText);
           if (parsedUid) {
+            setScanSuccess(true);
             setUid(parsedUid);
             stopScanner();
             lookupByUid(parsedUid);
@@ -289,6 +296,13 @@ export const AddContactModal: React.FC<AddContactModalProps> = ({ isOpen, onClos
                   />
                 </div>
               </div>
+
+              {scanSuccess && (
+                <div className="scan-success-banner">
+                  <CheckCircle2 size={20} />
+                  <span>QR code captured successfully!</span>
+                </div>
+              )}
             </div>
           ) : (
             <div className="enter-tab">
