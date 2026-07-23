@@ -27,6 +27,10 @@ export const ProfilePage: React.FC = () => {
     setIsLoading(true);
     try {
       const token = useAuthStore.getState().token;
+      if (!token) {
+        setIsLoading(false);
+        return;
+      }
       const res = await fetch(`${API_URL}/api/users/me`, {
         headers: {
           Authorization: `Bearer ${token}`,

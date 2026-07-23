@@ -124,7 +124,17 @@ export const AddContactModal: React.FC<AddContactModalProps> = ({ isOpen, onClos
     setIsSearching(true);
     setError('');
     try {
-      const res = await fetch(`${API_URL}/api/users/search?uid=${encodeURIComponent(searchUid)}`);
+      const token = useAuthStore.getState().token;
+      if (!token) {
+        setError('Authentication token missing. Please sign in again.');
+        setIsSearching(false);
+        return;
+      }
+      const res = await fetch(`${API_URL}/api/users/search?uid=${encodeURIComponent(searchUid)}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
       if (res.ok) {
         const user: FoundUser = await res.json();
         setPreviewUser(user);
@@ -158,6 +168,10 @@ export const AddContactModal: React.FC<AddContactModalProps> = ({ isOpen, onClos
 
     try {
       const token = useAuthStore.getState().token;
+      if (!token) {
+        setError('Authentication token missing. Please sign in again.');
+        return;
+      }
       const res = await fetch(`${API_URL}/api/requests/send`, {
         method: 'POST',
         headers: {

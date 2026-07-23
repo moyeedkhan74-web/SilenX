@@ -17,6 +17,10 @@ export const SettingsPage: React.FC = () => {
 
     try {
       const token = useAuthStore.getState().token;
+      if (!token) {
+        window.alert('Authentication token missing. Please sign in again.');
+        return;
+      }
       const res = await fetch(`${API_URL}/api/users/me`, {
         method: 'DELETE',
         headers: {

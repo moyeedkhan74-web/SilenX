@@ -36,6 +36,10 @@ export const ContactsPage: React.FC = () => {
     setIsLoading(true);
     try {
       const token = useAuthStore.getState().token;
+      if (!token) {
+        setIsLoading(false);
+        return;
+      }
       const res = await fetch(`${API_URL}/api/requests`, {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -61,6 +65,7 @@ export const ContactsPage: React.FC = () => {
     setRequests((prev) => prev.filter((r) => r.id !== id));
     try {
       const token = useAuthStore.getState().token;
+      if (!token) return;
       const res = await fetch(`${API_URL}/api/requests/${encodeURIComponent(id)}/accept`, { 
         method: 'POST',
         headers: {
@@ -92,6 +97,7 @@ export const ContactsPage: React.FC = () => {
   const handleDecline = async (id: string) => {
     try {
       const token = useAuthStore.getState().token;
+      if (!token) return;
       const res = await fetch(`${API_URL}/api/requests/${encodeURIComponent(id)}/decline`, { 
         method: 'POST',
         headers: {
