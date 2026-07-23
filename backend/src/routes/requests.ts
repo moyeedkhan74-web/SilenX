@@ -38,6 +38,16 @@ router.post('/', (req: AuthenticatedRequest, res: Response) => {
     return;
   }
 
+  if (areFriends(currentUserId, recipient.id)) {
+    res.status(400).json({ message: 'This user is already your friend.' });
+    return;
+  }
+
+  if (existingFriendRequest(currentUserId, recipient.id)) {
+    res.status(409).json({ message: 'A request is already pending between you and this user.' });
+    return;
+  }
+
   const sender = users.find(u => u.id === currentUserId);
 
   const newReq = {
@@ -109,6 +119,34 @@ router.get('/', (req: AuthenticatedRequest, res: Response) => {
   res.status(200).json(enriched);
 });
 
+function areFriends(userA: string, userB: string) {
+  return friends.some((friend) =>
+    (friend.userId1 === userA && friend.userId2 === userB) ||
+    (friend.userId1 === userB && friend.userId2 === userA)
+  );
+}
+
+function findDirectConversationBetween(userA: string, userB: string) {
+  return conversations.find((conversation) => {
+    if (conversation.type !== 'direct') return false;
+    const memberIds = conversationMembers
+      .filter((member) => member.conversationId === conversation.id)
+      .map((member) => member.userId);
+    return memberIds.includes(userA) && memberIds.includes(userB);
+  });
+}
+
+function existingFriendRequest(userA: string, userB: string) {
+  return friendRequests.some((request) => {
+    const senderId = (request as any).senderId || (request as any).fromUserId;
+    const receiverId = (request as any).receiverId || (request as any).toUserId;
+    return (
+      request.status === 'pending' &&
+      ((senderId === userA && receiverId === userB) || (senderId === userB && receiverId === userA))
+    );
+  });
+}
+
 // POST /api/requests/send — send by receiverId (alternative endpoint)
 router.post('/send', (req: AuthenticatedRequest, res: Response) => {
   const currentUserId = req.currentUser!.dbId;
@@ -127,6 +165,16 @@ router.post('/send', (req: AuthenticatedRequest, res: Response) => {
 
   if (receiver.id === currentUserId) {
     res.status(400).json({ message: 'Cannot send a request to yourself' });
+    return;
+  }
+
+  if (areFriends(currentUserId, receiver.id)) {
+    res.status(400).json({ message: 'This user is already your friend.' });
+    return;
+  }
+
+  if (existingFriendRequest(currentUserId, receiver.id)) {
+    res.status(409).json({ message: 'A request is already pending between you and this user.' });
     return;
   }
 
@@ -191,7 +239,20 @@ router.post('/:id/accept', (req: AuthenticatedRequest, res: Response) => {
 
   const sender = users.find(u => u.id === (reqObj as any).senderId);
   const receiver = users.find(u => u.id === (reqObj as any).receiverId);
-  if (sender && receiver) {
+  if (!sender || !receiver) {
+    res.status(500).json({ message: 'Request participant(s) not found' });
+    return;
+  }
+
+  const senderSocketId = getSocketIdForUser(senderId);
+  if (senderSocketId && io) {
+    io.to(senderSocketId).emit('request:accepted', { id: reqObj.id, by: receiverId });
+  }
+
+  let existingConversation = findDirectConversationBetween(senderId, receiverId);
+  const alreadyFriends = areFriends(senderId, receiverId);
+
+  if (!alreadyFriends) {
     const friendEntry = {
       id: `f_${Date.now()}`,
       userId1: sender.id,
@@ -201,62 +262,57 @@ router.post('/:id/accept', (req: AuthenticatedRequest, res: Response) => {
     friends.push(friendEntry);
   }
 
-  const senderSocketId = getSocketIdForUser(senderId);
-  if (senderSocketId && io) {
-    io.to(senderSocketId).emit('request:accepted', { id: reqObj.id, by: receiverId });
+  if (!existingConversation) {
+    const newConvoId = `conv_${Date.now()}`;
+    const newConvo = {
+      id: newConvoId,
+      type: 'direct' as const,
+      name: null,
+      avatarUrl: null,
+      createdBy: currentUserId,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    conversations.push(newConvo);
+
+    const member1 = {
+      id: `m_${newConvoId}_self`,
+      conversationId: newConvoId,
+      userId: currentUserId,
+      joinedAt: new Date(),
+      leftAt: null,
+      muted: false,
+    };
+    const member2 = {
+      id: `m_${newConvoId}_other`,
+      conversationId: newConvoId,
+      userId: receiver.id,
+      joinedAt: new Date(),
+      leftAt: null,
+      muted: false,
+    };
+    conversationMembers.push(member1, member2);
+
+    const systemMsg = {
+      id: `msg_sys_${Date.now()}`,
+      conversationId: newConvoId,
+      senderId: 'system',
+      encryptedContent: `Secure chat with ${receiver.displayName} (${receiver.uid}) established.`,
+      contentType: 'system' as const,
+      createdAt: new Date(),
+      editedAt: null,
+      deletedAt: null,
+    };
+    messages.push(systemMsg);
+
+    saveDb();
+    existingConversation = newConvo;
+  } else {
+    saveDb();
   }
 
-  const recipient = users.find(u => u.id === senderId);
-  if (!recipient) {
-    res.status(500).json({ message: 'Request source user not found' });
-    return;
-  }
-
-  const newConvoId = `conv_${Date.now()}`;
-  const newConvo = {
-    id: newConvoId,
-    type: 'direct' as const,
-    name: null,
-    avatarUrl: null,
-    createdBy: currentUserId,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  };
-
-  conversations.push(newConvo);
-
-  const member1 = {
-    id: `m_${newConvoId}_self`,
-    conversationId: newConvoId,
-    userId: currentUserId,
-    joinedAt: new Date(),
-    leftAt: null,
-    muted: false,
-  };
-  const member2 = {
-    id: `m_${newConvoId}_other`,
-    conversationId: newConvoId,
-    userId: recipient.id,
-    joinedAt: new Date(),
-    leftAt: null,
-    muted: false,
-  };
-  conversationMembers.push(member1, member2);
-
-  const systemMsg = {
-    id: `msg_sys_${Date.now()}`,
-    conversationId: newConvoId,
-    senderId: 'system',
-    encryptedContent: `Secure chat with ${recipient.displayName} (${recipient.uid}) established.`,
-    contentType: 'system' as const,
-    createdAt: new Date(),
-    editedAt: null,
-    deletedAt: null,
-  };
-  messages.push(systemMsg);
-  saveDb();
-
-  res.status(200).json({ status: 'accepted', conversation: newConvo });
+  res.status(200).json({ status: 'accepted', conversation: existingConversation });
 });
 
 // POST /api/requests/:id/decline — decline incoming request
