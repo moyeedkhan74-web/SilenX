@@ -150,6 +150,7 @@ export class WebRTCService {
       return false;
     }
 
+    console.debug('[WebRTC] emitting call-accept');
     socket.emit('call-accept', { targetUserId: this.targetUserId });
     return true;
   }
@@ -215,6 +216,7 @@ export class WebRTCService {
 
       this.peerConnection.onicecandidate = (event) => {
         if (event.candidate && this.targetUserId) {
+          console.debug('[WebRTC] sending ICE candidate to', this.targetUserId, event.candidate);
           getSocket()?.emit('ice-candidate', {
             targetUserId: this.targetUserId,
             candidate: event.candidate,
@@ -223,6 +225,7 @@ export class WebRTCService {
       };
 
       this.peerConnection.ontrack = (event) => {
+        console.debug('[WebRTC] ontrack event', event.streams.length, event.streams);
         if (!this.remoteStream) {
           this.remoteStream = new MediaStream();
           if (this.remoteVideoElement) {
@@ -234,7 +237,19 @@ export class WebRTCService {
       };
 
       this.peerConnection.onconnectionstatechange = () => {
-        console.log('[WebRTC] Connection state:', this.peerConnection?.connectionState);
+        console.log('[WebRTC] connectionState:', this.peerConnection?.connectionState);
+      };
+
+      this.peerConnection.oniceconnectionstatechange = () => {
+        console.log('[WebRTC] iceConnectionState:', this.peerConnection?.iceConnectionState);
+      };
+
+      this.peerConnection.onicegatheringstatechange = () => {
+        console.log('[WebRTC] iceGatheringState:', this.peerConnection?.iceGatheringState);
+      };
+
+      this.peerConnection.onsignalingstatechange = () => {
+        console.log('[WebRTC] signalingState:', this.peerConnection?.signalingState);
       };
     } catch (error) {
       console.error('[WebRTC] Error creating peer connection:', error);
@@ -333,6 +348,7 @@ export class WebRTCService {
       return;
     }
 
+    console.debug('[WebRTC] received remote offer from', payload.senderId, payload.sdp.type);
     this.targetUserId = this.targetUserId || payload.senderId;
 
     if (!this.currentCallType) {
@@ -351,6 +367,7 @@ export class WebRTCService {
       const answer = await this.peerConnection.createAnswer();
       await this.peerConnection.setLocalDescription(answer);
 
+      console.debug('[WebRTC] sending SDP answer to', payload.senderId);
       getSocket()?.emit('sdp-answer', {
         targetUserId: payload.senderId,
         sdp: answer,
@@ -380,6 +397,7 @@ export class WebRTCService {
       return;
     }
 
+    console.debug('[WebRTC] received ICE candidate from', payload.senderId, payload.candidate);
     try {
       await this.peerConnection.addIceCandidate(new RTCIceCandidate(payload.candidate));
     } catch (error) {
