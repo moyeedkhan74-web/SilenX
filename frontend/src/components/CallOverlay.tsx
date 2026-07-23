@@ -29,6 +29,9 @@ const CallOverlay: React.FC = () => {
     return unsubscribe;
   }, []);
 
+  const isMicrophoneMuted = localStream ? webrtcService.isMicrophoneMuted() : isAudioMuted;
+  const isCameraOff = localStream ? webrtcService.isCameraOff() : isVideoOff;
+
   if (!isInCall) return null;
 
   const handleAccept = async () => {
@@ -50,13 +53,17 @@ const CallOverlay: React.FC = () => {
   };
 
   const handleToggleAudio = () => {
-    webrtcService.toggleAudio(!isAudioMuted);
-    toggleAudio();
+    const newMuted = webrtcService.toggleAudio();
+    if (newMuted !== isMicrophoneMuted) {
+      toggleAudio();
+    }
   };
 
   const handleToggleVideo = () => {
-    webrtcService.toggleVideo(!isVideoOff);
-    toggleVideo();
+    const newCameraOff = webrtcService.toggleVideo();
+    if (newCameraOff !== isCameraOff) {
+      toggleVideo();
+    }
   };
 
   return (

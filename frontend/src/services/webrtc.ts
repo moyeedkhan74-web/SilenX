@@ -189,20 +189,46 @@ export class WebRTCService {
     this.resetCallState();
   }
 
-  public toggleAudio(mute: boolean): void {
-    if (this.localStream) {
-      this.localStream.getAudioTracks().forEach((track) => {
-        track.enabled = !mute;
-      });
-    }
+  public isMicrophoneMuted(): boolean {
+    if (!this.localStream) return false;
+    const audioTracks = this.localStream.getAudioTracks();
+    return audioTracks.length > 0 && audioTracks.every((track) => !track.enabled);
   }
 
-  public toggleVideo(off: boolean): void {
-    if (this.localStream) {
-      this.localStream.getVideoTracks().forEach((track) => {
-        track.enabled = !off;
-      });
-    }
+  public isCameraOff(): boolean {
+    if (!this.localStream) return true;
+    const videoTracks = this.localStream.getVideoTracks();
+    return videoTracks.length === 0 || videoTracks.every((track) => !track.enabled);
+  }
+
+  public setMicrophoneMuted(muted: boolean): boolean {
+    if (!this.localStream) return muted;
+    const audioTracks = this.localStream.getAudioTracks();
+    if (audioTracks.length === 0) return muted;
+    audioTracks.forEach((track) => {
+      track.enabled = !muted;
+    });
+    return this.isMicrophoneMuted();
+  }
+
+  public setCameraOff(off: boolean): boolean {
+    if (!this.localStream) return off;
+    const videoTracks = this.localStream.getVideoTracks();
+    if (videoTracks.length === 0) return off;
+    videoTracks.forEach((track) => {
+      track.enabled = !off;
+    });
+    return this.isCameraOff();
+  }
+
+  public toggleAudio(): boolean {
+    const currentMuted = this.isMicrophoneMuted();
+    return this.setMicrophoneMuted(!currentMuted);
+  }
+
+  public toggleVideo(): boolean {
+    const currentOff = this.isCameraOff();
+    return this.setCameraOff(!currentOff);
   }
 
   private async getUserMedia(callType: CallType): Promise<boolean> {

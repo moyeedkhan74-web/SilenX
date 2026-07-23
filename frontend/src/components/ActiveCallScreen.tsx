@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { Mic, MicOff, Video, VideoOff, Volume2, VolumeX, PhoneOff } from 'lucide-react';
 
 interface ActiveCallScreenProps {
   callerName: string;
@@ -37,6 +38,7 @@ export default function ActiveCallScreen({
   const [seconds, setSeconds] = useState(0);
   const [speakerOn, setSpeakerOn] = useState(true);
   const [audioPlaybackBlocked, setAudioPlaybackBlocked] = useState(false);
+  const [audioOutputSupported, setAudioOutputSupported] = useState(false);
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
   const remoteAudioRef = useRef<HTMLAudioElement>(null);
@@ -45,6 +47,13 @@ export default function ActiveCallScreen({
   useEffect(() => {
     const interval = setInterval(() => setSeconds((s) => s + 1), 1000);
     return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    setAudioOutputSupported(
+      typeof HTMLMediaElement !== 'undefined' &&
+        typeof HTMLMediaElement.prototype.setSinkId === 'function'
+    );
   }, []);
 
   useEffect(() => {
@@ -64,18 +73,32 @@ export default function ActiveCallScreen({
   }, [remoteStream, speakerOn]);
 
   useEffect(() => {
-    if (remoteAudioRef.current && remoteStream) {
-      remoteAudioRef.current.srcObject = remoteStream;
-      remoteAudioRef.current.volume = speakerOn ? 1 : 0.6;
-      remoteAudioRef.current
-        .play()
-        .then(() => setAudioPlaybackBlocked(false))
-        .catch((error) => {
-          console.warn('[ActiveCallScreen] remote audio autoplay blocked', error);
-          setAudioPlaybackBlocked(true);
-        });
-    }
-  }, [remoteStream, speakerOn]);
+    const element = callType === 'audio' ? remoteAudioRef.current : remoteVideoRef.current;
+    if (!element || !remoteStream) return;
+
+    element.srcObject = remoteStream;
+    element.volume = speakerOn ? 1 : 0.6;
+
+    const setSink = async () => {
+      if (!audioOutputSupported || typeof element.setSinkId !== 'function') return;
+      try {
+        const outputId = speakerOn ? 'default' : 'communications';
+        await element.setSinkId(outputId);
+        console.debug('[ActiveCallScreen] audio output set to', outputId);
+      } catch (error) {
+        console.warn('[ActiveCallScreen] setSinkId failed', error);
+      }
+    };
+
+    setSink();
+    element
+      .play()
+      .then(() => setAudioPlaybackBlocked(false))
+      .catch((error) => {
+        console.warn('[ActiveCallScreen] remote audio autoplay blocked', error);
+        setAudioPlaybackBlocked(true);
+      });
+  }, [callType, remoteStream, speakerOn, audioOutputSupported]);
 
   const enableAudioPlayback = async () => {
     if (remoteAudioRef.current) {
@@ -85,6 +108,27 @@ export default function ActiveCallScreen({
       } catch (error) {
         console.warn('[ActiveCallScreen] enableAudioPlayback failed', error);
       }
+    }
+  };
+
+  const toggleSpeaker = async () => {
+    if (!audioOutputSupported) {
+      return;
+    }
+
+    const element = callType === 'audio' ? remoteAudioRef.current : remoteVideoRef.current;
+    if (!element || typeof element.setSinkId !== 'function') {
+      return;
+    }
+
+    const nextSpeakerOn = !speakerOn;
+    try {
+      const outputId = nextSpeakerOn ? 'default' : 'communications';
+      await element.setSinkId(outputId);
+      console.debug('[ActiveCallScreen] speaker toggled to', outputId);
+      setSpeakerOn(nextSpeakerOn);
+    } catch (error) {
+      console.warn('[ActiveCallScreen] speaker toggle failed', error);
     }
   };
 
@@ -106,8 +150,14 @@ export default function ActiveCallScreen({
         </div>
       )}
 
-      {callType === 'video' && localStream && !isCameraOff && (
-        <video ref={localVideoRef} className="active-call__local-video" autoPlay playsInline muted />
+      {callType === 'video' && localStream && (
+        isCameraOff ? (
+          <div className="active-call__local-video active-call__local-video--placeholder">
+            <div className="active-call__local-video__icon">Camera off</div>
+          </div>
+        ) : (
+          <video ref={localVideoRef} className="active-call__local-video" autoPlay playsInline muted />
+        )
       )}
 
       {callType === 'audio' && (
@@ -140,66 +190,34 @@ export default function ActiveCallScreen({
       <div className="active-call__controls">
         <button
           type="button"
-          className={`ctrl-btn ${isMuted ? 'ctrl-btn--active' : ''}`}
+          className={`ctrl-btn ${isMuted ? 'ctrl-btn--off' : 'ctrl-btn--on'}`}
           onClick={onToggleMute}
           aria-label={isMuted ? 'Unmute microphone' : 'Mute microphone'}
+          title={isMuted ? 'Unmute microphone' : 'Mute microphone'}
         >
-          {isMuted ? (
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M1 1l22 22" />
-              <path d="M9 9v3a3 3 0 005.12 2.12M15 9.34V5a3 3 0 00-5.94-.6" />
-              <path d="M17 16.95A7 7 0 015 12v-2M19 10v2a7 7 0 01-.11 1.23" />
-              <path d="M12 19v3" />
-            </svg>
-          ) : (
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <rect x="9" y="2" width="6" height="12" rx="3" />
-              <path d="M5 10v2a7 7 0 0014 0v-2" />
-              <path d="M12 19v3" />
-            </svg>
-          )}
+          {isMuted ? <MicOff size={22} /> : <Mic size={22} />}
         </button>
 
         <button
           type="button"
-          className={`ctrl-btn ${speakerOn ? 'ctrl-btn--active' : ''}`}
-          onClick={() => setSpeakerOn((value) => !value)}
-          aria-label={speakerOn ? 'Speaker on' : 'Speaker off'}
-          title={speakerOn ? 'Speaker on' : 'Speaker off'}
+          className={`ctrl-btn ${audioOutputSupported ? (speakerOn ? 'ctrl-btn--on' : 'ctrl-btn--off') : 'ctrl-btn--disabled'}`}
+          onClick={toggleSpeaker}
+          disabled={!audioOutputSupported}
+          aria-label={audioOutputSupported ? (speakerOn ? 'Speaker on' : 'Speaker off') : 'Speaker control unavailable'}
+          title={audioOutputSupported ? (speakerOn ? 'Speaker on' : 'Speaker off') : 'Speaker control unavailable'}
         >
-          {speakerOn ? (
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M5 9h4l5-5v16l-5-5H5z" />
-              <path d="M15 8c1.5 1.5 1.5 3.5 0 5" />
-              <path d="M18 5c3 3 3 7 0 10" />
-            </svg>
-          ) : (
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M5 9h4l5-5v16l-5-5H5z" />
-              <path d="M19 5l-14 14" />
-            </svg>
-          )}
+          {speakerOn ? <Volume2 size={22} /> : <VolumeX size={22} />}
         </button>
 
         {callType === 'video' && (
           <button
             type="button"
-            className={`ctrl-btn ${isCameraOff ? 'ctrl-btn--active' : ''}`}
+            className={`ctrl-btn ${isCameraOff ? 'ctrl-btn--off' : 'ctrl-btn--on'}`}
             onClick={onToggleCamera}
             aria-label={isCameraOff ? 'Turn camera on' : 'Turn camera off'}
+            title={isCameraOff ? 'Turn camera on' : 'Turn camera off'}
           >
-            {isCameraOff ? (
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M1 1l22 22" />
-                <path d="M21 7l-5 4v-4a2 2 0 00-2-2H8" />
-                <path d="M3 7v10a2 2 0 002 2h9" />
-              </svg>
-            ) : (
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M23 7l-7 5 7 5V7z" />
-                <rect x="1" y="5" width="15" height="14" rx="2" />
-              </svg>
-            )}
+            {isCameraOff ? <VideoOff size={22} /> : <Video size={22} />}
           </button>
         )}
 
@@ -208,10 +226,9 @@ export default function ActiveCallScreen({
           className="ctrl-btn ctrl-btn--end"
           onClick={onEndCall}
           aria-label="End call"
+          title="End call"
         >
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M12 9c-1.6 0-3.15.25-4.6.72v3.1c0 .39-.23.74-.56.9-.98.49-1.87 1.12-2.66 1.87-.18.18-.43.28-.7.28-.28 0-.53-.11-.71-.29L.29 13.1c-.18-.18-.29-.43-.29-.71 0-.28.11-.53.29-.71C3.34 8.78 7.46 7 12 7s8.66 1.78 11.71 4.68c.18.18.29.43.29.71 0 .28-.11.53-.29.71l-2.48 2.48c-.18.18-.43.29-.71.29-.27 0-.52-.11-.7-.28-.79-.75-1.68-1.38-2.66-1.87-.33-.16-.56-.51-.56-.9v-3.1C15.15 9.25 13.6 9 12 9z" transform="rotate(135 12 12)" />
-          </svg>
+          <PhoneOff size={22} />
         </button>
       </div>
 
@@ -338,6 +355,8 @@ export default function ActiveCallScreen({
         .ctrl-btn {
           width: 56px;
           height: 56px;
+          min-width: 56px;
+          min-height: 56px;
           border-radius: 50%;
           border: none;
           display: flex;
@@ -345,31 +364,67 @@ export default function ActiveCallScreen({
           justify-content: center;
           cursor: pointer;
           color: #fff;
-          background: rgba(255,255,255,0.1);
+          background: rgba(255,255,255,0.12);
           backdrop-filter: blur(10px);
-          transition: transform 0.15s ease, background 0.15s ease;
+          transition: transform 0.18s ease, background 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
         }
 
         .ctrl-btn:hover {
-          background: rgba(255,255,255,0.16);
+          transform: translateY(-1px);
+          background: rgba(255,255,255,0.18);
         }
 
         .ctrl-btn:active {
-          transform: scale(0.92);
+          transform: scale(0.94);
         }
 
-        .ctrl-btn--active {
-          background: #fff;
-          color: #111;
+        .ctrl-btn--on {
+          background: rgba(255,255,255,0.12);
+          color: #fff;
+        }
+
+        .ctrl-btn--off {
+          background: rgba(236, 72, 153, 0.18);
+          color: #f87171;
+          box-shadow: 0 0 0 1px rgba(248, 113, 113, 0.25);
+        }
+
+        .ctrl-btn--disabled {
+          background: rgba(255,255,255,0.08);
+          color: rgba(255,255,255,0.55);
+          cursor: not-allowed;
+          opacity: 0.65;
         }
 
         .ctrl-btn--end {
           background: var(--danger-main);
           width: 64px;
+          height: 64px;
         }
 
         .ctrl-btn--end:hover {
           opacity: 0.92;
+        }
+
+        .active-call__local-video--placeholder {
+          position: absolute;
+          z-index: 2;
+          top: 20px;
+          right: 20px;
+          width: 110px;
+          height: 150px;
+          border-radius: 20px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: rgba(0, 0, 0, 0.45);
+          color: #fff;
+          text-align: center;
+          font-size: 12px;
+          line-height: 1.4;
+          padding: 12px;
+          box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+          border: 1px solid rgba(255,255,255,0.12);
         }
 
         .active-call__audio-fallback {
