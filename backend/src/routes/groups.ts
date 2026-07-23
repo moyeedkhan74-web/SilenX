@@ -224,7 +224,7 @@ router.put('/:groupId', (req: AuthenticatedRequest, res: Response) => {
   const conversation = conversations.find((c) => c.groupId === group.id);
   if (conversation) {
     if (name !== undefined) conversation.name = group.name;
-    if (avatarUrl !== undefined) conversation.avatarUrl = group.avatarUrl;
+    if (avatarUrl !== undefined) conversation.avatarUrl = group.avatarUrl || null;
     conversation.updatedAt = new Date();
   }
 

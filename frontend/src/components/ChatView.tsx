@@ -11,6 +11,7 @@ import { MessageActionsMenu } from './MessageActionsMenu';
 import { SwipeableMessage } from './SwipeableMessage';
 import { ToastNotification } from './ToastNotification';
 import { ContactDetailsModal } from './ContactDetailsModal';
+import { GroupDetailsModal } from './GroupDetailsModal';
 import { MediaMessage } from './MediaMessage';
 import { MediaViewer } from './MediaViewer';
 import { useAuthStore } from '../store/authStore';
@@ -33,6 +34,7 @@ const ChatView: React.FC = () => {
   const [menuPosition, setMenuPosition] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
   const [toast, setToast] = useState<{ message: string; visible: boolean }>({ message: '', visible: false });
   const [contactDetailsOpen, setContactDetailsOpen] = useState(false);
+  const [groupDetailsOpen, setGroupDetailsOpen] = useState(false);
   const typingTimers = useRef<Record<string, NodeJS.Timeout>>({});
   const closeTimer = useRef<number | null>(null);
 
@@ -547,7 +549,13 @@ const ChatView: React.FC = () => {
           )}
           <div
             className="chatview-header-profile-btn"
-            onClick={() => setContactDetailsOpen(true)}
+            onClick={() => {
+              if (activeConvo?.type === 'group') {
+                setGroupDetailsOpen(true);
+              } else {
+                setContactDetailsOpen(true);
+              }
+            }}
             style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', flex: 1, minWidth: 0 }}
           >
             <Avatar
@@ -915,6 +923,12 @@ const ChatView: React.FC = () => {
         onAudioCall={handleAudioCall}
         onVideoCall={() => {}}
         onSearchInChat={() => { setContactDetailsOpen(false); handleSearchInChat(); }}
+      />
+      <GroupDetailsModal
+        isOpen={groupDetailsOpen}
+        onClose={() => setGroupDetailsOpen(false)}
+        conversation={activeConvo || null}
+        onSearchInChat={() => { setGroupDetailsOpen(false); handleSearchInChat(); }}
       />
     </div>
   );

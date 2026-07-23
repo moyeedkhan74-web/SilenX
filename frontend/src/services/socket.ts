@@ -140,6 +140,26 @@ export const connectSocket = (idToken?: string): Socket => {
     useChatStore.getState().updateUserStatus(userId, status, lastSeen);
   });
 
+  socket.on('group-updated', (payload: any) => {
+    const { groupId, name, description, avatarUrl } = payload || {};
+    if (!groupId) return;
+    useChatStore.setState((state) => {
+      const nextConvos = state.conversations.map((c) => {
+        const matches = c.groupId === groupId || c.id === `conv_group_${groupId}` || c.id === groupId;
+        if (matches) {
+          return {
+            ...c,
+            name: name !== undefined ? name : c.name,
+            avatarUrl: avatarUrl !== undefined ? avatarUrl : c.avatarUrl,
+            description: description !== undefined ? description : c.description,
+          };
+        }
+        return c;
+      });
+      return { conversations: nextConvos };
+    });
+  });
+
   return socket;
 };
 
