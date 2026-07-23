@@ -71,6 +71,34 @@
   width: 100%;
 }
 
+.scan-actions-row {
+  display: grid;
+  gap: 14px;
+  margin-top: 18px;
+}
+
+@media (min-width: 640px) {
+  .scan-actions-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.scan-action-card {
+  background: rgba(var(--color-surface-rgb), 0.08);
+  border: 1px solid rgba(var(--color-surface-rgb), 0.12);
+  border-radius: 20px;
+  padding: 18px;
+  display: grid;
+  gap: 10px;
+  align-items: start;
+}
+
+.scan-action-card .camera-subtext {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+}
+
 .scan-start-area {
   text-align: center;
   padding: 48px 24px;

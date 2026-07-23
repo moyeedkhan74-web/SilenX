@@ -48,6 +48,7 @@ export const AddContactModal: React.FC<AddContactModalProps> = ({ isOpen, onClos
   const [error, setError] = useState('');
   const [previewUser, setPreviewUser] = useState<FoundUser | null>(null);
   const scannerRef = useRef<Html5Qrcode | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     return () => {
@@ -84,6 +85,35 @@ export const AddContactModal: React.FC<AddContactModalProps> = ({ isOpen, onClos
       }
       scannerRef.current = null;
       setScannerActive(false);
+    }
+  };
+
+  const scanImageFromFile = async (file: File) => {
+    setScanError('');
+    try {
+      await stopScanner();
+      const html5Qrcode = scannerRef.current ?? new Html5Qrcode('qr-reader');
+      scannerRef.current = html5Qrcode;
+      const decodedText = await (html5Qrcode as any).scanFile(file, true);
+      const parsedUid = parseUidFromScan(decodedText);
+      if (parsedUid) {
+        setUid(parsedUid);
+        lookupByUid(parsedUid);
+      } else {
+        setScanError('Invalid QR code. Expected a SlienX QR code.');
+      }
+    } catch (err: any) {
+      console.error('Image scan failed:', err);
+      setScanError('Could not decode a QR code from this image. Try a clearer photo or a different image.');
+    }
+  };
+
+  const handleFileSelection = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    await scanImageFromFile(file);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
     }
   };
 
@@ -223,25 +253,42 @@ export const AddContactModal: React.FC<AddContactModalProps> = ({ isOpen, onClos
                 <p className="scan-error">{scanError}</p>
               )}
 
-              {!scannerActive && (
-                <div className="scan-start-area">
-                  <p className="camera-subtext">Point your camera at a SlienX QR code</p>
-                  <Button variant="primary" onClick={startScanner}>
-                    <Camera size={16} /> Open Camera
-                  </Button>
+              <div className="scan-actions-row">
+                <div className="scan-action-card">
+                  {scannerActive ? (
+                    <>
+                      <p className="camera-subtext">Scanning for QR codes...</p>
+                      <Button variant="secondary" onClick={stopScanner} style={{ marginTop: 8 }}>
+                        Stop Camera
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <p className="camera-subtext">Point your camera at a SlienX QR code</p>
+                      <Button variant="primary" onClick={startScanner}>
+                        <Camera size={16} /> Open Camera
+                      </Button>
+                    </>
+                  )}
                 </div>
-              )}
 
-              {scannerActive && (
-                <div className="scan-controls">
-                  <p style={{ color: 'var(--primary-light)', fontWeight: 600, fontSize: '0.85rem' }}>
-                    Scanning for QR codes...
-                  </p>
-                  <Button variant="secondary" onClick={stopScanner} style={{ marginTop: 8 }}>
-                    Stop Camera
+                <div className="scan-action-card">
+                  <p className="camera-subtext">Or select an image from your gallery</p>
+                  <Button
+                    variant="secondary"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <Camera size={16} /> Upload from gallery
                   </Button>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    style={{ display: 'none' }}
+                    onChange={handleFileSelection}
+                  />
                 </div>
-              )}
+              </div>
             </div>
           ) : (
             <div className="enter-tab">
