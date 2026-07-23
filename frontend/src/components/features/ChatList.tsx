@@ -176,7 +176,7 @@ export const ChatList: React.FC<ChatListProps> = ({ onNewChatClick }) => {
           const displayName = convo.type === 'group' ? convo.name : other?.displayName || 'Unknown';
           const isActive = convo.id === activeConversationId;
           const status = convo.type === 'direct' && other ? other.status : undefined;
-          const avatarUrl = convo.avatarUrl || other?.avatarUrl;
+          const avatarUrl = convo.type === 'group' ? (convo.avatarUrl || null) : (convo.avatarUrl || other?.avatarUrl || null);
 
           return (
             <button

@@ -554,7 +554,7 @@ const ChatView: React.FC = () => {
               name={chatName || 'SlienX'}
               size={40}
               online={status === 'online'}
-              avatarUrl={otherUser?.avatarUrl || activeConvo.avatarUrl || null}
+              avatarUrl={activeConvo.type === 'group' ? (activeConvo.avatarUrl || null) : (otherUser?.avatarUrl || activeConvo.avatarUrl || null)}
             />
             <div className="chatview-header-meta">
               <h3 className="chatview-header-name">

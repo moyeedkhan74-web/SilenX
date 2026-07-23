@@ -82,11 +82,8 @@ const LoginPage: React.FC = () => {
         <div className="login-auth-overlay" role="status" aria-live="polite">
           <div className="login-auth-card">
             <div className="login-auth-logo">SX</div>
-            <h2>Secure sign-in in progress</h2>
-            <p>{statusMessage || 'Please hold while we verify your Google account and connect your secure workspace.'}</p>
-            <div className="app-loading-bar" aria-hidden="true">
-              <span className="app-loading-bar-fill" />
-            </div>
+            <h2>Secure access</h2>
+            <p>{statusMessage || 'Verifying your Google account and preparing your private workspace.'}</p>
           </div>
         </div>
       ) : null}

@@ -1,9 +1,10 @@
 import React, { useMemo, useState } from 'react';
-import { Users, Check, UserPlus, X } from 'lucide-react';
+import { Users, Check, UserPlus, X, Image as ImageIcon } from 'lucide-react';
 import Modal from './ui/Modal';
 import Button from './ui/Button';
 import AvatarDisplay from './shared/AvatarDisplay';
 import { useChatStore } from '../store/chatStore';
+import { uploadToBackblaze } from '../services/backblaze';
 import './CreateGroupModal.css';
 
 interface GroupMemberOption {
@@ -29,6 +30,8 @@ const CreateGroupModal: React.FC<CreateGroupModalProps> = ({
 }) => {
   const [groupName, setGroupName] = useState('');
   const [description, setDescription] = useState('');
+  const [avatarUrl, setAvatarUrl] = useState('');
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -45,6 +48,13 @@ const CreateGroupModal: React.FC<CreateGroupModalProps> = ({
     );
   };
 
+  const handleFileSelect = (f: File) => {
+    setAvatarFile(f);
+    const reader = new FileReader();
+    reader.onload = () => setAvatarUrl(String(reader.result));
+    reader.readAsDataURL(f);
+  };
+
   const handleCreate = async () => {
     if (!groupName.trim()) {
       setError('Please enter a group name.');
@@ -59,9 +69,23 @@ const CreateGroupModal: React.FC<CreateGroupModalProps> = ({
     setError('');
     setIsSubmitting(true);
 
+    let finalAvatarUrl = avatarUrl.trim();
+    if (avatarFile) {
+      try {
+        const uploaded = await uploadToBackblaze(avatarFile, 'group-avatars');
+        finalAvatarUrl = uploaded.url;
+      } catch (err) {
+        console.error('Group avatar upload failed:', err);
+        setError('Failed to upload group profile picture.');
+        setIsSubmitting(false);
+        return;
+      }
+    }
+
     const result = await createGroup({
       name: groupName.trim(),
       description: description.trim(),
+      avatarUrl: finalAvatarUrl || undefined,
       members: selectedIds,
     });
 
@@ -75,6 +99,8 @@ const CreateGroupModal: React.FC<CreateGroupModalProps> = ({
     onCreateSuccess?.(result.id);
     setGroupName('');
     setDescription('');
+    setAvatarUrl('');
+    setAvatarFile(null);
     setSelectedIds([]);
     onClose();
   };
@@ -82,6 +108,29 @@ const CreateGroupModal: React.FC<CreateGroupModalProps> = ({
   return (
     <Modal isOpen={isOpen} onClose={onClose} className="create-group-modal" title="Create Group">
       <div className="create-group-body">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '16px' }}>
+          <AvatarDisplay name={groupName || 'Group'} avatarUrl={avatarUrl || null} size={64} />
+          <div style={{ flex: 1 }}>
+            <label htmlFor="group-avatar" style={{ fontSize: '13px', fontWeight: 500, display: 'block', marginBottom: '4px', color: 'var(--text-secondary)' }}>
+              Group Profile Picture (optional)
+            </label>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <label className="btn-icon-inline" style={{ cursor: 'pointer', padding: '6px 10px', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '6px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <ImageIcon size={16} />
+                <span>Upload</span>
+                <input type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => e.target.files && handleFileSelect(e.target.files[0])} />
+              </label>
+              <input
+                type="text"
+                placeholder="Or paste image URL"
+                value={avatarUrl}
+                onChange={(e) => setAvatarUrl(e.target.value)}
+                style={{ flex: 1, padding: '6px 10px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)', fontSize: '12px', outline: 'none' }}
+              />
+            </div>
+          </div>
+        </div>
+
         <div className="create-group-field">
           <label htmlFor="group-name">Group name</label>
           <input

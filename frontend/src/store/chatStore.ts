@@ -14,7 +14,8 @@ interface ChatState {
   fetchConversations: () => Promise<void>;
   fetchMessages: (id: string) => Promise<void>;
   createConversation: (recipientUid: string) => Promise<Conversation | null>;
-  createGroup: (payload: { name: string; description?: string; members: string[] }) => Promise<Conversation | null>;
+  createGroup: (payload: { name: string; description?: string; avatarUrl?: string; members: string[] }) => Promise<Conversation | null>;
+  updateGroup: (groupId: string, payload: { name?: string; description?: string; avatarUrl?: string | null }) => Promise<boolean>;
   hydrateFromStorage: () => void;
 
   // Local modifications (optimistic updates)
@@ -231,6 +232,47 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }
 
     return null;
+  },
+
+  updateGroup: async (groupId, payload) => {
+    try {
+      const token = useAuthStore.getState().token;
+      if (!token) return false;
+
+      const res = await fetch(`${API_URL}/api/groups/${encodeURIComponent(groupId)}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (res.ok) {
+        const updatedGroup = await res.json();
+        set((state) => {
+          const nextConvos = state.conversations.map((c) => {
+            const matches = c.groupId === groupId || c.id === `conv_group_${groupId}` || c.id === groupId;
+            if (matches) {
+              return {
+                ...c,
+                name: updatedGroup.name !== undefined ? updatedGroup.name : c.name,
+                avatarUrl: updatedGroup.avatarUrl !== undefined ? updatedGroup.avatarUrl : c.avatarUrl,
+                description: updatedGroup.description !== undefined ? updatedGroup.description : c.description,
+              };
+            }
+            return c;
+          });
+          const nextState = { conversations: nextConvos };
+          persistState(nextState);
+          return nextState;
+        });
+        return true;
+      }
+    } catch (err) {
+      console.error('Failed to update group:', err);
+    }
+    return false;
   },
 
   setConversations: (conversations) => {

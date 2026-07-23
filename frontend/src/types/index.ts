@@ -20,6 +20,8 @@ export interface Conversation {
   type: ConversationType;
   name: string | null;
   avatarUrl: string | null;
+  groupId?: string;
+  description?: string;
   lastMessage: string | null;
   lastMessageTime: string | null;
   unreadCount: number;

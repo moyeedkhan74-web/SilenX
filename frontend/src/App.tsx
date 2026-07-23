@@ -29,16 +29,8 @@ const BootLoadingView = () => (
       <div className="app-loading-logo">SX</div>
       <div className="app-loading-content">
         <span className="app-loading-eyebrow">Secure Workspace</span>
-        <h1>Preparing your SlienX experience…</h1>
-        <p>Syncing your secure conversations, calls, and identity.</p>
-        <div className="app-loading-bar" aria-hidden="true">
-          <span className="app-loading-bar-fill" />
-        </div>
-        <div className="app-loading-dots" aria-hidden="true">
-          <span />
-          <span />
-          <span />
-        </div>
+        <h1>Welcome to SlienX</h1>
+        <p>Connecting your private space with a smooth, secure experience.</p>
       </div>
     </div>
   </div>

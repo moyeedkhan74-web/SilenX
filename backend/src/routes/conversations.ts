@@ -4,6 +4,7 @@ import {
   conversations,
   conversationMembers,
   messages,
+  groups,
   saveDb,
 } from '../store/db';
 import { requireAuth, AuthenticatedRequest } from '../middleware/auth';
@@ -51,11 +52,15 @@ router.get('/', (req: AuthenticatedRequest, res: Response) => {
       .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
     const lastMessage = convoMessages[convoMessages.length - 1];
 
+    const relatedGroup = c.groupId ? groups.find(g => g.id === c.groupId) : null;
+
     return {
       id: c.id,
       type: c.type,
-      name: c.name,
-      avatarUrl: c.avatarUrl,
+      name: c.type === 'group' && relatedGroup ? relatedGroup.name : c.name,
+      avatarUrl: c.type === 'group' && relatedGroup ? (relatedGroup.avatarUrl || c.avatarUrl) : c.avatarUrl,
+      groupId: c.groupId,
+      description: relatedGroup ? relatedGroup.description : '',
       lastMessage: lastMessage
         ? lastMessage.encryptedContent
         : 'Say hi! 🔗 Secure connection established.',

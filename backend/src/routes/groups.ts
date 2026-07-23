@@ -184,6 +184,66 @@ router.get('/:groupId', (req: AuthenticatedRequest, res: Response) => {
   res.status(200).json({ group, members, conversationId: ensureGroupConversation(group).id });
 });
 
+// PUT /api/groups/:groupId
+router.put('/:groupId', (req: AuthenticatedRequest, res: Response) => {
+  const currentUserId = req.currentUser!.dbId;
+  const { name, description, avatarUrl } = req.body;
+  const group = groups.find((g) => g.id === req.params.groupId);
+
+  if (!group) {
+    res.status(404).json({ message: 'Group not found' });
+    return;
+  }
+
+  // Check if current user is an admin, owner, or creator of the group
+  const isCreatorOrAdmin = group.createdBy === currentUserId || group.admins.includes(currentUserId);
+  if (!isCreatorOrAdmin) {
+    res.status(403).json({ message: 'Only admins or the creator can update group details' });
+    return;
+  }
+
+  if (name !== undefined) {
+    if (typeof name !== 'string' || !name.trim()) {
+      res.status(400).json({ message: 'Group name must be a non-empty string' });
+      return;
+    }
+    group.name = name.trim();
+  }
+
+  if (description !== undefined) {
+    group.description = String(description || '').trim();
+  }
+
+  if (avatarUrl !== undefined) {
+    group.avatarUrl = avatarUrl || null;
+  }
+
+  group.updatedAt = new Date();
+
+  // Also update parent conversation's name and avatarUrl
+  const conversation = conversations.find((c) => c.groupId === group.id);
+  if (conversation) {
+    if (name !== undefined) conversation.name = group.name;
+    if (avatarUrl !== undefined) conversation.avatarUrl = group.avatarUrl;
+    conversation.updatedAt = new Date();
+  }
+
+  saveDb();
+
+  // Broadcast group update event to all connected sockets
+  const ioInstance = (req.app as any).get('io');
+  if (ioInstance) {
+    ioInstance.emit('group-updated', {
+      groupId: group.id,
+      name: group.name,
+      description: group.description,
+      avatarUrl: group.avatarUrl,
+    });
+  }
+
+  res.status(200).json(group);
+});
+
 // POST /api/groups/:groupId/invite
 router.post('/:groupId/invite', (req: AuthenticatedRequest, res: Response) => {
   const currentUserId = req.currentUser!.dbId;
