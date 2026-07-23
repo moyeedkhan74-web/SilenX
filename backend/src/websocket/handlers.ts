@@ -1,6 +1,6 @@
 import { Server, Socket } from 'socket.io';
 import { setUserSocket, removeSocketById, getSocketIdForUser } from './socketStore';
-import { messages, conversationMembers, saveDb } from '../store/db';
+import { messages, conversationMembers, saveDb, callLogs } from '../store/db';
 import { getAdminAuth } from '../config/firebaseAdmin';
 import { users } from '../store/db';
 import type {
@@ -387,7 +387,6 @@ export function registerSocketHandlers(io: Server): void {
     });
 
     // ─── WebRTC Call Signaling ───────────────────────────────────────────────
-    // targetUserId below refers to the recipient user's ID. The server maps that to the current socket.
 
     socket.on('call-initiate', (data: CallInitiatePayload) => {
       console.debug('[Socket] call-initiate from', userId, 'to', data.targetUserId);
@@ -397,37 +396,92 @@ export function registerSocketHandlers(io: Server): void {
         return;
       }
 
+      // Create a pending call log
+      const logId = `call_${Date.now()}_${userId}`;
+      callLogs.push({
+        id: logId,
+        conversationId: `direct_${userId}_${data.targetUserId}`,
+        groupId: undefined,
+        initiatorId: userId,
+        receiverId: data.targetUserId,
+        participants: [userId, data.targetUserId],
+        callType: data.callType,
+        status: 'pending',
+        startedAt: new Date(),
+        endedAt: null,
+        durationSeconds: null,
+      });
+      saveDb();
+
       socket.to(recipientSocketId).emit('call-incoming', {
         callerId: userId,
         callerName: data.callerName,
         callerAvatarUrl: data.callerAvatarUrl,
         callType: data.callType,
+        callLogId: logId,
       });
+
+      // Send back the logId to the caller so they can reference it on end
+      socket.emit('call-log-id', { callLogId: logId });
     });
 
-    socket.on('call-accept', (data: CallRespondPayload) => {
+    socket.on('call-accept', (data: CallRespondPayload & { callLogId?: string }) => {
       console.debug('[Socket] call-accept from', userId, 'to', data.targetUserId);
       const recipientSocketId = getSocketIdForUser(data.targetUserId);
-      if (!recipientSocketId) {
-        return;
+      if (!recipientSocketId) return;
+
+      if (data.callLogId) {
+        const log = callLogs.find((l) => l.id === data.callLogId);
+        if (log) {
+          log.status = 'accepted';
+          log.startedAt = new Date();
+          saveDb();
+        }
       }
 
       socket.to(recipientSocketId).emit('call-accepted', {
         responderId: userId,
         responderName: connectedUser?.displayName || 'Unknown',
+        callLogId: data.callLogId,
       });
     });
 
-    socket.on('call-reject', (data: { targetUserId: string }) => {
+    socket.on('call-reject', (data: { targetUserId: string; callLogId?: string }) => {
       console.debug('[Socket] call-reject from', userId, 'to', data.targetUserId);
       const recipientSocketId = getSocketIdForUser(data.targetUserId);
+
+      if (data.callLogId) {
+        const log = callLogs.find((l) => l.id === data.callLogId);
+        if (log) {
+          log.status = log.initiatorId === userId ? 'rejected' : 'missed';
+          log.endedAt = new Date();
+          log.durationSeconds = 0;
+          saveDb();
+        }
+      }
+
       if (recipientSocketId) {
         socket.to(recipientSocketId).emit('call-rejected', { by: userId });
       }
     });
 
-    socket.on('call-end', (data: { targetUserId: string }) => {
+    socket.on('call-end', (data: { targetUserId: string; callLogId?: string; durationSeconds?: number }) => {
       const recipientSocketId = getSocketIdForUser(data.targetUserId);
+
+      if (data.callLogId) {
+        const log = callLogs.find((l) => l.id === data.callLogId);
+        if (log) {
+          log.status = 'ended';
+          log.endedAt = new Date();
+          if (data.durationSeconds !== undefined) {
+            log.durationSeconds = data.durationSeconds;
+          } else if (log.startedAt) {
+            log.durationSeconds = Math.floor((Date.now() - new Date(log.startedAt).getTime()) / 1000);
+          }
+          saveDb();
+        }
+      }
+
       if (recipientSocketId) {
         socket.to(recipientSocketId).emit('call-ended', { by: userId });
       }
