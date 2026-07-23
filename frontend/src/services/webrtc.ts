@@ -92,6 +92,14 @@ export class WebRTCService {
     }
   }
 
+  public getLocalStream(): MediaStream | null {
+    return this.localStream;
+  }
+
+  public getRemoteStream(): MediaStream | null {
+    return this.remoteStream;
+  }
+
   public async startCall(
     targetUserId: string,
     callType: CallType,
