@@ -237,6 +237,7 @@ export interface ReadReceiptPayload {
 export interface CallInitiatePayload {
   targetUserId: string;
   callerName: string;
+  callerAvatarUrl?: string;
   callType: CallType;
 }
 

@@ -390,6 +390,7 @@ export function registerSocketHandlers(io: Server): void {
     // targetUserId below refers to the recipient user's ID. The server maps that to the current socket.
 
     socket.on('call-initiate', (data: CallInitiatePayload) => {
+      console.debug('[Socket] call-initiate from', userId, 'to', data.targetUserId);
       const recipientSocketId = getSocketIdForUser(data.targetUserId);
       if (!recipientSocketId) {
         socket.emit('error', { code: 'USER_OFFLINE', message: 'Recipient is offline or unavailable' });
@@ -399,11 +400,13 @@ export function registerSocketHandlers(io: Server): void {
       socket.to(recipientSocketId).emit('call-incoming', {
         callerId: userId,
         callerName: data.callerName,
+        callerAvatarUrl: data.callerAvatarUrl,
         callType: data.callType,
       });
     });
 
     socket.on('call-accept', (data: CallRespondPayload) => {
+      console.debug('[Socket] call-accept from', userId, 'to', data.targetUserId);
       const recipientSocketId = getSocketIdForUser(data.targetUserId);
       if (!recipientSocketId) {
         return;
@@ -416,6 +419,7 @@ export function registerSocketHandlers(io: Server): void {
     });
 
     socket.on('call-reject', (data: { targetUserId: string }) => {
+      console.debug('[Socket] call-reject from', userId, 'to', data.targetUserId);
       const recipientSocketId = getSocketIdForUser(data.targetUserId);
       if (recipientSocketId) {
         socket.to(recipientSocketId).emit('call-rejected', { by: userId });

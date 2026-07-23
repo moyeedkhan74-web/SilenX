@@ -1,7 +1,7 @@
 export type UserStatus = 'online' | 'away' | 'offline';
 export type ConversationType = 'direct' | 'group';
 export type CallType = 'audio' | 'video';
-export type CallStatus = 'pending' | 'accepted' | 'rejected' | 'missed' | 'ended';
+export type CallStatus = 'pending' | 'accepted' | 'active' | 'rejected' | 'missed' | 'ended';
 
 export interface User {
   id: string;

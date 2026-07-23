@@ -7,6 +7,7 @@ import type { CallType } from '../types';
 interface CallIncomingPayload {
   callerId: string;
   callerName: string;
+  callerAvatarUrl?: string;
   callType: CallType;
 }
 
@@ -95,7 +96,8 @@ export class WebRTCService {
     targetUserId: string,
     callType: CallType,
     targetName: string,
-    callerName: string
+    callerName: string,
+    callerAvatarUrl?: string
   ): Promise<boolean> {
     const socket = getSocket();
     if (!socket || !socket.connected) {
@@ -112,6 +114,7 @@ export class WebRTCService {
     socket.emit('call-initiate', {
       targetUserId,
       callerName,
+      callerAvatarUrl,
       callType,
     });
 
@@ -120,16 +123,21 @@ export class WebRTCService {
 
   public async acceptIncomingCall(): Promise<void> {
     if (!this.targetUserId || !this.currentCallType) {
+      console.debug('[WebRTC] acceptIncomingCall skipped, no target or call type');
       return;
     }
 
     const socket = getSocket();
     if (!socket) {
+      console.debug('[WebRTC] acceptIncomingCall skipped, socket unavailable');
       return;
     }
 
+    console.debug('[WebRTC] acceptIncomingCall sending call-accept to', this.targetUserId);
+
     const ready = await this.prepareLocalMediaAndConnection(this.currentCallType);
     if (!ready) {
+      console.debug('[WebRTC] acceptIncomingCall failed to get media or peer connection');
       useCallStore.getState().rejectCall();
       return;
     }
@@ -140,6 +148,7 @@ export class WebRTCService {
 
   public rejectCall(): void {
     if (this.targetUserId) {
+      console.debug('[WebRTC] rejectCall sending call-reject to', this.targetUserId);
       getSocket()?.emit('call-reject', { targetUserId: this.targetUserId });
     }
     this.resetCallState();
@@ -281,7 +290,7 @@ export class WebRTCService {
     this.targetUserId = payload.callerId;
     this.currentCallType = payload.callType;
     this.isCaller = false;
-    useCallStore.getState().receiveCall(payload.callerId, payload.callerName, payload.callType);
+    useCallStore.getState().receiveCall(payload.callerId, payload.callerName, payload.callerAvatarUrl || null, payload.callType);
   };
 
   private handleCallAccepted = async (payload: CallAcceptedPayload): Promise<void> => {

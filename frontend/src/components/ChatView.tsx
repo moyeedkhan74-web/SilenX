@@ -310,7 +310,8 @@ const ChatView: React.FC = () => {
       otherUser.id,
       'audio',
       otherUser.displayName,
-      currentUser.displayName
+      currentUser.displayName,
+      currentUser.avatarUrl || undefined
     );
 
     if (!started) {
@@ -329,7 +330,8 @@ const ChatView: React.FC = () => {
       otherUser.id,
       'video',
       otherUser.displayName,
-      currentUser.displayName
+      currentUser.displayName,
+      currentUser.avatarUrl || undefined
     );
 
     if (!started) {

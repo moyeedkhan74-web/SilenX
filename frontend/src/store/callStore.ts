@@ -7,12 +7,13 @@ interface CallState {
   callStatus: CallStatus | null;
   callerId: string | null;
   callerName: string | null;
+  callerAvatarUrl: string | null;
   isCaller: boolean;
   duration: number;
   isAudioMuted: boolean;
   isVideoOff: boolean;
   initiateCall: (callType: CallType, targetId: string, targetName: string) => void;
-  receiveCall: (callerId: string, callerName: string, callType: CallType) => void;
+  receiveCall: (callerId: string, callerName: string, callerAvatarUrl: string | null, callType: CallType) => void;
   acceptCall: () => void;
   rejectCall: () => void;
   endCall: () => void;
@@ -27,6 +28,7 @@ export const useCallStore = create<CallState>((set) => ({
   callStatus: null,
   callerId: null,
   callerName: null,
+  callerAvatarUrl: null,
   isCaller: false,
   duration: 0,
   isAudioMuted: false,
@@ -38,24 +40,26 @@ export const useCallStore = create<CallState>((set) => ({
       callStatus: 'pending',
       callerId: targetId,
       callerName: targetName,
+      callerAvatarUrl: null,
       isCaller: true,
       duration: 0,
       isAudioMuted: false,
       isVideoOff: false,
     }),
-  receiveCall: (callerId, callerName, callType) =>
+  receiveCall: (callerId, callerName, callerAvatarUrl, callType) =>
     set({
       isInCall: true,
       callType,
       callStatus: 'pending',
       callerId,
       callerName,
+      callerAvatarUrl,
       isCaller: false,
       duration: 0,
       isAudioMuted: false,
       isVideoOff: false,
     }),
-  acceptCall: () => set({ callStatus: 'accepted', duration: 0 }),
+  acceptCall: () => set({ callStatus: 'active', duration: 0 }),
   rejectCall: () =>
     set({
       isInCall: false,
