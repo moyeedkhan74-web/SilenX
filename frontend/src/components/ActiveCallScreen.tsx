@@ -41,8 +41,7 @@ export default function ActiveCallScreen({
   const [speakerOn, setSpeakerOn] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [audioPlaybackBlocked, setAudioPlaybackBlocked] = useState(false);
-  const [audioOutputSupported, setAudioOutputSupported] = useState(false);
-  
+
   const containerRef = useRef<HTMLDivElement>(null);
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
@@ -52,14 +51,6 @@ export default function ActiveCallScreen({
   useEffect(() => {
     const interval = setInterval(() => setSeconds((s) => s + 1), 1000);
     return () => clearInterval(interval);
-  }, []);
-
-  // Audio output API support check
-  useEffect(() => {
-    setAudioOutputSupported(
-      typeof HTMLMediaElement !== 'undefined' &&
-        typeof HTMLMediaElement.prototype.setSinkId === 'function'
-    );
   }, []);
 
   // Local video stream binding
@@ -82,31 +73,20 @@ export default function ActiveCallScreen({
 
   // Remote audio stream binding
   useEffect(() => {
-    const element = callType === 'audio' ? remoteAudioRef.current : remoteVideoRef.current;
-    if (!element || !remoteStream) return;
+    if (!remoteAudioRef.current || !remoteStream) return;
 
-    element.srcObject = remoteStream;
-    element.volume = speakerOn ? 1 : 0.6;
+    console.debug('[ActiveCallScreen] Binding remoteStream to audio element. Audio tracks:', remoteStream.getAudioTracks().length);
+    remoteAudioRef.current.srcObject = remoteStream;
+    remoteAudioRef.current.volume = speakerOn ? 1.0 : 0.4;
 
-    const setSink = async () => {
-      if (!audioOutputSupported || typeof element.setSinkId !== 'function') return;
-      try {
-        const outputId = speakerOn ? 'default' : 'communications';
-        await element.setSinkId(outputId);
-      } catch (error) {
-        console.warn('[ActiveCallScreen] setSinkId failed', error);
-      }
-    };
-
-    setSink();
-    element
+    remoteAudioRef.current
       .play()
       .then(() => setAudioPlaybackBlocked(false))
       .catch((error) => {
-        console.warn('[ActiveCallScreen] remote audio autoplay blocked', error);
+        console.warn('[ActiveCallScreen] remote audio autoplay blocked:', error);
         setAudioPlaybackBlocked(true);
       });
-  }, [callType, remoteStream, speakerOn, audioOutputSupported]);
+  }, [remoteStream, speakerOn]);
 
   const enableAudioPlayback = async () => {
     if (remoteAudioRef.current) {
@@ -123,9 +103,11 @@ export default function ActiveCallScreen({
     const nextSpeakerOn = !speakerOn;
     setSpeakerOn(nextSpeakerOn);
 
-    const element = callType === 'audio' ? remoteAudioRef.current : remoteVideoRef.current;
-    if (element) {
-      element.volume = nextSpeakerOn ? 1 : 0.2;
+    if (remoteAudioRef.current) {
+      remoteAudioRef.current.volume = nextSpeakerOn ? 1.0 : 0.4;
+    }
+    if (remoteVideoRef.current) {
+      remoteVideoRef.current.volume = nextSpeakerOn ? 1.0 : 0.4;
     }
   };
 
@@ -144,6 +126,9 @@ export default function ActiveCallScreen({
   return (
     <div ref={containerRef} className={`active-call ${isFullscreen ? 'active-call--fullscreen' : ''}`}>
       <div className="active-call__backdrop" />
+
+      {/* Dedicated Remote Audio Element for guaranteed voice playback */}
+      <audio ref={remoteAudioRef} autoPlay playsInline style={{ display: 'none' }} />
 
       {/* Main Stream / Center View */}
       {showRemoteVideo ? (
@@ -170,18 +155,13 @@ export default function ActiveCallScreen({
         </div>
       )}
 
-      {/* Hidden / Explicit Remote Audio Element for Audio-Only Calls */}
-      {callType === 'audio' && (
-        <>
-          <audio ref={remoteAudioRef} autoPlay />
-          {audioPlaybackBlocked && (
-            <div className="active-call__audio-fallback">
-              <button type="button" className="audio-fallback-button" onClick={enableAudioPlayback}>
-                🔊 Tap to Unmute Remote Audio
-              </button>
-            </div>
-          )}
-        </>
+      {/* Audio Playback Fallback Button */}
+      {audioPlaybackBlocked && (
+        <div className="active-call__audio-fallback">
+          <button type="button" className="audio-fallback-button" onClick={enableAudioPlayback}>
+            🔊 Tap to Unmute Remote Voice
+          </button>
+        </div>
       )}
 
       {/* Top Bar Info */}

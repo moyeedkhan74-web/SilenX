@@ -108,8 +108,10 @@ export class WebRTCService {
   }
 
   private notifyStreamListeners(): void {
+    const local = this.localStream ? new MediaStream(this.localStream.getTracks()) : null;
+    const remote = this.remoteStream ? new MediaStream(this.remoteStream.getTracks()) : null;
     for (const listener of this.streamListeners) {
-      listener(this.localStream, this.remoteStream);
+      listener(local, remote);
     }
   }
 
@@ -352,8 +354,12 @@ export class WebRTCService {
   private async getUserMedia(callType: CallType): Promise<boolean> {
     try {
       const constraints: MediaStreamConstraints = {
-        audio: true,
-        video: callType === 'video',
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
+        video: callType === 'video' ? { facingMode: 'user' } : false,
       };
 
       this.localStream = await navigator.mediaDevices.getUserMedia(constraints);
@@ -390,12 +396,17 @@ export class WebRTCService {
       };
 
       this.peerConnection.ontrack = (event) => {
-        console.debug('[WebRTC] ontrack event', event.streams.length, event.streams);
-        if (!this.remoteStream) {
-          this.remoteStream = new MediaStream();
+        console.debug('[WebRTC] ontrack event:', event.track.kind, event.streams);
+        if (event.streams && event.streams[0]) {
+          this.remoteStream = event.streams[0];
+        } else {
+          if (!this.remoteStream) {
+            this.remoteStream = new MediaStream();
+          }
+          this.remoteStream.addTrack(event.track);
         }
 
-        this.remoteStream.addTrack(event.track);
+        event.track.enabled = true;
 
         if (this.remoteVideoElement) {
           this.remoteVideoElement.srcObject = this.remoteStream;
