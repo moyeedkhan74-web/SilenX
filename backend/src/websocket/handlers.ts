@@ -387,51 +387,81 @@ export function registerSocketHandlers(io: Server): void {
     });
 
     // ─── WebRTC Call Signaling ───────────────────────────────────────────────
-    // targetId below refers to a socket ID for WebRTC peer connection setup
+    // targetUserId below refers to the recipient user's ID. The server maps that to the current socket.
 
     socket.on('call-initiate', (data: CallInitiatePayload) => {
-      // data.targetId is the recipient socket ID
-      socket.to(data.targetId).emit('call-incoming', {
-        callerId: userId, // always from verified identity
+      const recipientSocketId = getSocketIdForUser(data.targetUserId);
+      if (!recipientSocketId) {
+        socket.emit('error', { code: 'USER_OFFLINE', message: 'Recipient is offline or unavailable' });
+        return;
+      }
+
+      socket.to(recipientSocketId).emit('call-incoming', {
+        callerId: userId,
+        callerName: data.callerName,
         callType: data.callType,
-        callerSocketId: socket.id,
       });
     });
 
     socket.on('call-accept', (data: CallRespondPayload) => {
-      socket.to(data.targetId).emit('call-accepted', {
+      const recipientSocketId = getSocketIdForUser(data.targetUserId);
+      if (!recipientSocketId) {
+        return;
+      }
+
+      socket.to(recipientSocketId).emit('call-accepted', {
         responderId: userId,
-        responderSocketId: socket.id,
+        responderName: connectedUser?.displayName || 'Unknown',
       });
     });
 
-    socket.on('call-reject', (data: { targetId: string }) => {
-      socket.to(data.targetId).emit('call-rejected', { by: userId });
+    socket.on('call-reject', (data: { targetUserId: string }) => {
+      const recipientSocketId = getSocketIdForUser(data.targetUserId);
+      if (recipientSocketId) {
+        socket.to(recipientSocketId).emit('call-rejected', { by: userId });
+      }
     });
 
-    socket.on('call-end', (data: { targetId: string }) => {
-      if (data.targetId) {
-        socket.to(data.targetId).emit('call-ended', { by: userId });
+    socket.on('call-end', (data: { targetUserId: string }) => {
+      const recipientSocketId = getSocketIdForUser(data.targetUserId);
+      if (recipientSocketId) {
+        socket.to(recipientSocketId).emit('call-ended', { by: userId });
       }
     });
 
     socket.on('sdp-offer', (data: SDPPayload) => {
-      socket.to(data.targetId).emit('sdp-offer-received', {
+      const recipientSocketId = getSocketIdForUser(data.targetUserId);
+      if (!recipientSocketId) {
+        return;
+      }
+
+      socket.to(recipientSocketId).emit('sdp-offer-received', {
         sdp: data.sdp,
-        callerId: userId,
+        senderId: userId,
       });
     });
 
     socket.on('sdp-answer', (data: SDPPayload) => {
-      socket.to(data.targetId).emit('sdp-answer-received', {
+      const recipientSocketId = getSocketIdForUser(data.targetUserId);
+      if (!recipientSocketId) {
+        return;
+      }
+
+      socket.to(recipientSocketId).emit('sdp-answer-received', {
         sdp: data.sdp,
-        responderId: userId,
+        senderId: userId,
       });
     });
 
     socket.on('ice-candidate', (data: ICECandidatePayload) => {
-      socket.to(data.targetId).emit('ice-candidate-received', {
+      const recipientSocketId = getSocketIdForUser(data.targetUserId);
+      if (!recipientSocketId) {
+        return;
+      }
+
+      socket.to(recipientSocketId).emit('ice-candidate-received', {
         candidate: data.candidate,
+        senderId: userId,
       });
     });
 

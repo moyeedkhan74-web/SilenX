@@ -2,8 +2,8 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { ArrowLeft, Phone, Video, MoreVertical, Lock, Search, Bell, UserX, Flag, Trash2, Check, CheckCheck, Star, PlayCircle, MapPin } from 'lucide-react';
 import { useIsMobile } from '../hooks/useIsMobile';
 import { useChatStore } from '../store/chatStore';
-import { useCallStore } from '../store/callStore';
 import { connectSocket } from '../services/socket';
+import { webrtcService } from '../services/webrtc';
 import type { ChatMessage } from '../types';
 import { Avatar } from './Avatar';
 import { MessageInputBar } from './MessageInputBar';
@@ -43,7 +43,6 @@ const ChatView: React.FC = () => {
   }, []);
   const { conversations, activeConversationId, messages, addMessage, clearConversation, editMessage, deleteMessage, reactToMessage, setActiveConversation } = useChatStore();
   const setMessages = useChatStore((s) => s.setMessages);
-  const initiateCall = useCallStore((s) => s.initiateCall);
   const currentUser = useAuthStore((s) => s.user);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const headerMenuRef = useRef<HTMLDivElement>(null);
@@ -301,8 +300,41 @@ const ChatView: React.FC = () => {
   };
 
   const handleAudioCall = () => {
-    if (!activeConversationId || !otherUser?.id) return;
-    initiateCall('audio', otherUser.id);
+    if (!activeConversationId || !otherUser?.id || !currentUser?.displayName) return;
+    if (activeConvo?.type !== 'direct') {
+      window.alert('Audio calls are available only for direct conversations.');
+      return;
+    }
+
+    const started = webrtcService.startCall(
+      otherUser.id,
+      'audio',
+      otherUser.displayName,
+      currentUser.displayName
+    );
+
+    if (!started) {
+      showToast('Unable to start audio call. Check your connection and try again.');
+    }
+  };
+
+  const handleVideoCall = () => {
+    if (!activeConversationId || !otherUser?.id || !currentUser?.displayName) return;
+    if (activeConvo?.type !== 'direct') {
+      window.alert('Video calls are available only for direct conversations.');
+      return;
+    }
+
+    const started = webrtcService.startCall(
+      otherUser.id,
+      'video',
+      otherUser.displayName,
+      currentUser.displayName
+    );
+
+    if (!started) {
+      showToast('Unable to start video call. Check your connection and try again.');
+    }
   };
 
   const handleReply = (messageId: string) => {
@@ -578,7 +610,7 @@ const ChatView: React.FC = () => {
           <button className="icon-btn" title="Start audio call" type="button" onClick={handleAudioCall}>
             <Phone size={18} />
           </button>
-          <button className="icon-btn" title="Video Call" type="button">
+          <button className="icon-btn" title="Start video call" type="button" onClick={handleVideoCall}>
             <Video size={18} />
           </button>
           <div className="menu-wrapper" ref={headerMenuRef}>

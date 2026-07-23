@@ -235,25 +235,25 @@ export interface ReadReceiptPayload {
 }
 
 export interface CallInitiatePayload {
-  targetId: string;
-  callerId: string;
+  targetUserId: string;
+  callerName: string;
   callType: CallType;
 }
 
 export interface CallRespondPayload {
-  targetId: string;
-  responderId: string;
+  targetUserId: string;
 }
 
 export interface SDPPayload {
-  targetId: string;
+  targetUserId: string;
   sdp: RTCSessionDescriptionInit;
-  senderId: string;
+  senderId?: string;
 }
 
 export interface ICECandidatePayload {
-  targetId: string;
+  targetUserId: string;
   candidate: RTCIceCandidateInit;
+  senderId?: string;
 }
 
 export interface EditMessagePayload {

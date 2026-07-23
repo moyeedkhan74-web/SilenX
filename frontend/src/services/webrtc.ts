@@ -1,33 +1,186 @@
-import { Socket } from 'socket.io-client';
+import type { Socket } from 'socket.io-client';
 import { WEBRTC_CONFIG } from '../config/webrtc-config';
+import { getSocket } from './socket';
+import { useCallStore } from '../store/callStore';
+import type { CallType } from '../types';
+
+interface CallIncomingPayload {
+  callerId: string;
+  callerName: string;
+  callType: CallType;
+}
+
+interface CallAcceptedPayload {
+  responderId: string;
+  responderName: string;
+}
+
+interface CallRejectedPayload {
+  by: string;
+}
+
+interface CallEndedPayload {
+  by: string;
+}
+
+interface SDPReceivedPayload {
+  sdp: RTCSessionDescriptionInit;
+  senderId: string;
+}
+
+interface ICECandidateReceivedPayload {
+  candidate: RTCIceCandidateInit;
+  senderId: string;
+}
 
 export class WebRTCService {
+  private currentSocket: Socket | null = null;
   private peerConnection: RTCPeerConnection | null = null;
   private localStream: MediaStream | null = null;
   private remoteStream: MediaStream | null = null;
-  
   private localVideoElement: HTMLVideoElement | null = null;
   private remoteVideoElement: HTMLVideoElement | null = null;
-  
-  private socket: Socket;
+  private targetUserId: string | null = null;
+  private currentCallType: CallType | null = null;
+  private isCaller = false;
+  private localTracksAdded = false;
 
-  constructor(socket: Socket) {
-    this.socket = socket;
+  public initialize(socket: Socket): void {
+    if (this.currentSocket === socket) {
+      return;
+    }
+
+    if (this.currentSocket) {
+      this.detachSocketListeners(this.currentSocket);
+    }
+
+    this.currentSocket = socket;
+    this.attachSocketListeners(socket);
   }
 
-  public async getUserMedia(localVideoRef: HTMLVideoElement, remoteVideoRef: HTMLVideoElement): Promise<boolean> {
-    try {
-      this.localVideoElement = localVideoRef;
-      this.remoteVideoElement = remoteVideoRef;
-      
-      this.localStream = await navigator.mediaDevices.getUserMedia({
-        video: true,
-        audio: true
+  private attachSocketListeners(socket: Socket): void {
+    socket.on('call-incoming', this.handleIncomingCall);
+    socket.on('call-accepted', this.handleCallAccepted);
+    socket.on('call-rejected', this.handleCallRejected);
+    socket.on('call-ended', this.handleRemoteCallEnded);
+    socket.on('sdp-offer-received', this.handleRemoteOffer);
+    socket.on('sdp-answer-received', this.handleRemoteAnswer);
+    socket.on('ice-candidate-received', this.handleIceCandidateReceived);
+  }
+
+  private detachSocketListeners(socket: Socket): void {
+    socket.off('call-incoming', this.handleIncomingCall);
+    socket.off('call-accepted', this.handleCallAccepted);
+    socket.off('call-rejected', this.handleCallRejected);
+    socket.off('call-ended', this.handleRemoteCallEnded);
+    socket.off('sdp-offer-received', this.handleRemoteOffer);
+    socket.off('sdp-answer-received', this.handleRemoteAnswer);
+    socket.off('ice-candidate-received', this.handleIceCandidateReceived);
+  }
+
+  public setVideoElements(localVideoElement: HTMLVideoElement | null, remoteVideoElement: HTMLVideoElement | null): void {
+    this.localVideoElement = localVideoElement;
+    this.remoteVideoElement = remoteVideoElement;
+
+    if (this.localVideoElement && this.localStream) {
+      this.localVideoElement.srcObject = this.localStream;
+    }
+
+    if (this.remoteVideoElement && this.remoteStream) {
+      this.remoteVideoElement.srcObject = this.remoteStream;
+    }
+  }
+
+  public async startCall(
+    targetUserId: string,
+    callType: CallType,
+    targetName: string,
+    callerName: string
+  ): Promise<boolean> {
+    const socket = getSocket();
+    if (!socket || !socket.connected) {
+      return false;
+    }
+
+    this.initialize(socket);
+    this.targetUserId = targetUserId;
+    this.currentCallType = callType;
+    this.isCaller = true;
+
+    useCallStore.getState().initiateCall(callType, targetUserId, targetName);
+
+    socket.emit('call-initiate', {
+      targetUserId,
+      callerName,
+      callType,
+    });
+
+    return true;
+  }
+
+  public async acceptIncomingCall(): Promise<void> {
+    if (!this.targetUserId || !this.currentCallType) {
+      return;
+    }
+
+    const socket = getSocket();
+    if (!socket) {
+      return;
+    }
+
+    const ready = await this.prepareLocalMediaAndConnection(this.currentCallType);
+    if (!ready) {
+      useCallStore.getState().rejectCall();
+      return;
+    }
+
+    socket.emit('call-accept', { targetUserId: this.targetUserId });
+    useCallStore.getState().acceptCall();
+  }
+
+  public rejectCall(): void {
+    if (this.targetUserId) {
+      getSocket()?.emit('call-reject', { targetUserId: this.targetUserId });
+    }
+    this.resetCallState();
+  }
+
+  public endCall(): void {
+    if (this.targetUserId) {
+      getSocket()?.emit('call-end', { targetUserId: this.targetUserId });
+    }
+    this.resetCallState();
+  }
+
+  public toggleAudio(mute: boolean): void {
+    if (this.localStream) {
+      this.localStream.getAudioTracks().forEach((track) => {
+        track.enabled = !mute;
       });
-      
+    }
+  }
+
+  public toggleVideo(off: boolean): void {
+    if (this.localStream) {
+      this.localStream.getVideoTracks().forEach((track) => {
+        track.enabled = !off;
+      });
+    }
+  }
+
+  private async getUserMedia(callType: CallType): Promise<boolean> {
+    try {
+      const constraints: MediaStreamConstraints = {
+        audio: true,
+        video: callType === 'video',
+      };
+
+      this.localStream = await navigator.mediaDevices.getUserMedia(constraints);
+
       if (this.localVideoElement) {
         this.localVideoElement.srcObject = this.localStream;
       }
+
       return true;
     } catch (error) {
       console.error('[WebRTC] Error accessing media devices:', error);
@@ -35,28 +188,23 @@ export class WebRTCService {
     }
   }
 
-  public createPeerConnection() {
+  private createPeerConnection(): void {
+    if (this.peerConnection) {
+      return;
+    }
+
     try {
       this.peerConnection = new RTCPeerConnection(WEBRTC_CONFIG);
 
-      // Add local stream tracks to peer connection
-      if (this.localStream) {
-        this.localStream.getTracks().forEach(track => {
-          if (this.localStream && this.peerConnection) {
-            this.peerConnection.addTrack(track, this.localStream);
-          }
-        });
-      }
-
-      // Handle ICE candidates
       this.peerConnection.onicecandidate = (event) => {
-        if (event.candidate) {
-          // In a real app we'd target a specific ID
-          this.socket.emit('ice-candidate', { targetId: '', candidate: event.candidate });
+        if (event.candidate && this.targetUserId) {
+          getSocket()?.emit('ice-candidate', {
+            targetUserId: this.targetUserId,
+            candidate: event.candidate,
+          });
         }
       };
 
-      // Handle receiving tracks
       this.peerConnection.ontrack = (event) => {
         if (!this.remoteStream) {
           this.remoteStream = new MediaStream();
@@ -64,94 +212,197 @@ export class WebRTCService {
             this.remoteVideoElement.srcObject = this.remoteStream;
           }
         }
+
         this.remoteStream.addTrack(event.track);
       };
 
       this.peerConnection.onconnectionstatechange = () => {
         console.log('[WebRTC] Connection state:', this.peerConnection?.connectionState);
       };
-
     } catch (error) {
       console.error('[WebRTC] Error creating peer connection:', error);
+      this.peerConnection = null;
     }
   }
 
-  public async createOffer(targetId: string) {
+  private addLocalTracksToPeerConnection(): void {
+    if (!this.peerConnection || !this.localStream || this.localTracksAdded) {
+      return;
+    }
+
+    this.localStream.getTracks().forEach((track) => {
+      this.peerConnection?.addTrack(track, this.localStream as MediaStream);
+    });
+
+    this.localTracksAdded = true;
+  }
+
+  private async prepareLocalMediaAndConnection(callType: CallType): Promise<boolean> {
+    if (!this.localStream) {
+      const gotMedia = await this.getUserMedia(callType);
+      if (!gotMedia) {
+        return false;
+      }
+    }
+
+    this.createPeerConnection();
+    this.addLocalTracksToPeerConnection();
+    return !!this.peerConnection;
+  }
+
+  private async createOffer(): Promise<void> {
+    if (!this.peerConnection || !this.targetUserId) {
+      return;
+    }
+
     try {
-      if (!this.peerConnection) return;
-      
       const offer = await this.peerConnection.createOffer();
       await this.peerConnection.setLocalDescription(offer);
-      
-      this.socket.emit('sdp-offer', { targetId, sdp: offer, callerId: this.socket.id });
+
+      getSocket()?.emit('sdp-offer', {
+        targetUserId: this.targetUserId,
+        sdp: offer,
+      });
     } catch (error) {
       console.error('[WebRTC] Error creating offer:', error);
     }
   }
 
-  public async createAnswer(offerSdp: any, callerId: string) {
+  private async handleIncomingCall(payload: CallIncomingPayload): Promise<void> {
+    if (!payload?.callerId) {
+      return;
+    }
+
+    if (useCallStore.getState().isInCall) {
+      getSocket()?.emit('call-reject', { targetUserId: payload.callerId });
+      return;
+    }
+
+    this.targetUserId = payload.callerId;
+    this.currentCallType = payload.callType;
+    this.isCaller = false;
+    useCallStore.getState().receiveCall(payload.callerId, payload.callerName, payload.callType);
+  }
+
+  private async handleCallAccepted(payload: CallAcceptedPayload): Promise<void> {
+    if (!this.isCaller || !this.targetUserId || payload.responderId !== this.targetUserId || !this.currentCallType) {
+      return;
+    }
+
+    const ready = await this.prepareLocalMediaAndConnection(this.currentCallType);
+    if (!ready) {
+      this.resetCallState();
+      return;
+    }
+
+    useCallStore.getState().acceptCall();
+    await this.createOffer();
+  }
+
+  private handleCallRejected(_payload: CallRejectedPayload): void {
+    if (!this.isCaller) {
+      return;
+    }
+
+    this.resetCallState();
+  }
+
+  private handleRemoteCallEnded(_payload: CallEndedPayload): void {
+    this.resetCallState();
+  }
+
+  private async handleRemoteOffer(payload: SDPReceivedPayload): Promise<void> {
+    if (!payload?.senderId) {
+      return;
+    }
+
+    this.targetUserId = this.targetUserId || payload.senderId;
+
+    if (!this.currentCallType) {
+      const state = useCallStore.getState();
+      this.currentCallType = state.callType || 'audio';
+    }
+
+    const ready = await this.prepareLocalMediaAndConnection(this.currentCallType);
+    if (!ready || !this.peerConnection) {
+      this.resetCallState();
+      return;
+    }
+
     try {
-      this.createPeerConnection();
-      if (!this.peerConnection) return;
-      
-      await this.peerConnection.setRemoteDescription(new RTCSessionDescription(offerSdp));
+      await this.peerConnection.setRemoteDescription(new RTCSessionDescription(payload.sdp));
       const answer = await this.peerConnection.createAnswer();
       await this.peerConnection.setLocalDescription(answer);
-      
-      this.socket.emit('sdp-answer', { targetId: callerId, sdp: answer, responderId: this.socket.id });
+
+      getSocket()?.emit('sdp-answer', {
+        targetUserId: payload.senderId,
+        sdp: answer,
+      });
+
+      useCallStore.getState().acceptCall();
     } catch (error) {
-      console.error('[WebRTC] Error creating answer:', error);
+      console.error('[WebRTC] Error handling remote offer:', error);
+      this.resetCallState();
     }
   }
 
-  public async handleRemoteAnswer(answerSdp: any) {
+  private async handleRemoteAnswer(payload: SDPReceivedPayload): Promise<void> {
+    if (!this.peerConnection) {
+      return;
+    }
+
     try {
-      if (!this.peerConnection) return;
-      await this.peerConnection.setRemoteDescription(new RTCSessionDescription(answerSdp));
+      await this.peerConnection.setRemoteDescription(new RTCSessionDescription(payload.sdp));
     } catch (error) {
       console.error('[WebRTC] Error handling remote answer:', error);
     }
   }
 
-  public async addIceCandidate(candidate: any) {
+  private async handleIceCandidateReceived(payload: ICECandidateReceivedPayload): Promise<void> {
+    if (!this.peerConnection || !payload?.candidate) {
+      return;
+    }
+
     try {
-      if (!this.peerConnection) return;
-      await this.peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+      await this.peerConnection.addIceCandidate(new RTCIceCandidate(payload.candidate));
     } catch (error) {
-      console.error('[WebRTC] Error adding ICE candidate:', error);
+      console.warn('[WebRTC] Error adding ICE candidate:', error);
     }
   }
 
-  public toggleAudio(mute: boolean) {
-    if (this.localStream) {
-      this.localStream.getAudioTracks().forEach(track => {
-        track.enabled = !mute;
-      });
-    }
+  private resetCallState(): void {
+    useCallStore.getState().endCall();
+    this.stopCall();
+    this.targetUserId = null;
+    this.currentCallType = null;
+    this.isCaller = false;
   }
 
-  public toggleVideo(off: boolean) {
+  private stopCall(): void {
     if (this.localStream) {
-      this.localStream.getVideoTracks().forEach(track => {
-        track.enabled = !off;
-      });
-    }
-  }
-
-  public stopCall() {
-    if (this.localStream) {
-      this.localStream.getTracks().forEach(track => track.stop());
+      this.localStream.getTracks().forEach((track) => track.stop());
       this.localStream = null;
     }
+
     if (this.remoteStream) {
-      this.remoteStream.getTracks().forEach(track => track.stop());
+      this.remoteStream.getTracks().forEach((track) => track.stop());
       this.remoteStream = null;
     }
+
     if (this.peerConnection) {
       this.peerConnection.close();
       this.peerConnection = null;
     }
-    if (this.localVideoElement) this.localVideoElement.srcObject = null;
-    if (this.remoteVideoElement) this.remoteVideoElement.srcObject = null;
+
+    this.localTracksAdded = false;
+
+    if (this.localVideoElement) {
+      this.localVideoElement.srcObject = null;
+    }
+    if (this.remoteVideoElement) {
+      this.remoteVideoElement.srcObject = null;
+    }
   }
 }
+
+export const webrtcService = new WebRTCService();

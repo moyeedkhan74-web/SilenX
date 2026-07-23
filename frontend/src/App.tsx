@@ -12,6 +12,7 @@ import { auth } from './config/firebase';
 import { useAuthStore } from './store/authStore';
 import { normalizeUid } from './config/webrtc-config';
 import { connectSocket } from './services/socket';
+import { webrtcService } from './services/webrtc';
 import { authenticateWithGoogleBackend } from './services/authApi';
 import type { UserStatus } from './types';
 import './App.css';
@@ -85,10 +86,11 @@ function App() {
             },
             idToken
           );
-
+ 
           // Connect socket with the Firebase ID token for server-side verification
           try {
-            connectSocket(idToken);
+            const socket = connectSocket(idToken);
+            webrtcService.initialize(socket);
           } catch (error) {
             console.warn('Socket connection failed:', error);
           }
