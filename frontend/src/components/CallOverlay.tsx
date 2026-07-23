@@ -12,6 +12,7 @@ const CallOverlay: React.FC = () => {
     callType,
     callerName,
     callerAvatarUrl,
+    isCaller,
     isAudioMuted,
     isVideoOff,
     toggleAudio,
@@ -52,6 +53,11 @@ const CallOverlay: React.FC = () => {
     webrtcService.endCall();
   };
 
+  const handleCancelOutgoingCall = () => {
+    console.debug('[CallOverlay] outgoing call canceled');
+    webrtcService.endCall();
+  };
+
   const handleToggleAudio = () => {
     const newMuted = webrtcService.toggleAudio();
     if (newMuted !== isMicrophoneMuted) {
@@ -73,8 +79,10 @@ const CallOverlay: React.FC = () => {
           callerName={callerName}
           callerAvatarUrl={callerAvatarUrl}
           callType={callType}
+          isCaller={isCaller}
           onAccept={handleAccept}
           onReject={handleReject}
+          onCancel={handleCancelOutgoingCall}
         />
       ) : callStatus === 'active' ? (
         <ActiveCallScreen

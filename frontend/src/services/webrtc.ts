@@ -48,6 +48,8 @@ export class WebRTCService {
   private pendingIceCandidates: RTCIceCandidateInit[] = [];
   private remoteDescriptionSet = false;
   private streamListeners = new Set<(local: MediaStream | null, remote: MediaStream | null) => void>();
+  private audioContext: AudioContext | null = null;
+  private ringOscillator: OscillatorNode | null = null;
 
   public initialize(socket: Socket): void {
     if (this.currentSocket === socket) {
@@ -119,6 +121,53 @@ export class WebRTCService {
     return this.remoteStream;
   }
 
+  private async startRingTone(isOutgoing: boolean): Promise<void> {
+    try {
+      const AudioContextCtor = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioContextCtor) {
+        return;
+      }
+
+      if (this.audioContext) {
+        return;
+      }
+
+      const ctx = new AudioContextCtor();
+      const oscillator = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      oscillator.type = 'triangle';
+      oscillator.frequency.value = isOutgoing ? 480 : 420;
+      gain.gain.value = 0.08;
+
+      oscillator.connect(gain);
+      gain.connect(ctx.destination);
+      oscillator.start();
+
+      await ctx.resume();
+
+      this.audioContext = ctx;
+      this.ringOscillator = oscillator;
+    } catch (error) {
+      console.warn('[WebRTC] Ring tone could not be started', error);
+    }
+  }
+
+  private stopRingTone(): void {
+    if (this.ringOscillator) {
+      try {
+        this.ringOscillator.stop();
+      } catch {
+        // ignore
+      }
+    }
+    if (this.audioContext) {
+      this.audioContext.close().catch(() => null);
+    }
+    this.audioContext = null;
+    this.ringOscillator = null;
+  }
+
   public async startCall(
     targetUserId: string,
     callType: CallType,
@@ -137,6 +186,7 @@ export class WebRTCService {
     this.isCaller = true;
 
     useCallStore.getState().initiateCall(callType, targetUserId, targetName);
+    this.startRingTone(true).catch(() => undefined);
 
     socket.emit('call-initiate', {
       targetUserId,
@@ -161,6 +211,7 @@ export class WebRTCService {
     }
 
     console.debug('[WebRTC] acceptIncomingCall sending call-accept to', this.targetUserId);
+    this.stopRingTone();
 
     const ready = await this.prepareLocalMediaAndConnection(this.currentCallType);
     if (!ready) {
@@ -179,6 +230,7 @@ export class WebRTCService {
       console.debug('[WebRTC] rejectCall sending call-reject to', this.targetUserId);
       getSocket()?.emit('call-reject', { targetUserId: this.targetUserId });
     }
+    this.stopRingTone();
     this.resetCallState();
   }
 
@@ -186,6 +238,7 @@ export class WebRTCService {
     if (this.targetUserId) {
       getSocket()?.emit('call-end', { targetUserId: this.targetUserId });
     }
+    this.stopRingTone();
     this.resetCallState();
   }
 
@@ -385,6 +438,7 @@ export class WebRTCService {
     this.currentCallType = payload.callType;
     this.isCaller = false;
     useCallStore.getState().receiveCall(payload.callerId, payload.callerName, payload.callerAvatarUrl || null, payload.callType);
+    this.startRingTone(false).catch(() => undefined);
   };
 
   private handleCallAccepted = async (payload: CallAcceptedPayload): Promise<void> => {
@@ -392,6 +446,7 @@ export class WebRTCService {
       return;
     }
 
+    this.stopRingTone();
     const ready = await this.prepareLocalMediaAndConnection(this.currentCallType);
     if (!ready) {
       this.resetCallState();
@@ -482,6 +537,7 @@ export class WebRTCService {
   };
 
   private resetCallState(): void {
+    this.stopRingTone();
     useCallStore.getState().endCall();
     this.stopCall();
     this.targetUserId = null;

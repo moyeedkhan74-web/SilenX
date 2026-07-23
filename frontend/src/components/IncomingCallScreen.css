@@ -109,7 +109,7 @@
   gap: 8px;
   padding: 8px 16px;
   border-radius: 999px;
-  background: rgba(var(--color-accent-rgb), 0.12);
+  background: rgba(var(--color-accent-rgb), 0.14);
   color: var(--color-accent);
   font-size: 0.9rem;
   font-weight: 700;
@@ -123,12 +123,24 @@
   color: var(--text-primary);
 }
 
-.incoming-call-subtitle {
+.incoming-call-subtitle,
+.incoming-call-note {
   margin: 0;
   color: var(--text-secondary);
   font-size: 1rem;
   opacity: 0.92;
   animation: incomingTextPulse 2.2s ease-in-out infinite;
+}
+
+.incoming-call-note {
+  font-size: 0.95rem;
+  opacity: 0.78;
+}
+
+.incoming-call-note--warn {
+  color: var(--danger-main);
+  opacity: 1;
+  animation: none;
 }
 
 .incoming-call-actions {
@@ -150,6 +162,7 @@
   transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease, color 0.18s ease;
   box-shadow: 0 18px 45px rgba(var(--color-overlay-rgb), 0.14);
   color: white;
+  background: rgba(var(--color-bg-rgb), 0.12);
 }
 
 .incoming-call-action:hover {
@@ -165,6 +178,10 @@
 }
 
 .incoming-call-action--decline {
+  background: linear-gradient(135deg, var(--danger-main), var(--danger-dark));
+}
+
+.incoming-call-action--cancel {
   background: linear-gradient(135deg, var(--danger-main), var(--danger-dark));
 }
 
