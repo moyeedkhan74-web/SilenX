@@ -196,7 +196,7 @@ export default function ActiveCallScreen({
         <div className="ctrl-btn-wrapper">
           <button
             type="button"
-            className={`ctrl-btn ${speakerOn ? 'ctrl-btn--on' : 'ctrl-btn--muted'}`}
+            className={`ctrl-btn ${speakerOn ? 'ctrl-btn--on ctrl-btn--speaker-on' : 'ctrl-btn--muted'}`}
             onClick={toggleSpeaker}
             aria-label={speakerOn ? 'Speaker on' : 'Speaker off'}
             title={speakerOn ? 'Speaker On' : 'Speaker Off'}
@@ -526,6 +526,23 @@ export default function ActiveCallScreen({
 
         .ctrl-btn--on:hover {
           background: rgba(255, 255, 255, 0.22);
+        }
+
+        /* Speaker-on gentle teal halo (radial glow before the icon) */
+        .ctrl-btn--speaker-on::before {
+          content: "";
+          position: absolute;
+          inset: -4px;
+          border-radius: 50%;
+          background: radial-gradient(circle, rgba(var(--color-accent-rgb), 0.25) 0%, transparent 70%);
+          z-index: -1;
+          filter: blur(6px);
+          animation: speakerHalo 2.4s ease-in-out infinite;
+        }
+
+        @keyframes speakerHalo {
+          0%, 100% { opacity: 0.55; transform: scale(1); }
+          50% { opacity: 0.95; transform: scale(1.08); }
         }
 
         .ctrl-btn--muted,
