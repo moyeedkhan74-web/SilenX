@@ -3,6 +3,8 @@ import { Mic, MicOff, Video, VideoOff, Volume2, VolumeX, PhoneOff, Maximize2, Mi
 import { Avatar } from './Avatar';
 import { webrtcService } from '../services/webrtc';
 
+import './ActiveCallScreen.css';
+
 interface ActiveCallScreenProps {
   callerName: string;
   callerAvatarUrl?: string;
@@ -64,7 +66,7 @@ export default function ActiveCallScreen({
   useEffect(() => {
     if (remoteVideoRef.current && remoteStream) {
       remoteVideoRef.current.srcObject = remoteStream;
-      remoteVideoRef.current.volume = speakerOn ? 1 : 0.6;
+      remoteVideoRef.current.volume = speakerOn ? 1 : 0;
       remoteVideoRef.current
         .play()
         .catch((error) => console.warn('[ActiveCallScreen] remote video autoplay blocked', error));
@@ -77,7 +79,7 @@ export default function ActiveCallScreen({
 
     console.debug('[ActiveCallScreen] Binding remoteStream to audio element. Audio tracks:', remoteStream.getAudioTracks().length);
     remoteAudioRef.current.srcObject = remoteStream;
-    remoteAudioRef.current.volume = speakerOn ? 1.0 : 0.4;
+    remoteAudioRef.current.volume = speakerOn ? 1.0 : 0;
 
     remoteAudioRef.current
       .play()
@@ -104,10 +106,10 @@ export default function ActiveCallScreen({
     setSpeakerOn(nextSpeakerOn);
 
     if (remoteAudioRef.current) {
-      remoteAudioRef.current.volume = nextSpeakerOn ? 1.0 : 0.4;
+      remoteAudioRef.current.volume = nextSpeakerOn ? 1.0 : 0;
     }
     if (remoteVideoRef.current) {
-      remoteVideoRef.current.volume = nextSpeakerOn ? 1.0 : 0.4;
+      remoteVideoRef.current.volume = nextSpeakerOn ? 1.0 : 0;
     }
   };
 
@@ -203,7 +205,7 @@ export default function ActiveCallScreen({
           >
             {speakerOn ? <Volume2 size={22} /> : <VolumeX size={22} />}
           </button>
-          <span className="ctrl-btn-label">{speakerOn ? 'Speaker' : 'Muted'}</span>
+          <span className="ctrl-btn-label">{speakerOn ? 'Speaker' : 'Off'}</span>
         </div>
 
         {/* Camera Toggle Button (Video Calls Only) */}
@@ -265,403 +267,6 @@ export default function ActiveCallScreen({
           <span className="ctrl-btn-label ctrl-btn-label--end">End</span>
         </div>
       </div>
-
-      <style>{`
-        .active-call {
-          position: relative;
-          width: 100%;
-          height: 100vh;
-          min-height: 100vh;
-          overflow: hidden;
-          background: #090d16;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: space-between;
-          padding: 32px 20px 40px;
-          user-select: none;
-        }
-
-        .active-call--fullscreen {
-          position: fixed;
-          inset: 0;
-          z-index: 9999;
-        }
-
-        .active-call__backdrop {
-          position: absolute;
-          inset: 0;
-          background: radial-gradient(circle at 50% 30%, rgba(var(--color-accent-rgb), 0.22) 0%, transparent 65%),
-            linear-gradient(180deg, rgba(13, 17, 26, 0.95) 0%, #080c14 100%);
-          pointer-events: none;
-          /* Slow ambient shimmer — "live" feel without new colors */
-          animation: backdropShimmer 6s ease-in-out infinite;
-        }
-
-        @keyframes backdropShimmer {
-          0%, 100% {
-            background-position: 50% 30%;
-            opacity: 1;
-          }
-          50% {
-            background-position: 52% 36%;
-            opacity: 0.92;
-          }
-        }
-
-        .active-call__remote-video {
-          position: absolute;
-          inset: 0;
-          width: 100%;
-          height: 100%;
-          object-fit: cover;
-          z-index: 0;
-        }
-
-        .active-call__center {
-          position: relative;
-          z-index: 1;
-          flex: 1;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        }
-
-        .active-call__avatar-pulse {
-          position: relative;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        }
-
-        .active-call__avatar-pulse::before {
-          content: '';
-          position: absolute;
-          width: 170px;
-          height: 170px;
-          border-radius: 50%;
-          background: rgba(var(--color-accent-rgb), 0.2);
-          animation: avatarGlowPulse 2.8s ease-in-out infinite;
-        }
-
-        .active-call__pip-wrapper {
-          position: absolute;
-          z-index: 10;
-          top: 24px;
-          right: 24px;
-          box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6);
-        }
-
-        .active-call__local-pip {
-          width: 120px;
-          height: 165px;
-          border-radius: 20px;
-          object-fit: cover;
-          border: 2px solid rgba(var(--color-accent-rgb), 0.25);
-          background: #111827;
-          transform: scaleX(-1);
-          transition: all 0.3s ease;
-          /* Subtle accent halo so self-view reads as "you" */
-          box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(var(--color-accent-rgb), 0.15);
-        }
-
-        .active-call__local-pip--off {
-          transform: none;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          gap: 8px;
-          color: rgba(255, 255, 255, 0.7);
-          font-size: 0.75rem;
-          font-weight: 500;
-          background: rgba(17, 24, 39, 0.9);
-          backdrop-filter: blur(12px);
-        }
-
-        .pip-off-icon {
-          color: #ef4444;
-        }
-
-        /* Top Header */
-        .active-call__top {
-          position: relative;
-          z-index: 2;
-          text-align: center;
-          margin-top: 12px;
-        }
-
-        .active-call__name {
-          margin: 0 0 6px;
-          font-size: 1.5rem;
-          font-weight: 700;
-          color: #ffffff;
-          letter-spacing: -0.01em;
-          text-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
-        }
-
-        .active-call__meta {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 10px;
-          font-size: 0.88rem;
-          color: rgba(255, 255, 255, 0.8);
-          background: rgba(0, 0, 0, 0.35);
-          padding: 6px 16px;
-          border-radius: 999px;
-          backdrop-filter: blur(16px);
-          border: 1px solid rgba(255, 255, 255, 0.08);
-        }
-
-        .active-call__e2ee {
-          color: #34d399;
-          font-weight: 500;
-        }
-
-        .active-call__dot {
-          width: 4px;
-          height: 4px;
-          border-radius: 50%;
-          background: rgba(255, 255, 255, 0.5);
-        }
-
-        .active-call__timer {
-          font-variant-numeric: tabular-nums;
-          font-weight: 600;
-          color: #ffffff;
-          /* Subtle accent-tinted glow so the timer reads as the "live" element */
-          text-shadow: 0 0 10px rgba(var(--color-accent-rgb), 0.4);
-          animation: timerGlowConnect 1.2s ease-out 1;
-        }
-
-        @keyframes timerGlowConnect {
-          0% {
-            text-shadow: 0 0 0 rgba(var(--color-accent-rgb), 0);
-          }
-          50% {
-            text-shadow: 0 0 20px rgba(var(--color-accent-rgb), 0.7);
-          }
-          100% {
-            text-shadow: 0 0 10px rgba(var(--color-accent-rgb), 0.4);
-          }
-        }
-
-        /* Bottom Controls Bar */
-        .active-call__controls {
-          position: relative;
-          z-index: 2;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 20px;
-          background: rgba(18, 24, 38, 0.82);
-          border: 1px solid rgba(255, 255, 255, 0.12);
-          padding: 16px 28px;
-          border-radius: 999px;
-          backdrop-filter: blur(24px);
-          -webkit-backdrop-filter: blur(24px);
-          box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
-        }
-
-        .ctrl-btn-wrapper {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 6px;
-        }
-
-        .ctrl-btn {
-          width: 52px;
-          height: 52px;
-          border-radius: 50%;
-          border: none;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          cursor: pointer;
-          color: #ffffff;
-          transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
-          position: relative;
-          overflow: hidden;
-        }
-
-        .ctrl-btn:focus-visible {
-          outline: none;
-          box-shadow: 0 0 0 3px rgba(var(--color-accent-rgb), 0.5);
-        }
-
-        .ctrl-btn:hover {
-          transform: scale(1.08);
-        }
-
-        .ctrl-btn:active {
-          transform: scale(0.92);
-        }
-
-        /* Quick ripple pulse on click — uses adjacent rgba from ::after inheriting bg */
-        .ctrl-btn::after {
-          content: "";
-          position: absolute;
-          inset: 0;
-          border-radius: 50%;
-          background: inherit;
-          opacity: 0;
-          transform: scale(0.5);
-          pointer-events: none;
-          transition: transform 0.45s ease, opacity 0.45s ease;
-        }
-
-        .ctrl-btn:active::after {
-          transform: scale(1.6);
-          opacity: 0;
-        }
-
-        .ctrl-btn--on {
-          background: rgba(255, 255, 255, 0.14);
-          color: #ffffff;
-          /* Subtle teal inner ring — blends with existing accent-tokenized scheme */
-          box-shadow: inset 0 0 0 1px rgba(var(--color-accent-rgb), 0.35);
-        }
-
-        .ctrl-btn--on:hover {
-          background: rgba(255, 255, 255, 0.22);
-        }
-
-        /* Speaker-on gentle teal halo (radial glow before the icon) */
-        .ctrl-btn--speaker-on::before {
-          content: "";
-          position: absolute;
-          inset: -4px;
-          border-radius: 50%;
-          background: radial-gradient(circle, rgba(var(--color-accent-rgb), 0.25) 0%, transparent 70%);
-          z-index: -1;
-          filter: blur(6px);
-          animation: speakerHalo 2.4s ease-in-out infinite;
-        }
-
-        @keyframes speakerHalo {
-          0%, 100% { opacity: 0.55; transform: scale(1); }
-          50% { opacity: 0.95; transform: scale(1.08); }
-        }
-
-        .ctrl-btn--muted,
-        .ctrl-btn--camera-off {
-          background: #ef4444;
-          color: #ffffff;
-          box-shadow: 0 6px 18px rgba(239, 68, 68, 0.45);
-          /* Slow danger pulsing glow so the user notices mute/cam-off state */
-          animation: dangerPulse 2.4s ease-in-out infinite;
-        }
-
-        @keyframes dangerPulse {
-          0%, 100% {
-            box-shadow: 0 6px 18px rgba(239, 68, 68, 0.45);
-          }
-          50% {
-            box-shadow: 0 6px 26px rgba(239, 68, 68, 0.75), 0 0 0 4px rgba(239, 68, 68, 0.1);
-          }
-        }
-
-        .ctrl-btn--end {
-          background: linear-gradient(135deg, #ef4444, #dc2626);
-          width: 58px;
-          height: 58px;
-          box-shadow: 0 8px 24px rgba(239, 68, 68, 0.5);
-          /* Slow heartbeat — communicates urgency without color change */
-          animation: endCallHeartbeat 1.8s ease-in-out infinite;
-        }
-
-        @keyframes endCallHeartbeat {
-          0%, 100% {
-            box-shadow: 0 8px 24px rgba(239, 68, 68, 0.5);
-            transform: scale(1);
-          }
-          30% {
-            box-shadow: 0 12px 32px rgba(239, 68, 68, 0.7);
-            transform: scale(1.04);
-          }
-          50% {
-            box-shadow: 0 8px 24px rgba(239, 68, 68, 0.5);
-            transform: scale(1);
-          }
-          80% {
-            box-shadow: 0 10px 28px rgba(239, 68, 68, 0.6);
-            transform: scale(1.02);
-          }
-        }
-
-        .ctrl-btn--end:hover {
-          animation-play-state: paused;
-          box-shadow: 0 12px 30px rgba(239, 68, 68, 0.7);
-        }
-
-        /* Flip-cam icon spin — clicks reveal the action instantly */
-        .ctrl-btn--flip .flip-cam-icon {
-          transition: transform 0.5s cubic-bezier(0.4, 0.0, 0.2, 1);
-        }
-
-        .ctrl-btn--flip:active .flip-cam-icon {
-          transform: rotate(180deg);
-        }
-
-        .ctrl-btn-label {
-          font-size: 0.72rem;
-          font-weight: 500;
-          color: rgba(255, 255, 255, 0.75);
-        }
-
-        .ctrl-btn-label--end {
-          color: #f87171;
-          font-weight: 600;
-        }
-
-        .active-call__audio-fallback {
-          position: absolute;
-          bottom: 120px;
-          z-index: 10;
-        }
-
-        .audio-fallback-button {
-          color: #ffffff;
-          background: rgba(239, 68, 68, 0.85);
-          border: 1px solid rgba(255, 255, 255, 0.3);
-          border-radius: 999px;
-          padding: 10px 20px;
-          font-size: 0.9rem;
-          font-weight: 600;
-          cursor: pointer;
-          backdrop-filter: blur(12px);
-          box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
-        }
-
-        @keyframes avatarGlowPulse {
-          0%, 100% { transform: scale(1); opacity: 0.5; }
-          50% { transform: scale(1.15); opacity: 0.9; }
-        }
-
-        @media (max-width: 480px) {
-          .active-call {
-            padding: 24px 12px 28px;
-          }
-          .active-call__controls {
-            gap: 12px;
-            padding: 12px 18px;
-          }
-          .ctrl-btn {
-            width: 46px;
-            height: 46px;
-          }
-          .ctrl-btn--end {
-            width: 52px;
-            height: 52px;
-          }
-          .active-call__local-pip {
-            width: 95px;
-            height: 135px;
-          }
-        }
-      `}</style>
     </div>
   );
 }

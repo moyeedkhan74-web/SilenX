@@ -2,7 +2,7 @@ export type UserStatus = 'online' | 'away' | 'offline';
 export type ConversationType = 'direct' | 'group';
 export type ContentType = 'text' | 'system' | 'image' | 'video' | 'file' | 'location' | 'contact' | 'poll' | 'event' | 'voice-note';
 export type CallType = 'audio' | 'video';
-export type CallStatus = 'pending' | 'accepted' | 'rejected' | 'missed' | 'ended';
+export type CallStatus = 'pending' | 'accepted' | 'active' | 'rejected' | 'missed' | 'ended';
 
 export interface User {
   id: string;

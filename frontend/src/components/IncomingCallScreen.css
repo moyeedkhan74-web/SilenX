@@ -1,7 +1,6 @@
 .incoming-call-screen {
   position: fixed;
   inset: 0;
-  z-index: 2100;
   display: flex;
   align-items: center;
   justify-content: center;

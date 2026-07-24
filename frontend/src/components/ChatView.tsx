@@ -299,14 +299,11 @@ const ChatView: React.FC = () => {
     setMenuOpen(false);
   };
 
-  const handleAudioCall = () => {
+  const handleAudioCall = async () => {
     if (!activeConversationId || !otherUser?.id || !currentUser?.displayName) return;
-    if (activeConvo?.type !== 'direct') {
-      window.alert('Audio calls are available only for direct conversations.');
-      return;
-    }
+    if (activeConvo?.type !== 'direct') return;
 
-    const started = webrtcService.startCall(
+    const started = await webrtcService.startCall(
       otherUser.id,
       'audio',
       otherUser.displayName,
@@ -319,14 +316,11 @@ const ChatView: React.FC = () => {
     }
   };
 
-  const handleVideoCall = () => {
+  const handleVideoCall = async () => {
     if (!activeConversationId || !otherUser?.id || !currentUser?.displayName) return;
-    if (activeConvo?.type !== 'direct') {
-      window.alert('Video calls are available only for direct conversations.');
-      return;
-    }
+    if (activeConvo?.type !== 'direct') return;
 
-    const started = webrtcService.startCall(
+    const started = await webrtcService.startCall(
       otherUser.id,
       'video',
       otherUser.displayName,
@@ -609,12 +603,16 @@ const ChatView: React.FC = () => {
           </div>
         </div>
         <div className="chatview-header-actions">
-          <button className="icon-btn" title="Start audio call" type="button" onClick={handleAudioCall}>
-            <Phone size={18} />
-          </button>
-          <button className="icon-btn" title="Start video call" type="button" onClick={handleVideoCall}>
-            <Video size={18} />
-          </button>
+          {activeConvo.type === 'direct' && (
+            <>
+              <button className="icon-btn" title="Start audio call" type="button" onClick={handleAudioCall}>
+                <Phone size={18} />
+              </button>
+              <button className="icon-btn" title="Start video call" type="button" onClick={handleVideoCall}>
+                <Video size={18} />
+              </button>
+            </>
+          )}
           <div className="menu-wrapper" ref={headerMenuRef}>
             <button className="icon-btn" title="More options" onClick={() => setMenuOpen((open) => !open)} type="button">
               <MoreVertical size={18} />

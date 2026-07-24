@@ -37,15 +37,14 @@ const CallOverlay: React.FC = () => {
 
   const handleAccept = async () => {
     console.debug('[CallOverlay] accept button clicked');
-    const accepted = await webrtcService.acceptIncomingCall();
-    if (accepted) {
-      useCallStore.getState().acceptCall();
-    }
+    await webrtcService.acceptIncomingCall();
+    // Note: acceptCall() on the store is called by webrtc.ts handleRemoteOffer()
+    // after the SDP exchange completes — do NOT call it here prematurely.
   };
 
   const handleReject = () => {
     console.debug('[CallOverlay] reject button clicked');
-    useCallStore.getState().declineCall();
+    // webrtcService.rejectCall() already calls resetCallState() → endCall()
     webrtcService.rejectCall();
   };
 

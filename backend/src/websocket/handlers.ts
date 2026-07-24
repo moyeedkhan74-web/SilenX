@@ -423,6 +423,16 @@ export function registerSocketHandlers(io: Server): void {
 
       // Send back the logId to the caller so they can reference it on end
       socket.emit('call-log-id', { callLogId: logId });
+
+      // Auto-expire unanswered call log after 60s
+      setTimeout(() => {
+        const pendingLog = callLogs.find((l) => l.id === logId);
+        if (pendingLog && pendingLog.status === 'pending') {
+          pendingLog.status = 'missed';
+          pendingLog.endedAt = new Date();
+          saveDb();
+        }
+      }, 60_000);
     });
 
     socket.on('call-accept', (data: CallRespondPayload & { callLogId?: string }) => {
@@ -447,7 +457,7 @@ export function registerSocketHandlers(io: Server): void {
 
       socket.to(recipientSocketId).emit('call-accepted', {
         responderId: userId,
-        responderName: connectedUser?.displayName || 'Unknown',
+        responderName: users.find(u => u.id === userId)?.displayName || 'Unknown',
         callLogId: log?.id || data.callLogId,
       });
     });

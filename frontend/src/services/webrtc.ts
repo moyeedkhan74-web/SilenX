@@ -9,11 +9,13 @@ interface CallIncomingPayload {
   callerName: string;
   callerAvatarUrl?: string;
   callType: CallType;
+  callLogId?: string;
 }
 
 interface CallAcceptedPayload {
   responderId: string;
   responderName: string;
+  callLogId?: string;
 }
 
 interface CallRejectedPayload {
@@ -49,9 +51,10 @@ export class WebRTCService {
   private remoteDescriptionSet = false;
   private streamListeners = new Set<(local: MediaStream | null, remote: MediaStream | null) => void>();
   private audioContext: AudioContext | null = null;
-  private ringOscillator: OscillatorNode | null = null;
   private callLogId: string | null = null;
   private callStartTimestamp: number | null = null;
+  private callTimeoutTimer: ReturnType<typeof setTimeout> | null = null;
+  private static CALL_TIMEOUT_MS = 45_000;
 
   public initialize(socket: Socket): void {
     if (this.currentSocket === socket) {
@@ -185,10 +188,6 @@ export class WebRTCService {
       this.ringInterval = null;
     }
 
-    if (this.ringOscillator) {
-      try { this.ringOscillator.stop(); } catch {}
-    }
-
     if (this.audioContext) {
       try {
         this.audioContext.close().catch(() => null);
@@ -196,7 +195,6 @@ export class WebRTCService {
     }
 
     this.audioContext = null;
-    this.ringOscillator = null;
   }
 
   public async switchCamera(): Promise<boolean> {
@@ -265,6 +263,15 @@ export class WebRTCService {
       callerAvatarUrl,
       callType,
     });
+
+    // Auto-cancel if no answer within timeout
+    this.clearCallTimeout();
+    this.callTimeoutTimer = setTimeout(() => {
+      if (useCallStore.getState().callStatus === 'pending' && this.isCaller) {
+        console.warn('[WebRTC] Call timed out — no answer received');
+        this.endCall();
+      }
+    }, WebRTCService.CALL_TIMEOUT_MS);
 
     return true;
   }
@@ -531,7 +538,7 @@ export class WebRTCService {
     this.targetUserId = payload.callerId;
     this.currentCallType = payload.callType;
     this.isCaller = false;
-    this.callLogId = (payload as any).callLogId || null;
+    this.callLogId = payload.callLogId || null;
     useCallStore.getState().receiveCall(
       payload.callerId,
       payload.callerName,
@@ -548,6 +555,7 @@ export class WebRTCService {
     }
 
     this.stopRingTone();
+    this.clearCallTimeout();
     const ready = await this.prepareLocalMediaAndConnection(this.currentCallType);
     if (!ready) {
       this.resetCallState();
@@ -555,8 +563,8 @@ export class WebRTCService {
     }
 
     // Capture callLogId from the accepted payload (if present)
-    if ((payload as any).callLogId && !this.callLogId) {
-      this.callLogId = (payload as any).callLogId;
+    if (payload.callLogId && !this.callLogId) {
+      this.callLogId = payload.callLogId;
       useCallStore.getState().setCallLogId(this.callLogId!);
     }
 
@@ -644,8 +652,16 @@ export class WebRTCService {
     }
   };
 
+  private clearCallTimeout(): void {
+    if (this.callTimeoutTimer) {
+      clearTimeout(this.callTimeoutTimer);
+      this.callTimeoutTimer = null;
+    }
+  }
+
   private resetCallState(): void {
     this.stopRingTone();
+    this.clearCallTimeout();
     useCallStore.getState().endCall();
     this.stopCall();
     this.targetUserId = null;

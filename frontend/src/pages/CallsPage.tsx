@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { Phone, PhoneIncoming, PhoneMissed, PhoneOutgoing, Video, RefreshCw } from 'lucide-react';
 import { Avatar } from '../components/Avatar';
 import { useAuthStore } from '../store/authStore';
+import { webrtcService } from '../services/webrtc';
 import { API_URL } from '../config/webrtc-config';
 
 interface CallLogEntry {
@@ -37,9 +38,21 @@ function formatTime(iso: string): string {
 
 const CallsPage: React.FC = () => {
   const token = useAuthStore((s) => s.token);
+  const currentUser = useAuthStore((s) => s.user);
   const [logs, setLogs] = useState<CallLogEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const handleCallBack = async (targetUser: { id: string; displayName: string }, callType: 'audio' | 'video') => {
+    if (!currentUser?.displayName) return;
+    await webrtcService.startCall(
+      targetUser.id,
+      callType,
+      targetUser.displayName,
+      currentUser.displayName,
+      currentUser.avatarUrl || undefined
+    );
+  };
 
   const fetchLogs = useCallback(async () => {
     if (!token) return;
@@ -73,6 +86,8 @@ const CallsPage: React.FC = () => {
     if (log.status === 'missed') return 'Missed';
     if (log.status === 'rejected') return log.direction === 'outgoing' ? 'Declined' : 'Rejected';
     if (log.status === 'ended') return log.direction === 'incoming' ? 'Incoming' : 'Outgoing';
+    if (log.status === 'accepted') return 'In Progress';
+    if (log.status === 'pending') return 'Not Answered';
     return log.direction === 'incoming' ? 'Incoming' : 'Outgoing';
   };
 
@@ -307,6 +322,7 @@ const CallsPage: React.FC = () => {
             <div
               key={log.id}
               className={`call-log-item ${log.status === 'missed' ? 'call-log-item--missed' : ''}`}
+              onClick={() => handleCallBack(log.otherUser, log.callType)}
             >
               <div className="call-log-avatar">
                 <Avatar
@@ -338,7 +354,31 @@ const CallsPage: React.FC = () => {
                 </div>
               </div>
 
-              <div className="call-log-time">{formatTime(log.startedAt)}</div>
+              <div className="call-log-time" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <span>{formatTime(log.startedAt)}</span>
+                <button
+                  type="button"
+                  title={`Call ${log.otherUser.displayName}`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleCallBack(log.otherUser, log.callType);
+                  }}
+                  style={{
+                    background: 'var(--bg-secondary)',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: '50%',
+                    width: 32,
+                    height: 32,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: 'var(--color-primary)',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {log.callType === 'video' ? <Video size={14} /> : <Phone size={14} />}
+                </button>
+              </div>
             </div>
           ))}
         </div>
