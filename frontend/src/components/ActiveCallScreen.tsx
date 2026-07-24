@@ -225,12 +225,12 @@ export default function ActiveCallScreen({
             <div className="ctrl-btn-wrapper">
               <button
                 type="button"
-                className="ctrl-btn ctrl-btn--on"
+                className="ctrl-btn ctrl-btn--on ctrl-btn--flip"
                 onClick={() => webrtcService.switchCamera()}
                 aria-label="Flip camera angle"
                 title="Flip Camera Angle (Front/Back)"
               >
-                <RefreshCw size={20} />
+                <RefreshCw size={20} className="flip-cam-icon" />
               </button>
               <span className="ctrl-btn-label">Flip Cam</span>
             </div>
@@ -294,6 +294,19 @@ export default function ActiveCallScreen({
           background: radial-gradient(circle at 50% 30%, rgba(var(--color-accent-rgb), 0.22) 0%, transparent 65%),
             linear-gradient(180deg, rgba(13, 17, 26, 0.95) 0%, #080c14 100%);
           pointer-events: none;
+          /* Slow ambient shimmer — "live" feel without new colors */
+          animation: backdropShimmer 6s ease-in-out infinite;
+        }
+
+        @keyframes backdropShimmer {
+          0%, 100% {
+            background-position: 50% 30%;
+            opacity: 1;
+          }
+          50% {
+            background-position: 52% 36%;
+            opacity: 0.92;
+          }
         }
 
         .active-call__remote-video {
@@ -344,10 +357,12 @@ export default function ActiveCallScreen({
           height: 165px;
           border-radius: 20px;
           object-fit: cover;
-          border: 2px solid rgba(255, 255, 255, 0.2);
+          border: 2px solid rgba(var(--color-accent-rgb), 0.25);
           background: #111827;
           transform: scaleX(-1);
           transition: all 0.3s ease;
+          /* Subtle accent halo so self-view reads as "you" */
+          box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(var(--color-accent-rgb), 0.15);
         }
 
         .active-call__local-pip--off {
@@ -415,6 +430,21 @@ export default function ActiveCallScreen({
           font-variant-numeric: tabular-nums;
           font-weight: 600;
           color: #ffffff;
+          /* Subtle accent-tinted glow so the timer reads as the "live" element */
+          text-shadow: 0 0 10px rgba(var(--color-accent-rgb), 0.4);
+          animation: timerGlowConnect 1.2s ease-out 1;
+        }
+
+        @keyframes timerGlowConnect {
+          0% {
+            text-shadow: 0 0 0 rgba(var(--color-accent-rgb), 0);
+          }
+          50% {
+            text-shadow: 0 0 20px rgba(var(--color-accent-rgb), 0.7);
+          }
+          100% {
+            text-shadow: 0 0 10px rgba(var(--color-accent-rgb), 0.4);
+          }
         }
 
         /* Bottom Controls Bar */
@@ -452,6 +482,13 @@ export default function ActiveCallScreen({
           cursor: pointer;
           color: #ffffff;
           transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+          position: relative;
+          overflow: hidden;
+        }
+
+        .ctrl-btn:focus-visible {
+          outline: none;
+          box-shadow: 0 0 0 3px rgba(var(--color-accent-rgb), 0.5);
         }
 
         .ctrl-btn:hover {
@@ -462,9 +499,29 @@ export default function ActiveCallScreen({
           transform: scale(0.92);
         }
 
+        /* Quick ripple pulse on click — uses adjacent rgba from ::after inheriting bg */
+        .ctrl-btn::after {
+          content: "";
+          position: absolute;
+          inset: 0;
+          border-radius: 50%;
+          background: inherit;
+          opacity: 0;
+          transform: scale(0.5);
+          pointer-events: none;
+          transition: transform 0.45s ease, opacity 0.45s ease;
+        }
+
+        .ctrl-btn:active::after {
+          transform: scale(1.6);
+          opacity: 0;
+        }
+
         .ctrl-btn--on {
           background: rgba(255, 255, 255, 0.14);
           color: #ffffff;
+          /* Subtle teal inner ring — blends with existing accent-tokenized scheme */
+          box-shadow: inset 0 0 0 1px rgba(var(--color-accent-rgb), 0.35);
         }
 
         .ctrl-btn--on:hover {
@@ -476,6 +533,17 @@ export default function ActiveCallScreen({
           background: #ef4444;
           color: #ffffff;
           box-shadow: 0 6px 18px rgba(239, 68, 68, 0.45);
+          /* Slow danger pulsing glow so the user notices mute/cam-off state */
+          animation: dangerPulse 2.4s ease-in-out infinite;
+        }
+
+        @keyframes dangerPulse {
+          0%, 100% {
+            box-shadow: 0 6px 18px rgba(239, 68, 68, 0.45);
+          }
+          50% {
+            box-shadow: 0 6px 26px rgba(239, 68, 68, 0.75), 0 0 0 4px rgba(239, 68, 68, 0.1);
+          }
         }
 
         .ctrl-btn--end {
@@ -483,10 +551,41 @@ export default function ActiveCallScreen({
           width: 58px;
           height: 58px;
           box-shadow: 0 8px 24px rgba(239, 68, 68, 0.5);
+          /* Slow heartbeat — communicates urgency without color change */
+          animation: endCallHeartbeat 1.8s ease-in-out infinite;
+        }
+
+        @keyframes endCallHeartbeat {
+          0%, 100% {
+            box-shadow: 0 8px 24px rgba(239, 68, 68, 0.5);
+            transform: scale(1);
+          }
+          30% {
+            box-shadow: 0 12px 32px rgba(239, 68, 68, 0.7);
+            transform: scale(1.04);
+          }
+          50% {
+            box-shadow: 0 8px 24px rgba(239, 68, 68, 0.5);
+            transform: scale(1);
+          }
+          80% {
+            box-shadow: 0 10px 28px rgba(239, 68, 68, 0.6);
+            transform: scale(1.02);
+          }
         }
 
         .ctrl-btn--end:hover {
+          animation-play-state: paused;
           box-shadow: 0 12px 30px rgba(239, 68, 68, 0.7);
+        }
+
+        /* Flip-cam icon spin — clicks reveal the action instantly */
+        .ctrl-btn--flip .flip-cam-icon {
+          transition: transform 0.5s cubic-bezier(0.4, 0.0, 0.2, 1);
+        }
+
+        .ctrl-btn--flip:active .flip-cam-icon {
+          transform: rotate(180deg);
         }
 
         .ctrl-btn-label {
