@@ -634,14 +634,14 @@ export class WebRTCService {
   };
 
   private handleIceCandidateReceived = async (payload: ICECandidateReceivedPayload): Promise<void> => {
-    if (!this.peerConnection || !payload?.candidate) {
+    if (!payload?.candidate) {
       return;
     }
- 
+
     console.debug('[WebRTC] received ICE candidate from', payload.senderId, payload.candidate);
     try {
-      if (!this.remoteDescriptionSet) {
-        console.debug('[WebRTC] buffering ICE candidate until remote description is set');
+      if (!this.peerConnection || !this.remoteDescriptionSet) {
+        console.debug('[WebRTC] buffering ICE candidate until peerConnection & remote description are set');
         this.pendingIceCandidates.push(payload.candidate);
         return;
       }

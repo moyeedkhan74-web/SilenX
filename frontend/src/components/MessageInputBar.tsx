@@ -225,7 +225,7 @@ export function MessageInputBar({ onSend, onSendRichMessage, replyTo, onCancelRe
 
   const handleSelectGif = (gif: GiphyGifResult) => {
     onSendRichMessage?.({
-      text: `🖼️ ${gif.title}`,
+      text: '',
       contentType: 'image',
       mediaUrl: gif.url,
       fileName: `${gif.title}.gif`,
