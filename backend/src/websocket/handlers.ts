@@ -430,19 +430,25 @@ export function registerSocketHandlers(io: Server): void {
       const recipientSocketId = getSocketIdForUser(data.targetUserId);
       if (!recipientSocketId) return;
 
-      if (data.callLogId) {
-        const log = callLogs.find((l) => l.id === data.callLogId);
-        if (log) {
-          log.status = 'accepted';
-          log.startedAt = new Date();
-          saveDb();
-        }
+      const log = data.callLogId
+        ? callLogs.find((l) => l.id === data.callLogId)
+        : callLogs.find(
+            (l) =>
+              l.status === 'pending' &&
+              l.participants.includes(userId) &&
+              l.participants.includes(data.targetUserId)
+          );
+
+      if (log) {
+        log.status = 'accepted';
+        log.startedAt = new Date();
+        saveDb();
       }
 
       socket.to(recipientSocketId).emit('call-accepted', {
         responderId: userId,
         responderName: connectedUser?.displayName || 'Unknown',
-        callLogId: data.callLogId,
+        callLogId: log?.id || data.callLogId,
       });
     });
 
@@ -450,14 +456,22 @@ export function registerSocketHandlers(io: Server): void {
       console.debug('[Socket] call-reject from', userId, 'to', data.targetUserId);
       const recipientSocketId = getSocketIdForUser(data.targetUserId);
 
-      if (data.callLogId) {
-        const log = callLogs.find((l) => l.id === data.callLogId);
-        if (log) {
-          log.status = log.initiatorId === userId ? 'rejected' : 'missed';
-          log.endedAt = new Date();
-          log.durationSeconds = 0;
-          saveDb();
-        }
+      const log = data.callLogId
+        ? callLogs.find((l) => l.id === data.callLogId)
+        : callLogs.find(
+            (l) =>
+              l.status === 'pending' &&
+              l.participants.includes(userId) &&
+              l.participants.includes(data.targetUserId)
+          );
+
+      if (log) {
+        // If the caller cancels their own call → 'missed'
+        // If the receiver declines → 'rejected'
+        log.status = log.initiatorId === userId ? 'missed' : 'rejected';
+        log.endedAt = new Date();
+        log.durationSeconds = 0;
+        saveDb();
       }
 
       if (recipientSocketId) {
@@ -468,18 +482,24 @@ export function registerSocketHandlers(io: Server): void {
     socket.on('call-end', (data: { targetUserId: string; callLogId?: string; durationSeconds?: number }) => {
       const recipientSocketId = getSocketIdForUser(data.targetUserId);
 
-      if (data.callLogId) {
-        const log = callLogs.find((l) => l.id === data.callLogId);
-        if (log) {
-          log.status = 'ended';
-          log.endedAt = new Date();
-          if (data.durationSeconds !== undefined) {
-            log.durationSeconds = data.durationSeconds;
-          } else if (log.startedAt) {
-            log.durationSeconds = Math.floor((Date.now() - new Date(log.startedAt).getTime()) / 1000);
-          }
-          saveDb();
+      const log = data.callLogId
+        ? callLogs.find((l) => l.id === data.callLogId)
+        : callLogs.find(
+            (l) =>
+              (l.status === 'pending' || l.status === 'accepted') &&
+              l.participants.includes(userId) &&
+              l.participants.includes(data.targetUserId)
+          );
+
+      if (log) {
+        log.status = 'ended';
+        log.endedAt = new Date();
+        if (data.durationSeconds !== undefined) {
+          log.durationSeconds = data.durationSeconds;
+        } else if (log.startedAt) {
+          log.durationSeconds = Math.floor((Date.now() - new Date(log.startedAt).getTime()) / 1000);
         }
+        saveDb();
       }
 
       if (recipientSocketId) {

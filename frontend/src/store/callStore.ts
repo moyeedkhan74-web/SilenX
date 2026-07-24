@@ -8,12 +8,14 @@ interface CallState {
   callerId: string | null;
   callerName: string | null;
   callerAvatarUrl: string | null;
+  callLogId: string | null;
   isCaller: boolean;
   duration: number;
   isAudioMuted: boolean;
   isVideoOff: boolean;
+  setCallLogId: (id: string) => void;
   initiateCall: (callType: CallType, targetId: string, targetName: string) => void;
-  receiveCall: (callerId: string, callerName: string, callerAvatarUrl: string | null, callType: CallType) => void;
+  receiveCall: (callerId: string, callerName: string, callerAvatarUrl: string | null, callType: CallType, callLogId?: string) => void;
   acceptCall: () => void;
   rejectCall: () => void;
   declineCall: () => void;
@@ -30,10 +32,12 @@ export const useCallStore = create<CallState>((set) => ({
   callerId: null,
   callerName: null,
   callerAvatarUrl: null,
+  callLogId: null,
   isCaller: false,
   duration: 0,
   isAudioMuted: false,
   isVideoOff: false,
+  setCallLogId: (id: string) => set({ callLogId: id }),
   initiateCall: (callType, targetId, targetName) =>
     set({
       isInCall: true,
@@ -42,12 +46,13 @@ export const useCallStore = create<CallState>((set) => ({
       callerId: targetId,
       callerName: targetName,
       callerAvatarUrl: null,
+      callLogId: null,
       isCaller: true,
       duration: 0,
       isAudioMuted: false,
       isVideoOff: false,
     }),
-  receiveCall: (callerId, callerName, callerAvatarUrl, callType) =>
+  receiveCall: (callerId, callerName, callerAvatarUrl, callType, callLogId) =>
     set({
       isInCall: true,
       callType,
@@ -55,6 +60,7 @@ export const useCallStore = create<CallState>((set) => ({
       callerId,
       callerName,
       callerAvatarUrl,
+      callLogId: callLogId || null,
       isCaller: false,
       duration: 0,
       isAudioMuted: false,
@@ -69,6 +75,7 @@ export const useCallStore = create<CallState>((set) => ({
       callerId: null,
       callerName: null,
       callerAvatarUrl: null,
+      callLogId: null,
       isCaller: false,
       duration: 0,
       isAudioMuted: false,
@@ -82,6 +89,7 @@ export const useCallStore = create<CallState>((set) => ({
       callerId: null,
       callerName: null,
       callerAvatarUrl: null,
+      callLogId: null,
       isCaller: false,
       duration: 0,
       isAudioMuted: false,
@@ -94,6 +102,8 @@ export const useCallStore = create<CallState>((set) => ({
       callStatus: null,
       callerId: null,
       callerName: null,
+      callerAvatarUrl: null,
+      callLogId: null,
       isCaller: false,
       duration: 0,
       isAudioMuted: false,

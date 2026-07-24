@@ -50,6 +50,8 @@ export class WebRTCService {
   private streamListeners = new Set<(local: MediaStream | null, remote: MediaStream | null) => void>();
   private audioContext: AudioContext | null = null;
   private ringOscillator: OscillatorNode | null = null;
+  private callLogId: string | null = null;
+  private callStartTimestamp: number | null = null;
 
   public initialize(socket: Socket): void {
     if (this.currentSocket === socket) {
@@ -69,6 +71,7 @@ export class WebRTCService {
     socket.on('call-accepted', this.handleCallAccepted);
     socket.on('call-rejected', this.handleCallRejected);
     socket.on('call-ended', this.handleRemoteCallEnded);
+    socket.on('call-log-id', this.handleCallLogId);
     socket.on('sdp-offer-received', this.handleRemoteOffer);
     socket.on('sdp-answer-received', this.handleRemoteAnswer);
     socket.on('ice-candidate-received', this.handleIceCandidateReceived);
@@ -79,6 +82,7 @@ export class WebRTCService {
     socket.off('call-accepted', this.handleCallAccepted);
     socket.off('call-rejected', this.handleCallRejected);
     socket.off('call-ended', this.handleRemoteCallEnded);
+    socket.off('call-log-id', this.handleCallLogId);
     socket.off('sdp-offer-received', this.handleRemoteOffer);
     socket.off('sdp-answer-received', this.handleRemoteAnswer);
     socket.off('ice-candidate-received', this.handleIceCandidateReceived);
@@ -288,14 +292,21 @@ export class WebRTCService {
     }
 
     console.debug('[WebRTC] emitting call-accept');
-    socket.emit('call-accept', { targetUserId: this.targetUserId });
+    socket.emit('call-accept', {
+      targetUserId: this.targetUserId,
+      callLogId: this.callLogId,
+    });
+    this.callStartTimestamp = Date.now();
     return true;
   }
 
   public rejectCall(): void {
     if (this.targetUserId) {
       console.debug('[WebRTC] rejectCall sending call-reject to', this.targetUserId);
-      getSocket()?.emit('call-reject', { targetUserId: this.targetUserId });
+      getSocket()?.emit('call-reject', {
+        targetUserId: this.targetUserId,
+        callLogId: this.callLogId,
+      });
     }
     this.stopRingTone();
     this.resetCallState();
@@ -303,7 +314,14 @@ export class WebRTCService {
 
   public endCall(): void {
     if (this.targetUserId) {
-      getSocket()?.emit('call-end', { targetUserId: this.targetUserId });
+      const durationSeconds = this.callStartTimestamp
+        ? Math.floor((Date.now() - this.callStartTimestamp) / 1000)
+        : undefined;
+      getSocket()?.emit('call-end', {
+        targetUserId: this.targetUserId,
+        callLogId: this.callLogId,
+        durationSeconds,
+      });
     }
     this.stopRingTone();
     this.resetCallState();
@@ -513,7 +531,14 @@ export class WebRTCService {
     this.targetUserId = payload.callerId;
     this.currentCallType = payload.callType;
     this.isCaller = false;
-    useCallStore.getState().receiveCall(payload.callerId, payload.callerName, payload.callerAvatarUrl || null, payload.callType);
+    this.callLogId = (payload as any).callLogId || null;
+    useCallStore.getState().receiveCall(
+      payload.callerId,
+      payload.callerName,
+      payload.callerAvatarUrl || null,
+      payload.callType,
+      this.callLogId || undefined
+    );
     this.startRingTone(false).catch(() => undefined);
   };
 
@@ -529,7 +554,14 @@ export class WebRTCService {
       return;
     }
 
+    // Capture callLogId from the accepted payload (if present)
+    if ((payload as any).callLogId && !this.callLogId) {
+      this.callLogId = (payload as any).callLogId;
+      useCallStore.getState().setCallLogId(this.callLogId!);
+    }
+
     useCallStore.getState().acceptCall();
+    this.callStartTimestamp = Date.now();
     await this.createOffer();
   };
 
@@ -619,7 +651,17 @@ export class WebRTCService {
     this.targetUserId = null;
     this.currentCallType = null;
     this.isCaller = false;
+    this.callLogId = null;
+    this.callStartTimestamp = null;
   }
+
+  private handleCallLogId = (payload: { callLogId: string }): void => {
+    if (payload?.callLogId) {
+      this.callLogId = payload.callLogId;
+      useCallStore.getState().setCallLogId(payload.callLogId);
+      console.debug('[WebRTC] received callLogId:', payload.callLogId);
+    }
+  };
 
   private stopCall(): void {
     if (this.localStream) {
