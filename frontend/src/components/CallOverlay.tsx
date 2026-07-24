@@ -38,8 +38,6 @@ const CallOverlay: React.FC = () => {
   const handleAccept = async () => {
     console.debug('[CallOverlay] accept button clicked');
     await webrtcService.acceptIncomingCall();
-    // Note: acceptCall() on the store is called by webrtc.ts handleRemoteOffer()
-    // after the SDP exchange completes — do NOT call it here prematurely.
   };
 
   const handleReject = () => {
@@ -83,7 +81,7 @@ const CallOverlay: React.FC = () => {
           onReject={handleReject}
           onCancel={handleCancelOutgoingCall}
         />
-      ) : callStatus === 'active' ? (
+      ) : callStatus === 'active' || callStatus === 'accepted' ? (
         <ActiveCallScreen
           callerName={callerName || 'Unknown caller'}
           callerAvatarUrl={callerAvatarUrl || undefined}

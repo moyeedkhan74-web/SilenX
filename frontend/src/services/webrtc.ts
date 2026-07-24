@@ -115,10 +115,8 @@ export class WebRTCService {
   }
 
   private notifyStreamListeners(): void {
-    const local = this.localStream ? new MediaStream(this.localStream.getTracks()) : null;
-    const remote = this.remoteStream ? new MediaStream(this.remoteStream.getTracks()) : null;
     for (const listener of this.streamListeners) {
-      listener(local, remote);
+      listener(this.localStream, this.remoteStream);
     }
   }
 
@@ -304,6 +302,7 @@ export class WebRTCService {
       callLogId: this.callLogId,
     });
     this.callStartTimestamp = Date.now();
+    useCallStore.getState().acceptCall();
     return true;
   }
 
