@@ -18,7 +18,7 @@ import { useAuthStore } from '../store/authStore';
 import { useSettingsStore } from '../store/settingsStore';
 import WallpaperPicker from './WallpaperPicker';
 import './ChatView.css';
-import { formatLastSeen } from '../utils/date';
+import { formatLastSeen, formatMessageTime } from '../utils/date';
 
 export const ChatView: React.FC = () => {
   const isMobile = useIsMobile();
@@ -46,7 +46,7 @@ export const ChatView: React.FC = () => {
   const showToast = useCallback((message: string) => {
     setToast({ message, visible: true });
   }, []);
-  const { conversations, activeConversationId, messages, addMessage, clearConversation, editMessage, deleteMessage, reactToMessage, setActiveConversation } = useChatStore();
+  const { conversations, activeConversationId, messages, addMessage, clearConversation, editMessage, deleteMessage, reactToMessage, setActiveConversation, markAsRead } = useChatStore();
   const setMessages = useChatStore((s) => s.setMessages);
   const currentUser = useAuthStore((s) => s.user);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -79,6 +79,16 @@ export const ChatView: React.FC = () => {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  // Automatically emit read receipts when conversation is active or receives messages
+  useEffect(() => {
+    if (activeConversationId) {
+      const socket = connectSocket();
+      socket?.emit('read-receipt', { conversationId: activeConversationId });
+      socket?.emit('mark-messages-read', { conversationId: activeConversationId });
+      markAsRead(activeConversationId);
+    }
+  }, [activeConversationId, currentMessages.length, markAsRead]);
 
   // Listen for socket-based typing events from other users
   useEffect(() => {
@@ -844,10 +854,11 @@ export const ChatView: React.FC = () => {
                     )}
                     {msg.isEdited && <span className="msg-edited">edited</span>}
                     {(() => {
-                      const isRead = msg.deliveryStatus === 'read' || (msg as any).isRead || (msg as any).status === 'read';
+                      const isRead = msg.deliveryStatus === 'read' || (msg as any).isRead === true || (msg as any).status === 'read';
                       const isDelivered = msg.deliveryStatus === 'delivered' || (msg as any).status === 'delivered';
                       const statusClass = isRead ? 'read' : isDelivered ? 'delivered' : 'sent';
-                      const titleText = isRead ? 'Read by recipient (Amethyst Purple)' : isDelivered ? 'Delivered to recipient' : 'Sent';
+                      const titleText = isRead ? 'Read by recipient (Amethyst Purple Circle)' : isDelivered ? 'Delivered to recipient' : 'Sent';
+                      const formattedTime = formatMessageTime(msg.createdAt) || formatMessageTime(msg.time) || msg.time || '';
 
                       return (
                         <span className="msg-meta-inline">
@@ -860,10 +871,10 @@ export const ChatView: React.FC = () => {
                               style={{ marginRight: 2 }}
                             />
                           )}
-                          <span className="msg-time-text">{msg.time}</span>
+                          <span className="msg-time-text">{formattedTime}</span>
                           {isOwn && (
                             <span className="msg-receipt" title={titleText}>
-                              <span className={`msg-receipt-badge ${statusClass}`}>
+                              <span className={`msg-receipt-badge ${statusClass}`} key={isRead ? 'badge-read' : statusClass}>
                                 {isRead ? (
                                   <CheckCheck size={11} strokeWidth={2.8} />
                                 ) : isDelivered ? (

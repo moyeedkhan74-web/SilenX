@@ -54,3 +54,16 @@ export function formatLastSeen(lastSeenVal: string | Date | undefined | null): s
   const options: Intl.DateTimeFormatOptions = { year: 'numeric', month: 'short', day: 'numeric' };
   return `on ${date.toLocaleDateString([], options)} at ${timeStr}`;
 }
+
+/**
+ * Formats a message ISO date string or Date object into user's local time string (e.g., "4:48 PM").
+ */
+export function formatMessageTime(val?: string | Date | null): string {
+  if (!val) return '';
+  const date = new Date(val);
+  if (isNaN(date.getTime())) {
+    if (typeof val === 'string' && val.trim().length > 0) return val;
+    return '';
+  }
+  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+}

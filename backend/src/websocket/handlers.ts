@@ -317,6 +317,22 @@ export function registerSocketHandlers(io: Server): void {
     // ─── Read Receipts ──────────────────────────────────────────────────────
 
     socket.on('read-receipt', (data: ReadReceiptPayload) => {
+      if (!data?.conversationId) return;
+
+      // Mark messages sent by others in this conversation as read in DB
+      let updatedCount = 0;
+      messages.forEach(m => {
+        if (m.conversationId === data.conversationId && m.senderId !== userId) {
+          (m as any).isRead = true;
+          (m as any).deliveryStatus = 'read';
+          updatedCount++;
+        }
+      });
+
+      if (updatedCount > 0) {
+        saveDb();
+      }
+
       const convoMemberIds = conversationMembers
         .filter(m => m.conversationId === data.conversationId && m.userId !== userId)
         .map(m => m.userId);
@@ -324,9 +340,41 @@ export function registerSocketHandlers(io: Server): void {
       convoMemberIds.forEach(memberId => {
         const recipientSocketId = getSocketIdForUser(memberId);
         if (recipientSocketId) {
-          socket.to(recipientSocketId).emit('message-read', {
+          io.to(recipientSocketId).emit('messages-read', {
+            conversationId: data.conversationId,
+            readBy: userId,
+            readAt: new Date().toISOString(),
+          });
+          io.to(recipientSocketId).emit('message-read', {
             ...data,
             userId,
+            readAt: new Date().toISOString(),
+          });
+        }
+      });
+    });
+
+    socket.on('mark-messages-read', (data: { conversationId: string }) => {
+      if (!data?.conversationId) return;
+
+      messages.forEach(m => {
+        if (m.conversationId === data.conversationId && m.senderId !== userId) {
+          (m as any).isRead = true;
+          (m as any).deliveryStatus = 'read';
+        }
+      });
+      saveDb();
+
+      const convoMemberIds = conversationMembers
+        .filter(m => m.conversationId === data.conversationId && m.userId !== userId)
+        .map(m => m.userId);
+
+      convoMemberIds.forEach(memberId => {
+        const recipientSocketId = getSocketIdForUser(memberId);
+        if (recipientSocketId) {
+          io.to(recipientSocketId).emit('messages-read', {
+            conversationId: data.conversationId,
+            readBy: userId,
             readAt: new Date().toISOString(),
           });
         }

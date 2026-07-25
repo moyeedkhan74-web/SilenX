@@ -202,31 +202,37 @@ router.get('/:id/messages', (req: AuthenticatedRequest, res: Response) => {
     .filter(m => m.conversationId === convoId)
     .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
 
-  const formatted = convoMessages.map(m => ({
-    id: m.id,
-    conversationId: m.conversationId,
-    senderId: m.senderId,
-    text: m.encryptedContent,
-    isSelf: m.senderId === currentUserId,
-    time: m.createdAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-    createdAt: m.createdAt.toISOString(),
-    isRead: m.senderId === currentUserId ? true : m.createdAt.getTime() < Date.now() - 1000,
-    isEdited: !!m.editedAt,
-    isDeleted: !!m.deletedAt,
-    isSystem: m.contentType === 'system',
-    replyTo: m.replyTo,
-    reactions: m.reactions || [],
-    contentType: m.contentType || 'text',
-    mediaUrl: m.mediaUrl,
-    fileName: m.fileName,
-    fileSize: m.fileSize,
-    fileType: m.fileType,
-    duration: m.duration,
-    locationData: m.locationData,
-    contactData: m.contactData,
-    pollData: m.pollData,
-    eventData: m.eventData,
-  }));
+  const formatted = convoMessages.map(m => {
+    const isReadState = (m as any).isRead === true;
+    const delStatus = (m as any).deliveryStatus || (isReadState ? 'read' : 'sent');
+
+    return {
+      id: m.id,
+      conversationId: m.conversationId,
+      senderId: m.senderId,
+      text: m.encryptedContent,
+      isSelf: m.senderId === currentUserId,
+      time: m.createdAt ? new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }) : '',
+      createdAt: m.createdAt ? new Date(m.createdAt).toISOString() : new Date().toISOString(),
+      isRead: isReadState,
+      deliveryStatus: delStatus,
+      isEdited: !!m.editedAt,
+      isDeleted: !!m.deletedAt,
+      isSystem: m.contentType === 'system',
+      replyTo: m.replyTo,
+      reactions: m.reactions || [],
+      contentType: m.contentType || 'text',
+      mediaUrl: m.mediaUrl,
+      fileName: m.fileName,
+      fileSize: m.fileSize,
+      fileType: m.fileType,
+      duration: m.duration,
+      locationData: m.locationData,
+      contactData: m.contactData,
+      pollData: m.pollData,
+      eventData: m.eventData,
+    };
+  });
 
   res.status(200).json(formatted);
 });
