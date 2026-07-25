@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { ArrowLeft, Phone, Video, MoreVertical, Lock, Search, Bell, UserX, Flag, Trash2, Check, CheckCheck, Star, PlayCircle, MapPin } from 'lucide-react';
+import { ArrowLeft, Phone, Video, MoreVertical, Lock, Search, Bell, UserX, Flag, Trash2, Check, CheckCheck, Star, PlayCircle, MapPin, Image as ImageIcon } from 'lucide-react';
 import { useIsMobile } from '../hooks/useIsMobile';
 import { useChatStore } from '../store/chatStore';
 import { connectSocket } from '../services/socket';
@@ -15,10 +15,12 @@ import { GroupDetailsModal } from './GroupDetailsModal';
 import { MediaMessage } from './MediaMessage';
 import { MediaViewer } from './MediaViewer';
 import { useAuthStore } from '../store/authStore';
+import { useSettingsStore } from '../store/settingsStore';
+import WallpaperPicker from './WallpaperPicker';
 import './ChatView.css';
 import { formatLastSeen } from '../utils/date';
 
-const ChatView: React.FC = () => {
+export const ChatView: React.FC = () => {
   const isMobile = useIsMobile();
   const [inputValue, setInputValue] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);
@@ -35,8 +37,11 @@ const ChatView: React.FC = () => {
   const [toast, setToast] = useState<{ message: string; visible: boolean }>({ message: '', visible: false });
   const [contactDetailsOpen, setContactDetailsOpen] = useState(false);
   const [groupDetailsOpen, setGroupDetailsOpen] = useState(false);
-  const typingTimers = useRef<Record<string, NodeJS.Timeout>>({});
+  const [wallpaperPickerOpen, setWallpaperPickerOpen] = useState(false);
+  const typingTimers = useRef<Record<string, NodeJS.Timeout>>({}); 
   const closeTimer = useRef<number | null>(null);
+
+  const { chatWallpaper } = useSettingsStore();
 
   const showToast = useCallback((message: string) => {
     setToast({ message, visible: true });
@@ -640,6 +645,17 @@ const ChatView: React.FC = () => {
                   <span>Report</span>
                 </button>
                 <button
+                  className="dropdown-item"
+                  type="button"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    setWallpaperPickerOpen(true);
+                  }}
+                >
+                  <ImageIcon size={16} />
+                  <span>Chat wallpaper</span>
+                </button>
+                <button
                   className="dropdown-item danger"
                   type="button"
                   onClick={() => {
@@ -663,7 +679,17 @@ const ChatView: React.FC = () => {
         </div>
       </header>
 
-      <div className="chatview-messages">
+      {/* Chat messages area with wallpaper */}
+      <div
+        className="chatview-messages"
+        style={{
+          ...(chatWallpaper
+            ? chatWallpaper.startsWith('linear-gradient') || chatWallpaper.startsWith('radial-gradient')
+              ? { background: chatWallpaper }
+              : { backgroundImage: `url(${chatWallpaper})`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundAttachment: 'local' }
+            : {}),
+        }}
+      >
         {searchTerm && (
           <div className="chatview-inline-banner search">
             Showing results for “{searchTerm}”
@@ -938,34 +964,41 @@ const ChatView: React.FC = () => {
         onClose={() => setToast((t) => ({ ...t, visible: false }))}
       />
       <MediaViewer />
-      <ContactDetailsModal
-        isOpen={contactDetailsOpen}
-        onClose={() => setContactDetailsOpen(false)}
-        user={otherUser ? {
-          id: otherUser.id,
-          uid: (otherUser as any).uid || otherUser.id,
-          displayName: otherUser.displayName,
-          email: (otherUser as any).email || '',
-          bio: (otherUser as any).bio || '',
-          avatarUrl: otherUser.avatarUrl,
-          status: otherUser.status,
-          lastSeen: otherUser.lastSeen,
-        } : null}
-        conversationId={activeConversationId || ''}
-        onAudioCall={handleAudioCall}
-        onVideoCall={() => {}}
-        onSearchInChat={() => { setContactDetailsOpen(false); handleSearchInChat(); }}
-      />
-      <GroupDetailsModal
-        isOpen={groupDetailsOpen}
-        onClose={() => setGroupDetailsOpen(false)}
-        conversation={activeConvo || null}
-        onSearchInChat={() => { setGroupDetailsOpen(false); handleSearchInChat(); }}
+      {contactDetailsOpen && activeConvo && otherUser && (
+        <ContactDetailsModal
+          isOpen={contactDetailsOpen}
+          onClose={() => setContactDetailsOpen(false)}
+          user={{
+            id: otherUser.id,
+            uid: (otherUser as any).uid || otherUser.id,
+            displayName: otherUser.displayName,
+            email: (otherUser as any).email || '',
+            bio: (otherUser as any).bio || '',
+            avatarUrl: otherUser.avatarUrl,
+            status: otherUser.status,
+            lastSeen: otherUser.lastSeen,
+          }}
+          conversationId={activeConversationId || ''}
+          onAudioCall={handleAudioCall}
+          onVideoCall={() => {}}
+          onSearchInChat={() => { setContactDetailsOpen(false); handleSearchInChat(); }}
+        />
+      )}
+      {groupDetailsOpen && activeConvo?.type === 'group' && (
+        <GroupDetailsModal
+          isOpen={groupDetailsOpen}
+          onClose={() => setGroupDetailsOpen(false)}
+          conversation={activeConvo || null}
+          onSearchInChat={() => { setGroupDetailsOpen(false); handleSearchInChat(); }}
+        />
+      )}
+      <WallpaperPicker
+        isOpen={wallpaperPickerOpen}
+        onClose={() => setWallpaperPickerOpen(false)}
       />
     </div>
   );
 };
 
 export default ChatView;
-
 

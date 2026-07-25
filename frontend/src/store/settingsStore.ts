@@ -5,11 +5,13 @@ interface SettingsState {
   callNotifications: boolean;
   showOnlineStatus: boolean;
   readReceipts: boolean;
-  
+  chatWallpaper: string | null; // null = default (no wallpaper), string = url or css gradient
+
   setMessageNotifications: (value: boolean) => void;
   setCallNotifications: (value: boolean) => void;
   setShowOnlineStatus: (value: boolean) => void;
   setReadReceipts: (value: boolean) => void;
+  setChatWallpaper: (value: string | null) => void;
 }
 
 const getStoredBool = (key: string, defaultValue: boolean): boolean => {
@@ -22,6 +24,7 @@ export const useSettingsStore = create<SettingsState>((set) => ({
   callNotifications: getStoredBool('slienx_call_notif', true),
   showOnlineStatus: getStoredBool('slienx_online_status', true),
   readReceipts: getStoredBool('slienx_read_receipts', true),
+  chatWallpaper: localStorage.getItem('slienx_chat_wallpaper') || null,
 
   setMessageNotifications: (value) => {
     localStorage.setItem('slienx_msg_notif', String(value));
@@ -39,4 +42,13 @@ export const useSettingsStore = create<SettingsState>((set) => ({
     localStorage.setItem('slienx_read_receipts', String(value));
     set({ readReceipts: value });
   },
+  setChatWallpaper: (value) => {
+    if (value === null) {
+      localStorage.removeItem('slienx_chat_wallpaper');
+    } else {
+      localStorage.setItem('slienx_chat_wallpaper', value);
+    }
+    set({ chatWallpaper: value });
+  },
 }));
+

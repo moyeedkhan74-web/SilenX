@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { Edit3 } from 'lucide-react';
+import { Edit3, Image as ImageIcon } from 'lucide-react';
 import { useSettingsStore } from '../../store/settingsStore';
 import { useAuthStore } from '../../store/authStore';
 import { useTheme } from '../../theme/useTheme';
 import ThemeToggle from '../ThemeToggle';
 import AvatarDisplay from '../shared/AvatarDisplay';
 import EditProfileModal from '../EditProfileModal';
+import WallpaperPicker from '../WallpaperPicker';
 import { API_URL } from '../../config/webrtc-config';
 import '../../components/SettingsTab.css';
 
@@ -31,6 +32,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onDeleteAccountCli
   const token = useAuthStore((s) => s.token);
 
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isWallpaperModalOpen, setIsWallpaperModalOpen] = useState(false);
 
   /**
    * Toggle showOnlineStatus: save locally, persist to backend, and update
@@ -149,6 +151,29 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onDeleteAccountCli
             <ThemeToggle />
           </div>
         </div>
+        <div className="settings-row">
+          <span>Chat Wallpaper</span>
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={() => setIsWallpaperModalOpen(true)}
+            style={{
+              padding: '6px 14px',
+              fontSize: 12.5,
+              borderRadius: 16,
+              fontWeight: 600,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              border: '1px solid var(--border-color)',
+              background: 'var(--bg-secondary)',
+              color: 'var(--text-primary)',
+            }}
+          >
+            <ImageIcon size={14} /> Change Wallpaper
+          </button>
+        </div>
       </div>
 
       <div className="settings-group">
@@ -232,6 +257,10 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onDeleteAccountCli
         onClose={() => setIsEditModalOpen(false)}
         profile={currentUser}
         onSaved={handleProfileSaved}
+      />
+      <WallpaperPicker
+        isOpen={isWallpaperModalOpen}
+        onClose={() => setIsWallpaperModalOpen(false)}
       />
     </div>
   );
