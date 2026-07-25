@@ -306,13 +306,11 @@ body {
   height: 64px;
   margin-bottom: 18px;
   border-radius: 18px;
-  display: grid;
-  place-items: center;
-  background: linear-gradient(135deg, #1fd1a8, #0ea5e9);
-  color: #06101a;
-  font-weight: 800;
-  font-size: 22px;
-  letter-spacing: 0.04em;
+  display: block;
+  object-fit: contain;
+  padding: 6px;
+  box-sizing: border-box;
+  background: linear-gradient(135deg, rgba(31, 209, 168, 0.22), rgba(14, 165, 233, 0.22));
   box-shadow: 0 14px 28px rgba(31, 209, 168, 0.32);
   animation: logoPulse 2.8s ease-in-out infinite;
 }

@@ -90,22 +90,7 @@ export const Sidebar: React.FC<SidebarProps> = () => {
       {/* Logo — desktop only */}
       {!isMobile && (
         <div className="sidebar-logo" aria-label="SlienX">
-          <div
-            style={{
-              width: 28,
-              height: 28,
-              borderRadius: 6,
-              display: 'grid',
-              placeItems: 'center',
-              background: 'linear-gradient(135deg, var(--primary-main), var(--primary-light))',
-              color: 'var(--color-on-accent)',
-              fontSize: 12,
-              fontWeight: 800,
-              letterSpacing: '0.06em',
-            }}
-          >
-            SX
-          </div>
+          <img src="/slienx-logo.png" alt="SilenX logo" />
         </div>
       )}
 

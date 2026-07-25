@@ -56,12 +56,11 @@
   height: 58px;
   margin: 0 auto 16px;
   border-radius: 16px;
-  display: grid;
-  place-items: center;
-  background: linear-gradient(135deg, #1fd1a8, #0ea5e9);
-  color: #06101a;
-  font-weight: 800;
-  font-size: 20px;
+  display: block;
+  object-fit: contain;
+  padding: 5px;
+  box-sizing: border-box;
+  background: linear-gradient(135deg, rgba(31, 209, 168, 0.22), rgba(14, 165, 233, 0.22));
 }
 
 .login-auth-card h2 {
@@ -373,15 +372,11 @@
   height: 64px;
   margin: 0 auto 32px;
   border-radius: 18px;
-  background: linear-gradient(135deg, var(--teal-1), var(--teal-2));
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-family: 'Space Grotesk', sans-serif;
-  font-weight: 700;
-  font-size: 22px;
-  letter-spacing: 0.02em;
-  color: #04140f;
+  display: block;
+  object-fit: contain;
+  padding: 6px;
+  box-sizing: border-box;
+  background: linear-gradient(135deg, rgba(31, 209, 168, 0.24), rgba(14, 165, 233, 0.24));
   box-shadow: 0 12px 30px -8px rgba(31, 209, 168, 0.45);
 }
 

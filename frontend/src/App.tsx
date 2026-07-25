@@ -28,7 +28,7 @@ const BootLoadingView = () => (
     </div>
 
     <div className="app-loading-card">
-      <div className="app-loading-logo">SX</div>
+      <img className="app-loading-logo" src="/slienx-logo.png" alt="SilenX logo" />
       <div className="app-loading-content">
         <span className="app-loading-eyebrow">Secure Workspace</span>
         <h1>Welcome to SlienX</h1>
