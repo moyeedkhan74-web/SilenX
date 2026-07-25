@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { X, Check, Upload, Image as ImageIcon } from 'lucide-react';
+import { X, Check, Upload, Image as ImageIcon, Sliders } from 'lucide-react';
 import { useSettingsStore, WallpaperFit } from '../store/settingsStore';
 
 // Built-in wallpapers – images are in /wallpapers/ (served from public/)
@@ -46,7 +46,7 @@ export const BUILTIN_WALLPAPERS = [
     value: '/wallpapers/space_nebula.png',
     preview: '/wallpapers/space_nebula.png',
   },
-  // CSS gradient wallpapers (no image file needed)
+  // CSS gradient wallpapers
   {
     id: 'gradient_indigo',
     label: 'Indigo Dusk',
@@ -77,6 +77,36 @@ export const BUILTIN_WALLPAPERS = [
     value: 'linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%)',
     preview: 'linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%)',
   },
+  {
+    id: 'gradient_midnight',
+    label: 'Midnight Dark',
+    value: 'linear-gradient(135deg, #020617 0%, #0f172a 50%, #1e293b 100%)',
+    preview: 'linear-gradient(135deg, #020617 0%, #0f172a 50%, #1e293b 100%)',
+  },
+  {
+    id: 'gradient_cyber',
+    label: 'Deep Violet',
+    value: 'linear-gradient(135deg, #2e1065 0%, #3b0764 50%, #581c87 100%)',
+    preview: 'linear-gradient(135deg, #2e1065 0%, #3b0764 50%, #581c87 100%)',
+  },
+  {
+    id: 'gradient_emerald',
+    label: 'Emerald Night',
+    value: 'linear-gradient(135deg, #022c22 0%, #064e3b 50%, #047857 100%)',
+    preview: 'linear-gradient(135deg, #022c22 0%, #064e3b 50%, #047857 100%)',
+  },
+  {
+    id: 'gradient_crimson',
+    label: 'Crimson Velvet',
+    value: 'linear-gradient(135deg, #450a0a 0%, #7f1d1d 50%, #991b1b 100%)',
+    preview: 'linear-gradient(135deg, #450a0a 0%, #7f1d1d 50%, #991b1b 100%)',
+  },
+  {
+    id: 'gradient_ocean',
+    label: 'Ocean Blue',
+    value: 'linear-gradient(135deg, #0c4a6e 0%, #0369a1 50%, #0284c7 100%)',
+    preview: 'linear-gradient(135deg, #0c4a6e 0%, #0369a1 50%, #0284c7 100%)',
+  },
 ];
 
 interface WallpaperPickerProps {
@@ -95,6 +125,7 @@ const WallpaperPicker: React.FC<WallpaperPickerProps> = ({ isOpen, onClose }) =>
   } = useSettingsStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [previewCustom, setPreviewCustom] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'wallpapers' | 'adjust'>('wallpapers');
 
   if (!isOpen) return null;
 
@@ -164,7 +195,7 @@ const WallpaperPicker: React.FC<WallpaperPickerProps> = ({ isOpen, onClose }) =>
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            padding: '18px 20px 16px',
+            padding: '18px 20px 14px',
             borderBottom: '1px solid var(--border-color)',
             flexShrink: 0,
           }}
@@ -174,7 +205,7 @@ const WallpaperPicker: React.FC<WallpaperPickerProps> = ({ isOpen, onClose }) =>
               Chat Wallpaper
             </h2>
             <p style={{ margin: '3px 0 0', fontSize: '12px', color: 'var(--text-secondary)' }}>
-              Choose background and adjust display ratio for your chat
+              Choose built-in wallpapers or customize your own
             </p>
           </div>
           <button
@@ -201,7 +232,7 @@ const WallpaperPicker: React.FC<WallpaperPickerProps> = ({ isOpen, onClose }) =>
         <div
           style={{
             flexShrink: 0,
-            height: '130px',
+            height: '125px',
             position: 'relative',
             overflow: 'hidden',
             borderBottom: '1px solid var(--border-color)',
@@ -235,187 +266,263 @@ const WallpaperPicker: React.FC<WallpaperPickerProps> = ({ isOpen, onClose }) =>
           )}
         </div>
 
-        {/* Grid of wallpapers */}
+        {/* Navigation Tabs */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            padding: '0 20px',
+            borderBottom: '1px solid var(--border-color)',
+            flexShrink: 0,
+            background: 'var(--bg-primary)',
+          }}
+        >
+          <button
+            type="button"
+            onClick={() => setActiveTab('wallpapers')}
+            style={{
+              padding: '10px 4px',
+              fontSize: 13,
+              fontWeight: 600,
+              border: 'none',
+              borderBottom: activeTab === 'wallpapers' ? '2.5px solid var(--color-primary)' : '2.5px solid transparent',
+              background: 'transparent',
+              color: activeTab === 'wallpapers' ? 'var(--color-primary)' : 'var(--text-secondary)',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+            }}
+          >
+            <ImageIcon size={15} /> All Wallpapers
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('adjust')}
+            style={{
+              padding: '10px 4px',
+              fontSize: 13,
+              fontWeight: 600,
+              border: 'none',
+              borderBottom: activeTab === 'adjust' ? '2.5px solid var(--color-primary)' : '2.5px solid transparent',
+              background: 'transparent',
+              color: activeTab === 'adjust' ? 'var(--color-primary)' : 'var(--text-secondary)',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+            }}
+          >
+            <Sliders size={15} /> Ratio & Dimming
+          </button>
+        </div>
+
+        {/* Tab Body */}
         <div style={{ overflowY: 'auto', padding: '16px 20px 20px', flex: 1 }}>
-          {/* Custom Upload */}
-          <div style={{ marginBottom: 16 }}>
-            <p style={{ margin: '0 0 10px', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              Custom
-            </p>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              style={{ display: 'none' }}
-              onChange={handleFileChange}
-            />
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 10,
-                width: '100%',
-                padding: '10px 14px',
-                border: currentId === 'custom' ? '2px solid var(--color-primary)' : '2px dashed var(--border-color)',
-                borderRadius: 12,
-                background: currentId === 'custom' ? 'rgba(var(--color-accent-rgb), 0.06)' : 'transparent',
-                cursor: 'pointer',
-                color: 'var(--text-primary)',
-                fontSize: 13,
-                fontWeight: 500,
-                transition: 'all 0.15s',
-              }}
-            >
-              {previewCustom || currentId === 'custom' ? (
-                <img
-                  src={previewCustom || chatWallpaper || ''}
-                  alt="Custom wallpaper"
-                  style={{ width: 44, height: 44, objectFit: 'cover', borderRadius: 8, flexShrink: 0 }}
+          {activeTab === 'wallpapers' ? (
+            <>
+              {/* Custom Upload */}
+              <div style={{ marginBottom: 16 }}>
+                <p style={{ margin: '0 0 8px', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  Custom Wallpaper
+                </p>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  style={{ display: 'none' }}
+                  onChange={handleFileChange}
                 />
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 10,
+                    width: '100%',
+                    padding: '10px 14px',
+                    border: currentId === 'custom' ? '2px solid var(--color-primary)' : '2px dashed var(--border-color)',
+                    borderRadius: 12,
+                    background: currentId === 'custom' ? 'rgba(var(--color-accent-rgb), 0.06)' : 'transparent',
+                    cursor: 'pointer',
+                    color: 'var(--text-primary)',
+                    fontSize: 13,
+                    fontWeight: 500,
+                    transition: 'all 0.15s',
+                  }}
+                >
+                  {previewCustom || currentId === 'custom' ? (
+                    <img
+                      src={previewCustom || chatWallpaper || ''}
+                      alt="Custom wallpaper"
+                      style={{ width: 44, height: 44, objectFit: 'cover', borderRadius: 8, flexShrink: 0 }}
+                    />
+                  ) : (
+                    <div style={{ width: 44, height: 44, borderRadius: 8, background: 'var(--bg-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <Upload size={18} color="var(--text-secondary)" />
+                    </div>
+                  )}
+                  <div style={{ textAlign: 'left' }}>
+                    <div style={{ fontWeight: 600, fontSize: 13 }}>Upload Image</div>
+                    <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 1 }}>JPG, PNG, WebP · Max 5MB</div>
+                  </div>
+                  {currentId === 'custom' && <Check size={16} style={{ marginLeft: 'auto', color: 'var(--color-primary)' }} />}
+                </button>
+              </div>
+
+              {/* Built-in wallpapers Grid */}
+              <p style={{ margin: '0 0 10px', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                Built-in Collection ({BUILTIN_WALLPAPERS.length})
+              </p>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
+                {BUILTIN_WALLPAPERS.map((wp) => {
+                  const isActive = currentId === wp.id;
+                  return (
+                    <button
+                      key={wp.id}
+                      type="button"
+                      onClick={() => setChatWallpaper(wp.value)}
+                      title={wp.label}
+                      style={{
+                        position: 'relative',
+                        border: isActive ? '2.5px solid var(--color-primary)' : '2px solid var(--border-color)',
+                        borderRadius: 12,
+                        overflow: 'hidden',
+                        aspectRatio: '9/16',
+                        cursor: 'pointer',
+                        padding: 0,
+                        transition: 'transform 0.15s, box-shadow 0.15s',
+                        boxShadow: isActive ? '0 0 0 3px rgba(var(--color-accent-rgb),0.3)' : 'none',
+                        ...(wp.preview && !isGradient(wp.preview)
+                          ? { backgroundImage: `url(${wp.preview})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+                          : wp.preview
+                          ? { background: wp.preview }
+                          : { background: 'var(--bg-secondary)' }),
+                      }}
+                      onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = 'scale(1.03)'; }}
+                      onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = 'scale(1)'; }}
+                    >
+                      {isActive && (
+                        <div style={{
+                          position: 'absolute',
+                          inset: 0,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          background: 'rgba(0,0,0,0.25)',
+                        }}>
+                          <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'var(--color-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <Check size={14} color="#fff" />
+                          </div>
+                        </div>
+                      )}
+                      {wp.id === 'none' && !wp.preview && (
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', fontSize: 11, color: 'var(--text-secondary)', fontWeight: 600 }}>
+                          None
+                        </div>
+                      )}
+                      <div style={{
+                        position: 'absolute',
+                        bottom: 0,
+                        left: 0,
+                        right: 0,
+                        padding: '4px 6px',
+                        background: 'rgba(0,0,0,0.45)',
+                        fontSize: 9,
+                        fontWeight: 600,
+                        color: '#fff',
+                        textAlign: 'center',
+                        letterSpacing: '0.03em',
+                      }}>
+                        {wp.label}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </>
+          ) : (
+            /* Adjust Tab */
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {chatWallpaper && !isGradient(chatWallpaper) ? (
+                <>
+                  <div style={{ background: 'var(--bg-secondary)', padding: '14px 16px', borderRadius: 14, border: '1px solid var(--border-color)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                      <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        Wallpaper Display Mode / Ratio
+                      </span>
+                      <span style={{ fontSize: '11px', color: 'var(--color-primary)', fontWeight: 700 }}>
+                        {chatWallpaperFit.toUpperCase()}
+                      </span>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
+                      {[
+                        { id: 'cover', label: 'Cover (Fill Whole Chat)', desc: 'Stretches and fills 100% of visible chat height & width' },
+                        { id: 'contain', label: 'Contain (Fit Image)', desc: 'Fits full image inside without cropping edges' },
+                        { id: 'center', label: 'Center (Original)', desc: 'Centers original size image in background' },
+                        { id: 'tile', label: 'Tile (Repeat Pattern)', desc: 'Repeats image continuously as pattern grid' },
+                      ].map((fitOpt) => (
+                        <button
+                          key={fitOpt.id}
+                          type="button"
+                          onClick={() => setChatWallpaperFit(fitOpt.id as WallpaperFit)}
+                          style={{
+                            padding: '10px 12px',
+                            textAlign: 'left',
+                            borderRadius: 10,
+                            border: chatWallpaperFit === fitOpt.id ? '2px solid var(--color-primary)' : '1px solid var(--border-color)',
+                            background: chatWallpaperFit === fitOpt.id ? 'rgba(var(--color-accent-rgb), 0.12)' : 'var(--bg-primary)',
+                            cursor: 'pointer',
+                            transition: 'all 0.15s',
+                          }}
+                        >
+                          <div style={{ fontSize: 12, fontWeight: 700, color: chatWallpaperFit === fitOpt.id ? 'var(--color-primary)' : 'var(--text-primary)' }}>
+                            {fitOpt.label}
+                          </div>
+                          <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>
+                            {fitOpt.desc}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div style={{ background: 'var(--bg-secondary)', padding: '14px 16px', borderRadius: 14, border: '1px solid var(--border-color)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                      <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        Wallpaper Dimming Level
+                      </span>
+                      <span style={{ fontSize: '12px', color: 'var(--color-primary)', fontWeight: 700 }}>
+                        {Math.round(chatWallpaperDim * 100)}%
+                      </span>
+                    </div>
+                    <p style={{ margin: '0 0 12px', fontSize: 12, color: 'var(--text-secondary)' }}>
+                      Darken bright wallpapers to ensure chat messages remain crystal clear and readable.
+                    </p>
+                    <input
+                      type="range"
+                      min="0"
+                      max="0.6"
+                      step="0.05"
+                      value={chatWallpaperDim}
+                      onChange={(e) => setChatWallpaperDim(parseFloat(e.target.value))}
+                      style={{ width: '100%', accentColor: 'var(--color-primary)', cursor: 'pointer' }}
+                    />
+                  </div>
+                </>
               ) : (
-                <div style={{ width: 44, height: 44, borderRadius: 8, background: 'var(--bg-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <Upload size={18} color="var(--text-secondary)" />
+                <div style={{ textAlign: 'center', padding: '30px 20px', color: 'var(--text-secondary)' }}>
+                  <ImageIcon size={32} style={{ marginBottom: 8, opacity: 0.5 }} />
+                  <p style={{ margin: 0, fontSize: 13, fontWeight: 600 }}>Select an image wallpaper first</p>
+                  <p style={{ margin: '4px 0 0', fontSize: 12, color: 'var(--text-tertiary)' }}>
+                    Ratio and dimming options apply to image wallpapers.
+                  </p>
                 </div>
               )}
-              <div style={{ textAlign: 'left' }}>
-                <div style={{ fontWeight: 600, fontSize: 13 }}>Upload Image</div>
-                <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 1 }}>JPG, PNG, WebP · Max 5MB</div>
-              </div>
-              {currentId === 'custom' && <Check size={16} style={{ marginLeft: 'auto', color: 'var(--color-primary)' }} />}
-            </button>
-          </div>
-
-          {/* Fit Mode & Dimming Controls */}
-          {chatWallpaper && !isGradient(chatWallpaper) && (
-            <div style={{ marginBottom: 16, background: 'var(--bg-secondary)', padding: '12px 14px', borderRadius: 14, border: '1px solid var(--border-color)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  Wallpaper Fit / Ratio
-                </span>
-                <span style={{ fontSize: '11px', color: 'var(--color-primary)', fontWeight: 600 }}>
-                  {chatWallpaperFit.toUpperCase()}
-                </span>
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6, marginBottom: 12 }}>
-                {[
-                  { id: 'cover', label: 'Cover (Fill)' },
-                  { id: 'contain', label: 'Contain' },
-                  { id: 'center', label: 'Center' },
-                  { id: 'tile', label: 'Tile' },
-                ].map((fitOpt) => (
-                  <button
-                    key={fitOpt.id}
-                    type="button"
-                    onClick={() => setChatWallpaperFit(fitOpt.id as WallpaperFit)}
-                    style={{
-                      padding: '6px 4px',
-                      fontSize: 11,
-                      fontWeight: 600,
-                      borderRadius: 8,
-                      border: chatWallpaperFit === fitOpt.id ? '2px solid var(--color-primary)' : '1px solid var(--border-color)',
-                      background: chatWallpaperFit === fitOpt.id ? 'rgba(var(--color-accent-rgb), 0.12)' : 'var(--bg-primary)',
-                      color: chatWallpaperFit === fitOpt.id ? 'var(--color-primary)' : 'var(--text-secondary)',
-                      cursor: 'pointer',
-                      transition: 'all 0.15s',
-                    }}
-                  >
-                    {fitOpt.label}
-                  </button>
-                ))}
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  Wallpaper Dimming
-                </span>
-                <span style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontWeight: 600 }}>
-                  {Math.round(chatWallpaperDim * 100)}%
-                </span>
-              </div>
-              <input
-                type="range"
-                min="0"
-                max="0.6"
-                step="0.05"
-                value={chatWallpaperDim}
-                onChange={(e) => setChatWallpaperDim(parseFloat(e.target.value))}
-                style={{ width: '100%', accentColor: 'var(--color-primary)', cursor: 'pointer' }}
-              />
             </div>
           )}
-
-          {/* Built-in wallpapers */}
-          <p style={{ margin: '0 0 10px', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-            Built-in Wallpapers
-          </p>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
-            {BUILTIN_WALLPAPERS.map((wp) => {
-              const isActive = currentId === wp.id;
-              return (
-                <button
-                  key={wp.id}
-                  type="button"
-                  onClick={() => setChatWallpaper(wp.value)}
-                  title={wp.label}
-                  style={{
-                    position: 'relative',
-                    border: isActive ? '2.5px solid var(--color-primary)' : '2px solid var(--border-color)',
-                    borderRadius: 12,
-                    overflow: 'hidden',
-                    aspectRatio: '9/16',
-                    cursor: 'pointer',
-                    padding: 0,
-                    transition: 'transform 0.15s, box-shadow 0.15s',
-                    boxShadow: isActive ? '0 0 0 3px rgba(var(--color-accent-rgb),0.3)' : 'none',
-                    ...(wp.preview && !isGradient(wp.preview)
-                      ? { backgroundImage: `url(${wp.preview})`, backgroundSize: 'cover', backgroundPosition: 'center' }
-                      : wp.preview
-                      ? { background: wp.preview }
-                      : { background: 'var(--bg-secondary)' }),
-                  }}
-                  onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = 'scale(1.03)'; }}
-                  onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = 'scale(1)'; }}
-                >
-                  {isActive && (
-                    <div style={{
-                      position: 'absolute',
-                      inset: 0,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      background: 'rgba(0,0,0,0.25)',
-                    }}>
-                      <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'var(--color-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <Check size={14} color="#fff" />
-                      </div>
-                    </div>
-                  )}
-                  {wp.id === 'none' && !wp.preview && (
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', fontSize: 11, color: 'var(--text-secondary)', fontWeight: 600 }}>
-                      None
-                    </div>
-                  )}
-                  <div style={{
-                    position: 'absolute',
-                    bottom: 0,
-                    left: 0,
-                    right: 0,
-                    padding: '4px 6px',
-                    background: 'rgba(0,0,0,0.45)',
-                    fontSize: 9,
-                    fontWeight: 600,
-                    color: '#fff',
-                    textAlign: 'center',
-                    letterSpacing: '0.03em',
-                  }}>
-                    {wp.label}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
         </div>
 
         {/* Footer */}
