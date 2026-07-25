@@ -90,7 +90,7 @@ export const Sidebar: React.FC<SidebarProps> = () => {
       {/* Logo — desktop only */}
       {!isMobile && (
         <div className="sidebar-logo" aria-label="SlienX">
-          <img src="/slienx-logo.png" alt="SilenX logo" />
+          <img src="/silenX-logo.svg" alt="SilenX logo" />
         </div>
       )}
 

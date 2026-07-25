@@ -157,7 +157,7 @@ const LoginPage: React.FC = () => {
       {loading ? (
         <div className="login-auth-overlay" role="status" aria-live="polite">
           <div className="login-auth-card">
-            <img className="login-auth-logo" src="/slienx-logo.png" alt="SilenX logo" />
+            <img className="login-auth-logo" src="/silenX-logo.svg" alt="SilenX logo" />
             <h2>Secure access</h2>
             <p>{statusMessage || 'Verifying your Google account and preparing your private workspace.'}</p>
           </div>
@@ -173,7 +173,7 @@ const LoginPage: React.FC = () => {
 
       <header className="topbar">
         <div className="brand">
-          <span className="dot" />
+          <img className="brand-logo" src="/silenX-logo.svg" alt="SilenX logo" />
           <span>SlienX</span>
         </div>
 
@@ -226,7 +226,7 @@ const LoginPage: React.FC = () => {
         </section>
 
         <section className="card">
-          <img className="mark" src="/slienx-logo.png" alt="SilenX logo" />
+          <img className="mark" src="/silenX-logo.svg" alt="SilenX logo" />
           <h1>Sign in</h1>
           <p className="tagline">Continue with your Google account to get started.</p>
 
