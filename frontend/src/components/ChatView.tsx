@@ -41,7 +41,7 @@ export const ChatView: React.FC = () => {
   const typingTimers = useRef<Record<string, NodeJS.Timeout>>({}); 
   const closeTimer = useRef<number | null>(null);
 
-  const { chatWallpaper } = useSettingsStore();
+  const { chatWallpaper, chatWallpaperFit, chatWallpaperDim } = useSettingsStore();
 
   const showToast = useCallback((message: string) => {
     setToast({ message, visible: true });
@@ -681,15 +681,53 @@ export const ChatView: React.FC = () => {
 
       {/* Chat messages area with wallpaper */}
       <div
-        className="chatview-messages"
+        className="chatview-messages-container"
         style={{
-          ...(chatWallpaper
-            ? chatWallpaper.startsWith('linear-gradient') || chatWallpaper.startsWith('radial-gradient')
-              ? { background: chatWallpaper }
-              : { backgroundImage: `url(${chatWallpaper})`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundAttachment: 'local' }
-            : {}),
+          flex: 1,
+          position: 'relative',
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
         }}
       >
+        {chatWallpaper && (
+          <div
+            className="chatview-wallpaper-bg"
+            style={{
+              position: 'absolute',
+              inset: 0,
+              pointerEvents: 'none',
+              zIndex: 0,
+              ...(chatWallpaper.startsWith('linear-gradient') || chatWallpaper.startsWith('radial-gradient')
+                ? { background: chatWallpaper }
+                : {
+                    backgroundImage: `url(${chatWallpaper})`,
+                    backgroundSize: chatWallpaperFit === 'tile' ? 'auto' : chatWallpaperFit,
+                    backgroundRepeat: chatWallpaperFit === 'tile' ? 'repeat' : 'no-repeat',
+                    backgroundPosition: 'center',
+                  }),
+            }}
+          >
+            {chatWallpaperDim > 0 && (
+              <div
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  backgroundColor: `rgba(0, 0, 0, ${chatWallpaperDim})`,
+                }}
+              />
+            )}
+          </div>
+        )}
+        <div
+          className="chatview-messages"
+          style={{
+            position: 'relative',
+            zIndex: 1,
+            flex: 1,
+            overflowY: 'auto',
+          }}
+        >
         {searchTerm && (
           <div className="chatview-inline-banner search">
             Showing results for “{searchTerm}”
@@ -876,6 +914,7 @@ export const ChatView: React.FC = () => {
           </div>
         )}
         <div ref={messagesEndRef} />
+      </div>
       </div>
 
       {activeConversationState.isBlocked ? (

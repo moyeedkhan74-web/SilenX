@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { X, Check, Upload, Image as ImageIcon } from 'lucide-react';
-import { useSettingsStore } from '../store/settingsStore';
+import { useSettingsStore, WallpaperFit } from '../store/settingsStore';
 
 // Built-in wallpapers – images are in /wallpapers/ (served from public/)
 export const BUILTIN_WALLPAPERS = [
@@ -85,7 +85,14 @@ interface WallpaperPickerProps {
 }
 
 const WallpaperPicker: React.FC<WallpaperPickerProps> = ({ isOpen, onClose }) => {
-  const { chatWallpaper, setChatWallpaper } = useSettingsStore();
+  const {
+    chatWallpaper,
+    setChatWallpaper,
+    chatWallpaperFit,
+    setChatWallpaperFit,
+    chatWallpaperDim,
+    setChatWallpaperDim,
+  } = useSettingsStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [previewCustom, setPreviewCustom] = useState<string | null>(null);
 
@@ -167,7 +174,7 @@ const WallpaperPicker: React.FC<WallpaperPickerProps> = ({ isOpen, onClose }) =>
               Chat Wallpaper
             </h2>
             <p style={{ margin: '3px 0 0', fontSize: '12px', color: 'var(--text-secondary)' }}>
-              Choose a background for your chat
+              Choose background and adjust display ratio for your chat
             </p>
           </div>
           <button
@@ -194,17 +201,25 @@ const WallpaperPicker: React.FC<WallpaperPickerProps> = ({ isOpen, onClose }) =>
         <div
           style={{
             flexShrink: 0,
-            height: '120px',
+            height: '130px',
             position: 'relative',
             overflow: 'hidden',
             borderBottom: '1px solid var(--border-color)',
             ...(chatWallpaper && isGradient(chatWallpaper)
               ? { background: chatWallpaper }
               : chatWallpaper
-              ? { backgroundImage: `url(${chatWallpaper})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+              ? {
+                  backgroundImage: `url(${chatWallpaper})`,
+                  backgroundSize: chatWallpaperFit === 'tile' ? 'auto' : chatWallpaperFit,
+                  backgroundRepeat: chatWallpaperFit === 'tile' ? 'repeat' : 'no-repeat',
+                  backgroundPosition: 'center',
+                }
               : { background: 'var(--bg-primary)' }),
           }}
         >
+          {chatWallpaper && chatWallpaperDim > 0 && (
+            <div style={{ position: 'absolute', inset: 0, background: `rgba(0, 0, 0, ${chatWallpaperDim})`, pointerEvents: 'none' }} />
+          )}
           <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, padding: 16 }}>
             <div style={{ background: 'rgba(var(--color-accent-rgb), 0.9)', borderRadius: '18px 18px 4px 18px', padding: '8px 14px', maxWidth: '55%', fontSize: 12, color: '#fff', fontWeight: 500, backdropFilter: 'blur(4px)', boxShadow: '0 2px 8px rgba(0,0,0,0.2)' }}>
               Hey! Preview looks 🔥
@@ -271,6 +286,65 @@ const WallpaperPicker: React.FC<WallpaperPickerProps> = ({ isOpen, onClose }) =>
               {currentId === 'custom' && <Check size={16} style={{ marginLeft: 'auto', color: 'var(--color-primary)' }} />}
             </button>
           </div>
+
+          {/* Fit Mode & Dimming Controls */}
+          {chatWallpaper && !isGradient(chatWallpaper) && (
+            <div style={{ marginBottom: 16, background: 'var(--bg-secondary)', padding: '12px 14px', borderRadius: 14, border: '1px solid var(--border-color)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  Wallpaper Fit / Ratio
+                </span>
+                <span style={{ fontSize: '11px', color: 'var(--color-primary)', fontWeight: 600 }}>
+                  {chatWallpaperFit.toUpperCase()}
+                </span>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6, marginBottom: 12 }}>
+                {[
+                  { id: 'cover', label: 'Cover (Fill)' },
+                  { id: 'contain', label: 'Contain' },
+                  { id: 'center', label: 'Center' },
+                  { id: 'tile', label: 'Tile' },
+                ].map((fitOpt) => (
+                  <button
+                    key={fitOpt.id}
+                    type="button"
+                    onClick={() => setChatWallpaperFit(fitOpt.id as WallpaperFit)}
+                    style={{
+                      padding: '6px 4px',
+                      fontSize: 11,
+                      fontWeight: 600,
+                      borderRadius: 8,
+                      border: chatWallpaperFit === fitOpt.id ? '2px solid var(--color-primary)' : '1px solid var(--border-color)',
+                      background: chatWallpaperFit === fitOpt.id ? 'rgba(var(--color-accent-rgb), 0.12)' : 'var(--bg-primary)',
+                      color: chatWallpaperFit === fitOpt.id ? 'var(--color-primary)' : 'var(--text-secondary)',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s',
+                    }}
+                  >
+                    {fitOpt.label}
+                  </button>
+                ))}
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  Wallpaper Dimming
+                </span>
+                <span style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontWeight: 600 }}>
+                  {Math.round(chatWallpaperDim * 100)}%
+                </span>
+              </div>
+              <input
+                type="range"
+                min="0"
+                max="0.6"
+                step="0.05"
+                value={chatWallpaperDim}
+                onChange={(e) => setChatWallpaperDim(parseFloat(e.target.value))}
+                style={{ width: '100%', accentColor: 'var(--color-primary)', cursor: 'pointer' }}
+              />
+            </div>
+          )}
 
           {/* Built-in wallpapers */}
           <p style={{ margin: '0 0 10px', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
@@ -348,7 +422,7 @@ const WallpaperPicker: React.FC<WallpaperPickerProps> = ({ isOpen, onClose }) =>
         <div style={{ padding: '12px 20px 16px', borderTop: '1px solid var(--border-color)', display: 'flex', justifyContent: 'flex-end', gap: 10, flexShrink: 0 }}>
           <button
             type="button"
-            onClick={() => { setChatWallpaper(null); setPreviewCustom(null); }}
+            onClick={() => { setChatWallpaper(null); setPreviewCustom(null); setChatWallpaperDim(0); setChatWallpaperFit('cover'); }}
             style={{ padding: '8px 16px', borderRadius: 10, border: '1px solid var(--border-color)', background: 'transparent', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: 13, fontWeight: 500 }}
           >
             Reset
