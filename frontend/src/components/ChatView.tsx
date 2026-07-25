@@ -843,6 +843,40 @@ export const ChatView: React.FC = () => {
                       </>
                     )}
                     {msg.isEdited && <span className="msg-edited">edited</span>}
+                    {(() => {
+                      const isRead = msg.deliveryStatus === 'read' || (msg as any).isRead || (msg as any).status === 'read';
+                      const isDelivered = msg.deliveryStatus === 'delivered' || (msg as any).status === 'delivered';
+                      const statusClass = isRead ? 'read' : isDelivered ? 'delivered' : 'sent';
+                      const titleText = isRead ? 'Read by recipient (Amethyst Purple)' : isDelivered ? 'Delivered to recipient' : 'Sent';
+
+                      return (
+                        <span className="msg-meta-inline">
+                          {msg.isStarred && (
+                            <Star
+                              size={10}
+                              fill="var(--color-warning, #eab308)"
+                              color="var(--color-warning, #eab308)"
+                              className="msg-star-icon"
+                              style={{ marginRight: 2 }}
+                            />
+                          )}
+                          <span className="msg-time-text">{msg.time}</span>
+                          {isOwn && (
+                            <span className="msg-receipt" title={titleText}>
+                              <span className={`msg-receipt-badge ${statusClass}`}>
+                                {isRead ? (
+                                  <CheckCheck size={11} strokeWidth={2.8} />
+                                ) : isDelivered ? (
+                                  <CheckCheck size={12} strokeWidth={2.2} />
+                                ) : (
+                                  <Check size={12} strokeWidth={2.2} />
+                                )}
+                              </span>
+                            </span>
+                          )}
+                        </span>
+                      );
+                    })()}
                     {msg.reactions && msg.reactions.length > 0 && (() => {
                       const validReactions = msg.reactions.filter(r => r && r.emoji);
                       const uniqueEmojis = Array.from(new Set(validReactions.map((r) => r.emoji)));
@@ -883,38 +917,6 @@ export const ChatView: React.FC = () => {
                     })()}
                   </div>
                 </SwipeableMessage>
-                <div className="msg-meta">
-                  {msg.isStarred && (
-                    <Star
-                      size={11}
-                      fill="var(--color-warning, #eab308)"
-                      color="var(--color-warning, #eab308)"
-                      className="msg-star-icon"
-                      style={{ marginRight: 3 }}
-                    />
-                  )}
-                  {msg.time}
-                  {isOwn && (() => {
-                    const isRead = msg.deliveryStatus === 'read' || (msg as any).isRead || (msg as any).status === 'read';
-                    const isDelivered = msg.deliveryStatus === 'delivered' || (msg as any).status === 'delivered';
-                    const statusClass = isRead ? 'read' : isDelivered ? 'delivered' : 'sent';
-                    const titleText = isRead ? 'Read by recipient (Amethyst Purple)' : isDelivered ? 'Delivered to recipient' : 'Sent';
-
-                    return (
-                      <span className="msg-receipt" title={titleText}>
-                        <span className={`msg-receipt-badge ${statusClass}`}>
-                          {isRead ? (
-                            <CheckCheck size={11} strokeWidth={2.8} />
-                          ) : isDelivered ? (
-                            <CheckCheck size={11} strokeWidth={2.4} />
-                          ) : (
-                            <Check size={10} strokeWidth={2.6} />
-                          )}
-                        </span>
-                      </span>
-                    );
-                  })()}
-                </div>
               </div>
             </div>
           );

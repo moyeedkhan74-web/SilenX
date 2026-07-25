@@ -852,51 +852,61 @@
 .confirm-btn.secondary { background: var(--bg-secondary); color: var(--text-primary); }
 .confirm-btn.cancel { background: transparent; color: var(--text-secondary); }
 
-.msg-meta {
-  display: flex;
+.msg-meta-inline {
+  display: inline-flex;
   align-items: center;
-  gap: 4px;
-  margin-top: 3px;
-  font-size: clamp(10px, 2.6vw, 11px);
+  gap: 3px;
+  float: right;
+  margin-left: 8px;
+  margin-top: 4px;
+  font-size: 10px;
+  line-height: 1;
+  color: rgba(255, 255, 255, 0.65);
+  user-select: none;
 }
-.msg-meta .msg-receipt {
+.msg-wrapper.remote .msg-meta-inline {
+  color: rgba(255, 255, 255, 0.55);
+}
+.msg-time-text {
+  font-size: 10px;
+  letter-spacing: 0.2px;
+}
+.msg-receipt {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  margin-left: 4px;
-  vertical-align: middle;
+  margin-left: 2px;
 }
 .msg-receipt-badge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 17px;
-  height: 17px;
-  border-radius: 50%;
-  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
   box-sizing: border-box;
 }
 .msg-receipt-badge.sent {
-  background: rgba(255, 255, 255, 0.15);
-  color: rgba(255, 255, 255, 0.75);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: rgba(255, 255, 255, 0.65);
+  background: transparent;
 }
 .msg-receipt-badge.delivered {
-  background: rgba(255, 255, 255, 0.28);
-  color: #ffffff;
-  border: 1px solid rgba(255, 255, 255, 0.25);
+  color: rgba(255, 255, 255, 0.85);
+  background: transparent;
 }
 .msg-receipt-badge.read {
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
   background: linear-gradient(135deg, #c084fc 0%, #9333ea 100%);
   color: #ffffff;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  box-shadow: 0 0 10px rgba(168, 85, 247, 0.75), 0 0 2px rgba(255, 255, 255, 0.5);
-  animation: amethystPulse 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  box-shadow: 0 0 10px rgba(168, 85, 247, 0.8), 0 0 2px rgba(255, 255, 255, 0.6);
+  animation: amethystPulse 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  margin-left: 1px;
 }
 @keyframes amethystPulse {
-  0% { transform: scale(0.4); opacity: 0.3; }
-  65% { transform: scale(1.2); }
-  100% { transform: scale(1); opacity: 1; }
+  0% { transform: scale(0.2) rotate(-45deg); opacity: 0; }
+  60% { transform: scale(1.25) rotate(5deg); opacity: 1; }
+  100% { transform: scale(1) rotate(0deg); opacity: 1; }
 }
 .msg-wrapper.remote .msg-meta { color: var(--text-tertiary); }
 
