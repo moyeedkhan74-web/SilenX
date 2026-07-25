@@ -894,11 +894,24 @@ export const ChatView: React.FC = () => {
                     />
                   )}
                   {msg.time}
-                  {isOwn && (
-                    <span className={`msg-receipt ${msg.deliveryStatus === 'read' ? 'read' : msg.deliveryStatus === 'delivered' ? 'delivered' : ''}`} title={msg.deliveryStatus === 'read' ? 'Read' : msg.deliveryStatus === 'delivered' ? 'Delivered' : 'Sent'}>
-                      {msg.deliveryStatus === 'read' ? <CheckCheck size={14} /> : msg.deliveryStatus === 'delivered' ? <CheckCheck size={14} /> : <Check size={14} />}
-                    </span>
-                  )}
+                  {isOwn && (() => {
+                    const isRead = msg.deliveryStatus === 'read' || (msg as any).isRead || (msg as any).status === 'read';
+                    const isDelivered = msg.deliveryStatus === 'delivered' || (msg as any).status === 'delivered';
+                    return (
+                      <span
+                        className={`msg-receipt ${isRead ? 'read' : isDelivered ? 'delivered' : 'sent'}`}
+                        title={isRead ? 'Read by recipient' : isDelivered ? 'Delivered to recipient' : 'Sent'}
+                      >
+                        {isRead ? (
+                          <CheckCheck size={12} strokeWidth={2.8} className="tick-icon tick-read" />
+                        ) : isDelivered ? (
+                          <CheckCheck size={15} className="tick-icon tick-delivered" />
+                        ) : (
+                          <Check size={14} className="tick-icon tick-sent" />
+                        )}
+                      </span>
+                    );
+                  })()}
                 </div>
               </div>
             </div>

@@ -140,6 +140,27 @@ export const connectSocket = (idToken?: string): Socket => {
     useChatStore.getState().updateUserStatus(userId, status, lastSeen);
   });
 
+  socket.on('message-read', (payload: any) => {
+    const { conversationId, messageId } = payload || {};
+    if (!conversationId || !messageId) return;
+    useChatStore.getState().markMessageRead(conversationId, messageId);
+  });
+
+  socket.on('messages-read', (payload: any) => {
+    const { conversationId } = payload || {};
+    if (!conversationId) return;
+    useChatStore.setState((state) => {
+      const msgs = state.messages[conversationId] || [];
+      const updated = msgs.map((m) => (m.isSelf ? { ...m, isRead: true, deliveryStatus: 'read' as const } : m));
+      return {
+        messages: {
+          ...state.messages,
+          [conversationId]: updated,
+        },
+      };
+    });
+  });
+
   socket.on('group-updated', (payload: any) => {
     const { groupId, name, description, avatarUrl } = payload || {};
     if (!groupId) return;

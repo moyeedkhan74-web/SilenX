@@ -859,9 +859,37 @@
   margin-top: 3px;
   font-size: clamp(10px, 2.6vw, 11px);
 }
-.msg-meta .msg-receipt { color: rgba(255,255,255,0.5); }
-.msg-meta .msg-receipt.read { color: var(--color-secondary); }
-.msg-meta .msg-receipt.delivered { color: var(--color-info); }
+.msg-meta .msg-receipt {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.45);
+  margin-left: 4px;
+  transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.msg-meta .msg-receipt.delivered {
+  color: rgba(255, 255, 255, 0.85);
+}
+.msg-meta .msg-receipt.read {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #a855f7 0%, #7c3aed 100%);
+  color: #ffffff;
+  box-shadow: 0 0 10px rgba(168, 85, 247, 0.65), inset 0 1px 1px rgba(255, 255, 255, 0.4);
+  animation: amethystPulse 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.msg-meta .msg-receipt.read .tick-read {
+  color: #ffffff;
+}
+@keyframes amethystPulse {
+  0% { transform: scale(0.4); opacity: 0.3; }
+  70% { transform: scale(1.15); }
+  100% { transform: scale(1); opacity: 1; }
+}
 .msg-wrapper.remote .msg-meta { color: var(--text-tertiary); }
 
 .chatview-blocked-input {
