@@ -92,13 +92,16 @@ const CallsPage: React.FC = () => {
 
   const handleCallBack = async (targetUser: { id: string; displayName: string }, callType: 'audio' | 'video') => {
     if (!currentUser?.displayName) return;
-    await webrtcService.startCall(
+    const started = await webrtcService.startCall(
       targetUser.id,
       callType,
       targetUser.displayName,
       currentUser.displayName,
       currentUser.avatarUrl || undefined
     );
+    if (!started) {
+      window.alert('Unable to access your camera or microphone. Please allow permissions and try again.');
+    }
   };
 
   const fetchLogs = useCallback(async () => {

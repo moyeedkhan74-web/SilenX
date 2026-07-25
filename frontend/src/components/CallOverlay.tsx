@@ -37,7 +37,10 @@ const CallOverlay: React.FC = () => {
 
   const handleAccept = async () => {
     console.debug('[CallOverlay] accept button clicked');
-    await webrtcService.acceptIncomingCall();
+    const success = await webrtcService.acceptIncomingCall();
+    if (!success) {
+      window.alert('Unable to access your camera or microphone. Please allow permissions and try again.');
+    }
   };
 
   const handleReject = () => {

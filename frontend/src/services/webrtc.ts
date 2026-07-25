@@ -235,6 +235,18 @@ export class WebRTCService {
     }
   }
 
+  private clearPendingOutboundCall(): void {
+    this.stopRingTone();
+    this.clearCallTimeout();
+    useCallStore.getState().endCall();
+    this.stopCall();
+    this.targetUserId = null;
+    this.currentCallType = null;
+    this.isCaller = false;
+    this.callLogId = null;
+    this.callStartTimestamp = null;
+  }
+
   public async startCall(
     targetUserId: string,
     callType: CallType,
@@ -253,6 +265,14 @@ export class WebRTCService {
     this.isCaller = true;
 
     useCallStore.getState().initiateCall(callType, targetUserId, targetName);
+
+    const ready = await this.prepareLocalMediaAndConnection(callType);
+    if (!ready) {
+      console.warn('[WebRTC] Outgoing call failed because local media access was denied or unavailable');
+      this.clearPendingOutboundCall();
+      return false;
+    }
+
     this.startRingTone(true).catch(() => undefined);
 
     socket.emit('call-initiate', {
