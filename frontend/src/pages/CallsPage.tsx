@@ -1,5 +1,5 @@
-import React, { useEffect, useState, useCallback } from 'react';
-import { Phone, PhoneIncoming, PhoneMissed, PhoneOutgoing, Video, RefreshCw } from 'lucide-react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
+import { Phone, PhoneIncoming, PhoneMissed, PhoneOutgoing, Video, RefreshCw, MoreVertical, Trash2 } from 'lucide-react';
 import { Avatar } from '../components/Avatar';
 import { useAuthStore } from '../store/authStore';
 import { webrtcService } from '../services/webrtc';
@@ -42,6 +42,53 @@ const CallsPage: React.FC = () => {
   const [logs, setLogs] = useState<CallLogEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const [showMenu, setShowMenu] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  const handleClearLogs = async () => {
+    if (!token) return;
+    const confirmClear = window.confirm('Are you sure you want to clear all call logs?');
+    if (!confirmClear) return;
+    try {
+      const res = await fetch(`${API_URL}/api/calls/history`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error('Failed to retrieve or clear call history');
+      setLogs([]);
+    } catch (err: any) {
+      alert(err.message || 'Failed to clear logs');
+    }
+  };
+
+  const handleDeleteIndividualLog = async (logId: string) => {
+    if (!token) return;
+    try {
+      const res = await fetch(`${API_URL}/api/calls/history/${logId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error('Failed to delete call log');
+      setLogs((prev) => prev.filter((log) => log.id !== logId));
+    } catch (err: any) {
+      alert(err.message || 'Failed to delete log entry');
+    }
+  };
+
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setShowMenu(false);
+      }
+    };
+    if (showMenu) {
+      document.addEventListener('mousedown', handleOutsideClick);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick);
+    };
+  }, [showMenu]);
 
   const handleCallBack = async (targetUser: { id: string; displayName: string }, callType: 'audio' | 'video') => {
     if (!currentUser?.displayName) return;
@@ -272,6 +319,20 @@ const CallsPage: React.FC = () => {
           color: #ef4444;
         }
 
+        .call-log-delete-btn {
+          opacity: 0;
+          transition: all 0.2s ease-in-out;
+        }
+
+        .call-log-item:hover .call-log-delete-btn {
+          opacity: 1;
+        }
+
+        .call-log-delete-btn:hover {
+          color: #ef4444 !important;
+          background: var(--bg-hover) !important;
+        }
+
         .calls-loading {
           display: flex;
           align-items: center;
@@ -293,7 +354,79 @@ const CallsPage: React.FC = () => {
       `}</style>
 
       <div className="calls-header">
-        <h1>📞 Calls</h1>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div ref={menuRef} style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+            <button
+              type="button"
+              className="calls-menu-btn"
+              onClick={() => setShowMenu(!showMenu)}
+              title="Menu"
+              style={{
+                background: 'transparent',
+                border: 'none',
+                color: 'var(--text-primary)',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '6px',
+                borderRadius: '50%',
+                transition: 'background 0.2s',
+              }}
+            >
+              <MoreVertical size={20} />
+            </button>
+            {showMenu && (
+              <div
+                className="calls-dropdown-menu"
+                style={{
+                  position: 'absolute',
+                  top: '100%',
+                  left: 0,
+                  marginTop: '8px',
+                  background: 'var(--bg-secondary)',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: '8px',
+                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+                  zIndex: 100,
+                  minWidth: '155px',
+                  overflow: 'hidden',
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowMenu(false);
+                    handleClearLogs();
+                  }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    width: '100%',
+                    padding: '10px 16px',
+                    border: 'none',
+                    background: 'transparent',
+                    color: '#ef4444',
+                    fontSize: '0.9rem',
+                    textAlign: 'left',
+                    cursor: 'pointer',
+                    gap: '8px',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = 'var(--bg-hover)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'transparent';
+                  }}
+                >
+                  <Trash2 size={14} />
+                  Clear call logs
+                </button>
+              </div>
+            )}
+          </div>
+          <h1>📞 Calls</h1>
+        </div>
         <button type="button" className="calls-refresh-btn" onClick={fetchLogs} title="Refresh">
           <RefreshCw size={16} />
         </button>
@@ -356,28 +489,53 @@ const CallsPage: React.FC = () => {
 
               <div className="call-log-time" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <span>{formatTime(log.startedAt)}</span>
-                <button
-                  type="button"
-                  title={`Call ${log.otherUser.displayName}`}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleCallBack(log.otherUser, log.callType);
-                  }}
-                  style={{
-                    background: 'var(--bg-secondary)',
-                    border: '1px solid var(--border-color)',
-                    borderRadius: '50%',
-                    width: 32,
-                    height: 32,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: 'var(--color-primary)',
-                    cursor: 'pointer',
-                  }}
-                >
-                  {log.callType === 'video' ? <Video size={14} /> : <Phone size={14} />}
-                </button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <button
+                    type="button"
+                    title="Remove from call log"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteIndividualLog(log.id);
+                    }}
+                    className="call-log-delete-btn"
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      borderRadius: '50%',
+                      width: 32,
+                      height: 32,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: 'var(--text-secondary)',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                  <button
+                    type="button"
+                    title={`Call ${log.otherUser.displayName}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleCallBack(log.otherUser, log.callType);
+                    }}
+                    style={{
+                      background: 'var(--bg-secondary)',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: '50%',
+                      width: 32,
+                      height: 32,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: 'var(--color-primary)',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {log.callType === 'video' ? <Video size={14} /> : <Phone size={14} />}
+                  </button>
+                </div>
               </div>
             </div>
           ))}

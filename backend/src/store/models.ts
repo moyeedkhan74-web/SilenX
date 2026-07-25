@@ -169,6 +169,7 @@ const CallLogSchema = new Schema({
   startedAt: { type: Date, required: true, default: Date.now },
   endedAt: { type: Date, default: null },
   durationSeconds: { type: Number, default: null },
+  deletedFor: [{ type: String, index: true }],
 });
 
 export const UserModel = mongoose.model('User', UserSchema);

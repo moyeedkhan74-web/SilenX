@@ -156,6 +156,7 @@ export interface CallLog {
   startedAt: Date;
   endedAt: Date | null;
   durationSeconds: number | null;
+  deletedFor?: string[];
 }
 
 export interface Call {

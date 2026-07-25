@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-import { Edit3, Phone, ChevronRight } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Edit3 } from 'lucide-react';
 import { useSettingsStore } from '../../store/settingsStore';
 import { useAuthStore } from '../../store/authStore';
 import { useTheme } from '../../theme/useTheme';
@@ -16,7 +15,6 @@ interface SettingsPanelProps {
 }
 
 export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onDeleteAccountClick }) => {
-  const navigate = useNavigate();
   const {
     messageNotifications,
     callNotifications,
@@ -138,32 +136,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onDeleteAccountCli
         </div>
       </div>
 
-      {/* Call History shortcut */}
-      <div className="settings-group" style={{ marginTop: 0 }}>
-        <h3>Activity</h3>
-        <button
-          type="button"
-          onClick={() => navigate('/calls')}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            width: '100%',
-            padding: '12px 0',
-            background: 'transparent',
-            border: 'none',
-            borderBottom: '1px solid var(--border-color)',
-            cursor: 'pointer',
-            color: 'var(--text-primary)',
-          }}
-        >
-          <span style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 14, fontWeight: 500 }}>
-            <Phone size={16} color="var(--color-primary)" />
-            Call History
-          </span>
-          <ChevronRight size={16} color="var(--text-secondary)" />
-        </button>
-      </div>
+
 
       <div className="settings-group">
         <h3>Appearance</h3>

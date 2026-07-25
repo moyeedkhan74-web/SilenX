@@ -269,6 +269,7 @@ export async function connectDb() {
     ...c,
     startedAt: c.startedAt ? new Date(c.startedAt) : new Date(),
     endedAt: c.endedAt ? new Date(c.endedAt) : null,
+    deletedFor: c.deletedFor || [],
   })));
 
   const dbRequests = await FriendRequestModel.find({}).lean();
@@ -360,6 +361,7 @@ export function loadDb() {
           ...c,
           startedAt: c.startedAt ? new Date(c.startedAt) : new Date(),
           endedAt: c.endedAt ? new Date(c.endedAt) : null,
+          deletedFor: c.deletedFor || [],
         })));
       }
       if (data.friendRequests) {

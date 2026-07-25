@@ -678,3 +678,119 @@
   }
 }
 
+/* Developer / Guest Login styles */
+.login-divider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 20px 0;
+  color: var(--text-faint);
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.login-divider::before,
+.login-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.login-divider::before {
+  margin-right: 12px;
+}
+
+.login-divider::after {
+  margin-left: 12px;
+}
+
+.dev-toggle-btn {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: var(--text-hi);
+  font-family: inherit;
+  font-weight: 500;
+  font-size: 14px;
+  padding: 12px 20px;
+  border-radius: 12px;
+  cursor: pointer;
+  width: 100%;
+  transition: all 0.2s ease;
+}
+
+.dev-toggle-btn:hover {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.dev-login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+}
+
+.dev-input-group input {
+  width: 100%;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: rgba(4, 10, 18, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--text-hi);
+  font-family: inherit;
+  font-size: 14.5px;
+  box-sizing: border-box;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.dev-input-group input:focus {
+  border-color: var(--teal-1);
+  box-shadow: 0 0 0 3px rgba(31, 209, 168, 0.15);
+}
+
+.dev-btn-group {
+  display: flex;
+  gap: 12px;
+}
+
+.dev-submit-btn {
+  flex: 1;
+  background: linear-gradient(135deg, var(--teal-1), var(--teal-2));
+  color: #04140f;
+  border: none;
+  font-weight: 600;
+  font-size: 14px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.dev-submit-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px -4px rgba(31, 209, 168, 0.45);
+}
+
+.dev-cancel-btn {
+  background: transparent;
+  color: var(--text-lo);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  font-weight: 500;
+  font-size: 14px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.dev-cancel-btn:hover {
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-hi);
+}
+
