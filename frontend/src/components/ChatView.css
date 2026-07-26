@@ -382,22 +382,26 @@
   flex-direction: column;
   gap: 5px;
   transition: transform 180ms ease, box-shadow 180ms ease;
+  opacity: 1;
+  backdrop-filter: none;
 }
 .msg-bubble:hover {
   transform: translateY(-1px);
-  box-shadow: 0 8px 24px rgba(var(--color-overlay-rgb), 0.08);
+  box-shadow: 0 8px 24px rgba(var(--color-overlay-rgb), 0.10);
 }
 .msg-wrapper.self .msg-bubble {
   background: var(--color-bubble-sent);
   color: var(--color-text-primary);
   border-radius: 18px 18px 4px 18px;
-  box-shadow: 0 1px 4px rgba(var(--color-overlay-rgb), 0.12);
+  box-shadow: 0 1px 4px rgba(13, 148, 136, 0.14);
+  border: 1px solid rgba(13, 148, 136, 0.12);
 }
 .msg-wrapper.remote .msg-bubble {
   background: var(--color-bubble-received);
   color: var(--color-text-primary);
   border-radius: 18px 18px 18px 4px;
-  box-shadow: 0 1px 3px rgba(var(--color-overlay-rgb), 0.06);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+  border: 1px solid rgba(15, 23, 42, 0.06);
 }
 
 .message-text { margin: 0; word-break: break-word; }

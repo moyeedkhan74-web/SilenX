@@ -7,6 +7,10 @@ import type { ChatMessage } from '../types';
 let socket: Socket | null = null;
 let heartbeatInterval: ReturnType<typeof setInterval> | null = null;
 
+export const shouldReconnectSocket = (socketInstance: Pick<Socket, 'connected' | 'disconnected'> | null): boolean => {
+  return !!socketInstance && socketInstance.disconnected;
+};
+
 const HEARTBEAT_INTERVAL_MS = 20_000; // 20 seconds
 
 /**
@@ -25,6 +29,10 @@ export const connectSocket = (idToken?: string): Socket => {
       : null;
 
     if (!token || currentToken === token) {
+      if (shouldReconnectSocket(socket)) {
+        console.info('[Socket] Reconnecting existing socket');
+        socket.connect();
+      }
       return socket;
     }
 
@@ -41,8 +49,9 @@ export const connectSocket = (idToken?: string): Socket => {
 
   const options = {
     reconnection: true,
-    reconnectionAttempts: 5,
+    reconnectionAttempts: 8,
     reconnectionDelay: 1000,
+    transports: ['websocket', 'polling'] as Array<'websocket' | 'polling'>,
     // Pass the Firebase ID token in the handshake auth object
     auth: { token },
   };

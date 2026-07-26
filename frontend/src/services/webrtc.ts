@@ -1,6 +1,6 @@
 import type { Socket } from 'socket.io-client';
 import { WEBRTC_CONFIG } from '../config/webrtc-config';
-import { getSocket } from './socket';
+import { connectSocket, getSocket } from './socket';
 import { useCallStore } from '../store/callStore';
 import type { CallType } from '../types';
 
@@ -247,6 +247,42 @@ export class WebRTCService {
     this.callStartTimestamp = null;
   }
 
+  private async waitForSocketReady(socket: Socket): Promise<boolean> {
+    if (socket.connected) {
+      return true;
+    }
+
+    if (socket.disconnected) {
+      socket.connect();
+    }
+
+    return new Promise<boolean>((resolve) => {
+      const timeout = window.setTimeout(() => {
+        cleanup();
+        resolve(false);
+      }, 5_000);
+
+      const cleanup = () => {
+        window.clearTimeout(timeout);
+        socket.off('connect', onConnect);
+        socket.off('connect_error', onConnectError);
+      };
+
+      const onConnect = () => {
+        cleanup();
+        resolve(true);
+      };
+
+      const onConnectError = () => {
+        cleanup();
+        resolve(false);
+      };
+
+      socket.once('connect', onConnect);
+      socket.once('connect_error', onConnectError);
+    });
+  }
+
   public async startCall(
     targetUserId: string,
     callType: CallType,
@@ -254,12 +290,22 @@ export class WebRTCService {
     callerName: string,
     callerAvatarUrl?: string
   ): Promise<boolean> {
-    const socket = getSocket();
-    if (!socket || !socket.connected) {
+    let socket = getSocket();
+    if (!socket) {
+      socket = connectSocket();
+    }
+
+    if (!socket) {
+      console.warn('[WebRTC] Unable to start call because no socket is available');
       return false;
     }
 
     this.initialize(socket);
+    const socketReady = await this.waitForSocketReady(socket);
+    if (!socketReady) {
+      console.warn('[WebRTC] Unable to start call because the socket did not connect in time');
+      return false;
+    }
     this.targetUserId = targetUserId;
     this.currentCallType = callType;
     this.isCaller = true;
