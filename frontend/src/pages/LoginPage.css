@@ -52,15 +52,13 @@
 }
 
 .login-auth-logo {
-  width: 58px;
-  height: 58px;
+  width: 72px;
+  height: 72px;
   margin: 0 auto 16px;
-  border-radius: 16px;
+  border-radius: 18px;
   display: block;
   object-fit: contain;
-  padding: 5px;
   box-sizing: border-box;
-  background: linear-gradient(135deg, rgba(31, 209, 168, 0.22), rgba(14, 165, 233, 0.22));
 }
 
 .login-auth-card h2 {
@@ -224,8 +222,8 @@
 }
 
 .brand-logo {
-  width: 34px;
-  height: 34px;
+  width: 40px;
+  height: 40px;
   display: block;
   border-radius: 12px;
   object-fit: contain;
@@ -376,15 +374,13 @@
 }
 
 .mark {
-  width: 64px;
-  height: 64px;
+  width: 80px;
+  height: 80px;
   margin: 0 auto 32px;
-  border-radius: 18px;
+  border-radius: 20px;
   display: block;
   object-fit: contain;
-  padding: 6px;
   box-sizing: border-box;
-  background: linear-gradient(135deg, rgba(31, 209, 168, 0.24), rgba(14, 165, 233, 0.24));
   box-shadow: 0 12px 30px -8px rgba(31, 209, 168, 0.45);
 }
 
@@ -567,8 +563,8 @@
   }
 
   .mark {
-    width: 56px;
-    height: 56px;
+    width: 68px;
+    height: 68px;
     margin-bottom: 24px;
   }
 
@@ -669,10 +665,10 @@
   }
 
   .mark {
-    width: 50px;
-    height: 50px;
+    width: 60px;
+    height: 60px;
     margin-bottom: 18px;
-    border-radius: 14px;
+    border-radius: 16px;
   }
 
   .google-btn {
