@@ -65,9 +65,11 @@ const CallOverlay: React.FC = () => {
     }
   };
 
-  const handleToggleVideo = () => {
-    const newCameraOff = webrtcService.toggleVideo();
-    if (newCameraOff !== isCameraOff) {
+  const handleToggleVideo = async () => {
+    const newCameraOff = await webrtcService.toggleVideo();
+    // Always sync store to match actual WebRTC state
+    const storeVideoOff = useCallStore.getState().isVideoOff;
+    if (newCameraOff !== storeVideoOff) {
       toggleVideo();
     }
   };

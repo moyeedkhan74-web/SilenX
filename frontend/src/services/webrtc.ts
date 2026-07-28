@@ -208,13 +208,14 @@ export class WebRTCService {
     const nextFacingMode = this.currentFacingMode === 'user' ? 'environment' : 'user';
 
     try {
-      const newStream = await navigator.mediaDevices.getUserMedia({
+      const newCameraStream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: { ideal: nextFacingMode } },
       });
 
-      const newTrack = newStream.getVideoTracks()[0];
+      const newTrack = newCameraStream.getVideoTracks()[0];
       if (!newTrack) return false;
 
+      // Replace the track on the peer connection sender
       if (this.peerConnection) {
         const sender = this.peerConnection.getSenders().find((s) => s.track?.kind === 'video');
         if (sender) {
@@ -222,10 +223,21 @@ export class WebRTCService {
         }
       }
 
+      // Stop old track and rebuild the local stream with a new identity
+      // so React detects the change via useEffect dependency
       currentTrack.stop();
-      this.localStream.removeTrack(currentTrack);
-      this.localStream.addTrack(newTrack);
+      const freshStream = new MediaStream();
+      // Carry over audio tracks
+      this.localStream.getAudioTracks().forEach((t) => freshStream.addTrack(t));
+      // Add the new video track
+      freshStream.addTrack(newTrack);
+      this.localStream = freshStream;
       this.currentFacingMode = nextFacingMode;
+
+      // Update video element
+      if (this.localVideoElement) {
+        this.localVideoElement.srcObject = this.localStream;
+      }
 
       this.notifyStreamListeners();
       return true;
@@ -428,7 +440,64 @@ export class WebRTCService {
     videoTracks.forEach((track) => {
       track.enabled = !off;
     });
+    this.notifyStreamListeners();
     return this.isCameraOff();
+  }
+
+  /**
+   * Re-acquire the camera video track after it was disabled/stopped.
+   * This is needed because the UI unmounts the <video> element when
+   * camera is off, so simply setting track.enabled = true may not be
+   * enough — the track may have been stopped or the element gone.
+   */
+  public async reEnableCamera(): Promise<boolean> {
+    if (!this.localStream || this.currentCallType !== 'video') {
+      return false;
+    }
+
+    try {
+      // Get a fresh video track
+      const cameraStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: this.currentFacingMode } },
+      });
+      const newTrack = cameraStream.getVideoTracks()[0];
+      if (!newTrack) return false;
+
+      // Remove old video tracks (they may be stopped)
+      this.localStream.getVideoTracks().forEach((t) => {
+        t.stop();
+        this.localStream!.removeTrack(t);
+      });
+
+      // Add the fresh track to the stream
+      this.localStream.addTrack(newTrack);
+
+      // Replace track on the peer connection sender
+      if (this.peerConnection) {
+        const sender = this.peerConnection.getSenders().find((s) => s.track?.kind === 'video');
+        if (sender) {
+          await sender.replaceTrack(newTrack);
+        } else {
+          // No existing video sender — add one
+          this.peerConnection.addTrack(newTrack, this.localStream);
+        }
+      }
+
+      // Create a fresh stream to force React to detect the change
+      const freshStream = new MediaStream();
+      this.localStream.getTracks().forEach((t) => freshStream.addTrack(t));
+      this.localStream = freshStream;
+
+      if (this.localVideoElement) {
+        this.localVideoElement.srcObject = this.localStream;
+      }
+
+      this.notifyStreamListeners();
+      return true;
+    } catch (error) {
+      console.warn('[WebRTC] Error re-enabling camera:', error);
+      return false;
+    }
   }
 
   public toggleAudio(): boolean {
@@ -436,9 +505,23 @@ export class WebRTCService {
     return this.setMicrophoneMuted(!currentMuted);
   }
 
-  public toggleVideo(): boolean {
+  /**
+   * Toggle video on/off. When turning the camera back ON, we re-acquire
+   * the video track (async) because the old track may have been stopped
+   * and the UI video element was unmounted.
+   * Returns a Promise<boolean> indicating the new camera-off state.
+   */
+  public async toggleVideo(): Promise<boolean> {
     const currentOff = this.isCameraOff();
-    return this.setCameraOff(!currentOff);
+
+    if (currentOff) {
+      // Turning camera ON — need to re-acquire track
+      const success = await this.reEnableCamera();
+      return success ? false : true; // false = camera is NOT off
+    } else {
+      // Turning camera OFF — just disable the track
+      return this.setCameraOff(true);
+    }
   }
 
   private async getUserMedia(callType: CallType): Promise<boolean> {
