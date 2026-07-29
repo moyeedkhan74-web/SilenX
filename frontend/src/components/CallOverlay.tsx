@@ -31,7 +31,6 @@ const CallOverlay: React.FC = () => {
   }, []);
 
   const isMicrophoneMuted = localStream ? webrtcService.isMicrophoneMuted() : isAudioMuted;
-  const isCameraOff = localStream ? webrtcService.isCameraOff() : isVideoOff;
 
   if (!isInCall) return null;
 
