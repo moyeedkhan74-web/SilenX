@@ -302,10 +302,10 @@ body {
 }
 
 .app-loading-logo {
-  width: 96px;
-  height: 96px;
+  width: 120px;
+  height: 120px;
   margin-bottom: 18px;
-  border-radius: 24px;
+  border-radius: 28px;
   display: block;
   object-fit: contain;
   box-sizing: border-box;
