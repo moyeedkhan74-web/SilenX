@@ -92,38 +92,65 @@ export const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
     // Auto-detect actual content type from the file's MIME type
     const isVideo = file.type.startsWith('video/');
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      const dataUrl = reader.result as string;
-
-      if (type === 'camera') {
-        // Camera capture
-        onSendCamera(dataUrl);
-      } else if (type === 'image' && !isVideo) {
-        // Gallery selected an image
-        onSendImage(dataUrl);
-      } else if (type === 'video' || (type === 'image' && isVideo)) {
-        // Video button or Gallery selected a video — send as document with video fileType
-        onSendDocument({
-          fileName: file.name,
-          fileSize: formatFileSize(file.size),
-          dataUrl,
-          fileType: file.type,
-        });
-      } else {
-        // Document / other file types
-        onSendDocument({
-          fileName: file.name,
-          fileSize: formatFileSize(file.size),
-          dataUrl,
-          fileType: file.type,
-        });
+    if (type === 'camera') {
+      // Camera capture — always image, small enough for base64
+      const reader = new FileReader();
+      reader.onload = () => {
+        onSendCamera(reader.result as string);
+        closeAndReset();
+      };
+      reader.readAsDataURL(file);
+    } else if (isVideo || type === 'video') {
+      // ── VIDEO: use createObjectURL to avoid massive base64 payload ──
+      // Max 100 MB guard
+      if (file.size > 100 * 1024 * 1024) {
+        window.alert('Video is too large (max 100 MB). Please choose a shorter clip.');
+        e.target.value = '';
+        return;
       }
+      const blobUrl = URL.createObjectURL(file);
+      onSendDocument({
+        fileName: file.name,
+        fileSize: formatFileSize(file.size),
+        dataUrl: blobUrl,   // blob URL works for local playback
+        fileType: file.type,
+      });
       closeAndReset();
-    };
-    reader.readAsDataURL(file);
+    } else if (type === 'image') {
+      // ── IMAGE: base64 is fine, but guard at 8 MB ──
+      if (file.size > 8 * 1024 * 1024) {
+        window.alert('Image is too large (max 8 MB). Please choose a smaller image.');
+        e.target.value = '';
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = () => {
+        onSendImage(reader.result as string);
+        closeAndReset();
+      };
+      reader.readAsDataURL(file);
+    } else {
+      // ── DOCUMENT: base64, guard at 20 MB ──
+      if (file.size > 20 * 1024 * 1024) {
+        window.alert('File is too large (max 20 MB). Please choose a smaller file.');
+        e.target.value = '';
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = () => {
+        onSendDocument({
+          fileName: file.name,
+          fileSize: formatFileSize(file.size),
+          dataUrl: reader.result as string,
+          fileType: file.type,
+        });
+        closeAndReset();
+      };
+      reader.readAsDataURL(file);
+    }
     e.target.value = '';
   };
+
 
   const formatFileSize = (bytes: number): string => {
     if (bytes < 1024) return `${bytes} B`;
