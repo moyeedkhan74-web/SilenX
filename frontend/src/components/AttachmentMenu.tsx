@@ -86,71 +86,54 @@ export const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
   };
 
   const handleFileSelected = (e: React.ChangeEvent<HTMLInputElement>, type: 'image' | 'camera' | 'video' | 'document') => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
 
-    // Auto-detect actual content type from the file's MIME type
-    const isVideo = file.type.startsWith('video/');
+    const sendFile = (file: File, fileType: 'image' | 'camera' | 'video' | 'document') => {
+      const isVideo = file.type.startsWith('video/');
 
-    if (type === 'camera') {
-      // Camera capture — always image, small enough for base64
-      const reader = new FileReader();
-      reader.onload = () => {
-        onSendCamera(reader.result as string);
-        closeAndReset();
-      };
-      reader.readAsDataURL(file);
-    } else if (isVideo || type === 'video') {
-      // ── VIDEO: use createObjectURL to avoid massive base64 payload ──
-      // Max 100 MB guard
-      if (file.size > 100 * 1024 * 1024) {
-        window.alert('Video is too large (max 100 MB). Please choose a shorter clip.');
-        e.target.value = '';
-        return;
-      }
-      const blobUrl = URL.createObjectURL(file);
-      onSendDocument({
-        fileName: file.name,
-        fileSize: formatFileSize(file.size),
-        dataUrl: blobUrl,   // blob URL works for local playback
-        fileType: file.type,
-      });
-      closeAndReset();
-    } else if (type === 'image') {
-      // ── IMAGE: base64 is fine, but guard at 8 MB ──
-      if (file.size > 8 * 1024 * 1024) {
-        window.alert('Image is too large (max 8 MB). Please choose a smaller image.');
-        e.target.value = '';
-        return;
-      }
-      const reader = new FileReader();
-      reader.onload = () => {
-        onSendImage(reader.result as string);
-        closeAndReset();
-      };
-      reader.readAsDataURL(file);
-    } else {
-      // ── DOCUMENT: base64, guard at 20 MB ──
-      if (file.size > 20 * 1024 * 1024) {
-        window.alert('File is too large (max 20 MB). Please choose a smaller file.');
-        e.target.value = '';
-        return;
-      }
-      const reader = new FileReader();
-      reader.onload = () => {
-        onSendDocument({
-          fileName: file.name,
-          fileSize: formatFileSize(file.size),
-          dataUrl: reader.result as string,
-          fileType: file.type,
+      if (fileType === 'camera') {
+        const reader = new FileReader();
+        reader.onload = () => onSendCamera(reader.result as string);
+        reader.readAsDataURL(file);
+      } else if (isVideo || fileType === 'video') {
+        if (file.size > 100 * 1024 * 1024) {
+          window.alert(`"${file.name}" is too large (max 100 MB). Skipped.`);
+          return;
+        }
+        const blobUrl = URL.createObjectURL(file);
+        onSendDocument({ fileName: file.name, fileSize: formatFileSize(file.size), dataUrl: blobUrl, fileType: file.type });
+      } else if (fileType === 'image') {
+        if (file.size > 8 * 1024 * 1024) {
+          window.alert(`"${file.name}" is too large (max 8 MB). Skipped.`);
+          return;
+        }
+        const reader = new FileReader();
+        reader.onload = () => onSendImage(reader.result as string);
+        reader.readAsDataURL(file);
+      } else {
+        if (file.size > 20 * 1024 * 1024) {
+          window.alert(`"${file.name}" is too large (max 20 MB). Skipped.`);
+          return;
+        }
+        const reader = new FileReader();
+        reader.onload = () => onSendDocument({
+          fileName: file.name, fileSize: formatFileSize(file.size),
+          dataUrl: reader.result as string, fileType: file.type,
         });
-        closeAndReset();
-      };
-      reader.readAsDataURL(file);
-    }
+        reader.readAsDataURL(file);
+      }
+    };
+
+    // Send all files with a small stagger so messages arrive in order
+    files.forEach((file, idx) => {
+      const resolvedType = type === 'image' && file.type.startsWith('video/') ? 'video' : type;
+      setTimeout(() => sendFile(file, resolvedType), idx * 50);
+    });
+
+    closeAndReset();
     e.target.value = '';
   };
-
 
   const formatFileSize = (bytes: number): string => {
     if (bytes < 1024) return `${bytes} B`;
@@ -317,15 +300,13 @@ export const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
         ref={fileInputRef}
         type="file"
         accept="image/*,video/*"
+        multiple
         hidden
-        onChange={(e) => {
-          const file = e.target.files?.[0];
-          handleFileSelected(e, file?.type.startsWith('video/') ? 'video' : 'image');
-        }}
+        onChange={(e) => handleFileSelected(e, 'image')}
       />
-      <input ref={videoInputRef} type="file" accept="video/*" hidden onChange={(e) => handleFileSelected(e, 'video')} />
+      <input ref={videoInputRef} type="file" accept="video/*" multiple hidden onChange={(e) => handleFileSelected(e, 'video')} />
       <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" hidden onChange={(e) => handleFileSelected(e, 'camera')} />
-      <input ref={docInputRef} type="file" accept="*/*" hidden onChange={(e) => handleFileSelected(e, 'document')} />
+      <input ref={docInputRef} type="file" accept="*/*" multiple hidden onChange={(e) => handleFileSelected(e, 'document')} />
     </div>
   );
 };
