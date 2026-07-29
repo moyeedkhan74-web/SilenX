@@ -208,33 +208,76 @@ export class WebRTCService {
     const nextFacingMode = this.currentFacingMode === 'user' ? 'environment' : 'user';
 
     try {
-      const newCameraStream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: nextFacingMode } },
-      });
+      // 1. Stop the current video track BEFORE requesting the new one.
+      // Crucial on Android Chrome / WebViews where camera hardware locking prevents simultaneous access.
+      currentTrack.stop();
+      this.localStream.removeTrack(currentTrack);
+
+      // 2. Add a brief cool-off period for the Android hardware camera subsystem to release resources.
+      await new Promise((resolve) => setTimeout(resolve, 150));
+
+      // 3. Acquire the camera stream requesting exact constraints first, fallback to ideal, fallback to device enumeration.
+      let newCameraStream: MediaStream;
+      try {
+        newCameraStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { exact: nextFacingMode } },
+        });
+      } catch (err) {
+        console.warn('[WebRTC] exact facingMode failed, falling back to ideal constraints', err);
+        try {
+          newCameraStream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: { ideal: nextFacingMode } },
+          });
+        } catch (err2) {
+          console.warn('[WebRTC] ideal facingMode failed, checking device list', err2);
+          const devices = await navigator.mediaDevices.enumerateDevices();
+          const videoDevices = devices.filter((d) => d.kind === 'videoinput');
+          if (videoDevices.length > 1) {
+            const targetLabel = nextFacingMode === 'environment' ? 'back' : 'front';
+            const targetLabelAlt = nextFacingMode === 'environment' ? 'rear' : 'user';
+            const otherDevice = videoDevices.find((d) => 
+              d.label.toLowerCase().includes(targetLabel) || 
+              d.label.toLowerCase().includes(targetLabelAlt)
+            ) || videoDevices[1];
+
+            newCameraStream = await navigator.mediaDevices.getUserMedia({
+              video: { deviceId: { exact: otherDevice.deviceId } },
+            });
+          } else if (videoDevices.length === 1) {
+            newCameraStream = await navigator.mediaDevices.getUserMedia({
+              video: { deviceId: { exact: videoDevices[0].deviceId } },
+            });
+          } else {
+            throw new Error('No video devices found during fallback');
+          }
+        }
+      }
 
       const newTrack = newCameraStream.getVideoTracks()[0];
-      if (!newTrack) return false;
+      if (!newTrack) {
+        throw new Error('No video track returned from new camera stream');
+      }
 
-      // Replace the track on the peer connection sender
+      newTrack.enabled = true;
+
+      // 4. Update the track on the peer connection sender
       if (this.peerConnection) {
         const sender = this.peerConnection.getSenders().find((s) => s.track?.kind === 'video');
         if (sender) {
           await sender.replaceTrack(newTrack);
+        } else {
+          this.peerConnection.addTrack(newTrack, this.localStream);
         }
       }
 
-      // Stop old track and rebuild the local stream with a new identity
-      // so React detects the change via useEffect dependency
-      currentTrack.stop();
+      // 5. Rebuild the stream reference object so React state bindings recognize the change
       const freshStream = new MediaStream();
-      // Carry over audio tracks
       this.localStream.getAudioTracks().forEach((t) => freshStream.addTrack(t));
-      // Add the new video track
       freshStream.addTrack(newTrack);
       this.localStream = freshStream;
       this.currentFacingMode = nextFacingMode;
 
-      // Update video element
+      // 6. Update video element directly as a fast path
       if (this.localVideoElement) {
         this.localVideoElement.srcObject = this.localStream;
       }
@@ -242,7 +285,30 @@ export class WebRTCService {
       this.notifyStreamListeners();
       return true;
     } catch (error) {
-      console.warn('[WebRTC] Error switching camera:', error);
+      console.error('[WebRTC] Exception during switchCamera:', error);
+      // Recovery fallback: Try to re-establish the original camera view
+      try {
+        const recoveryStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: this.currentFacingMode } },
+        });
+        const recTrack = recoveryStream.getVideoTracks()[0];
+        if (recTrack) {
+          if (this.peerConnection) {
+            const sender = this.peerConnection.getSenders().find((s) => s.track?.kind === 'video');
+            if (sender) await sender.replaceTrack(recTrack);
+          }
+          const freshStream = new MediaStream();
+          this.localStream.getAudioTracks().forEach((t) => freshStream.addTrack(t));
+          freshStream.addTrack(recTrack);
+          this.localStream = freshStream;
+          if (this.localVideoElement) {
+            this.localVideoElement.srcObject = this.localStream;
+          }
+          this.notifyStreamListeners();
+        }
+      } catch (recoveryErr) {
+        console.error('[WebRTC] Failed to recover original camera state:', recoveryErr);
+      }
       return false;
     }
   }
@@ -456,34 +522,38 @@ export class WebRTCService {
     }
 
     try {
-      // Get a fresh video track
+      // 1. Stop and remove all existing video tracks FIRST to avoid hardware conflicts.
+      this.localStream.getVideoTracks().forEach((t) => {
+        t.stop();
+        this.localStream!.removeTrack(t);
+      });
+
+      // 2. Quick device release delay
+      await new Promise((resolve) => setTimeout(resolve, 150));
+
+      // 3. Acquire new video track
       const cameraStream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: { ideal: this.currentFacingMode } },
       });
       const newTrack = cameraStream.getVideoTracks()[0];
       if (!newTrack) return false;
 
-      // Remove old video tracks (they may be stopped)
-      this.localStream.getVideoTracks().forEach((t) => {
-        t.stop();
-        this.localStream!.removeTrack(t);
-      });
+      newTrack.enabled = true;
 
-      // Add the fresh track to the stream
+      // 4. Add the fresh track to the stream
       this.localStream.addTrack(newTrack);
 
-      // Replace track on the peer connection sender
+      // 5. Replace/add track on peer connection
       if (this.peerConnection) {
         const sender = this.peerConnection.getSenders().find((s) => s.track?.kind === 'video');
         if (sender) {
           await sender.replaceTrack(newTrack);
         } else {
-          // No existing video sender — add one
           this.peerConnection.addTrack(newTrack, this.localStream);
         }
       }
 
-      // Create a fresh stream to force React to detect the change
+      // 6. Refresh stream reference for React bindings
       const freshStream = new MediaStream();
       this.localStream.getTracks().forEach((t) => freshStream.addTrack(t));
       this.localStream = freshStream;
@@ -581,6 +651,16 @@ export class WebRTCService {
 
         event.track.enabled = true;
 
+        // Force stream update notifications when a track changes mute/unmute state
+        event.track.onmute = () => {
+          console.log(`[WebRTC] Remote track muted: ${event.track.kind}`);
+          this.notifyStreamListeners();
+        };
+        event.track.onunmute = () => {
+          console.log(`[WebRTC] Remote track unmuted: ${event.track.kind}`);
+          this.notifyStreamListeners();
+        };
+
         if (this.remoteVideoElement) {
           this.remoteVideoElement.srcObject = this.remoteStream;
         }
@@ -590,10 +670,18 @@ export class WebRTCService {
 
       this.peerConnection.onconnectionstatechange = () => {
         console.log('[WebRTC] connectionState:', this.peerConnection?.connectionState);
+        if (this.peerConnection?.connectionState === 'failed') {
+          console.warn('[WebRTC] Connection failed. Triggering ICE restart...');
+          this.handleIceRestart();
+        }
       };
 
       this.peerConnection.oniceconnectionstatechange = () => {
         console.log('[WebRTC] iceConnectionState:', this.peerConnection?.iceConnectionState);
+        if (this.peerConnection?.iceConnectionState === 'failed') {
+          console.warn('[WebRTC] ICE Connection failed. Triggering ICE restart...');
+          this.handleIceRestart();
+        }
       };
 
       this.peerConnection.onicegatheringstatechange = () => {
@@ -606,6 +694,25 @@ export class WebRTCService {
     } catch (error) {
       console.error('[WebRTC] Error creating peer connection:', error);
       this.peerConnection = null;
+    }
+  }
+
+  private async handleIceRestart(): Promise<void> {
+    if (!this.peerConnection || !this.targetUserId) {
+      return;
+    }
+
+    try {
+      console.log('[WebRTC] Initiating ICE restart...');
+      const offer = await this.peerConnection.createOffer({ iceRestart: true });
+      await this.peerConnection.setLocalDescription(offer);
+
+      getSocket()?.emit('sdp-offer', {
+        targetUserId: this.targetUserId,
+        sdp: offer,
+      });
+    } catch (error) {
+      console.error('[WebRTC] Error during ICE restart:', error);
     }
   }
 

@@ -52,6 +52,7 @@ function normalizeTurnUrl(url: string): string[] {
 }
 
 const iceServers: RTCIceServer[] = [
+  { urls: 'stun:stun.l.google.com:19302' },
   { urls: 'stun:stun1.l.google.com:19302' },
   { urls: 'stun:stun2.l.google.com:19302' },
   { urls: 'stun:stun3.l.google.com:19302' },
@@ -63,6 +64,19 @@ if (hasTurnConfig) {
     urls: normalizeTurnUrl(turnUrlRaw!),
     username: turnUsername!,
     credential: turnCredential!,
+  });
+} else {
+  // If no proprietary TURN configuration is found in env, fall back to Metered.ca's free Open Relay service
+  // to ensure remote and cellular WebRTC calls (behind symmetric NAT) connect reliably.
+  console.info('[WebRTC] Using Metered Open Relay STUN/TURN fallback servers for NAT traversal.');
+  iceServers.push({
+    urls: [
+      'turn:openrelay.metered.ca:80',
+      'turn:openrelay.metered.ca:443',
+      'turns:openrelay.metered.ca:443?transport=tcp'
+    ],
+    username: 'openrelayproject',
+    credential: 'openrelayproject',
   });
 }
 
