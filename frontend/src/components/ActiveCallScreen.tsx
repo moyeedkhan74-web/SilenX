@@ -75,22 +75,26 @@ export default function ActiveCallScreen({
     }
   }, [localStream]);
 
-  // Remote video stream binding
+  // Remote video stream binding (Handles both video & audio tracks when remote video element is shown)
   useEffect(() => {
-    if (remoteVideoRef.current && remoteStream) {
+    if (remoteVideoRef.current && remoteStream && showRemoteVideo) {
       if (remoteVideoRef.current.srcObject !== remoteStream) {
         remoteVideoRef.current.srcObject = remoteStream;
       }
       remoteVideoRef.current.volume = speakerOn ? 1 : 0;
       remoteVideoRef.current
         .play()
-        .catch((error) => console.warn('[ActiveCallScreen] remote video autoplay blocked', error));
+        .then(() => setAudioPlaybackBlocked(false))
+        .catch((error) => {
+          console.warn('[ActiveCallScreen] remote video autoplay blocked', error);
+          setAudioPlaybackBlocked(true);
+        });
     }
-  }, [remoteStream, speakerOn]);
+  }, [remoteStream, speakerOn, showRemoteVideo]);
 
-  // Remote audio stream binding (Only bind on remoteStream updates; speaker toggles directly set volume to avoid reload glitches)
+  // Remote audio stream binding (Only for audio-only calls when remote video element is NOT rendered)
   useEffect(() => {
-    if (!remoteAudioRef.current || !remoteStream) return;
+    if (!remoteAudioRef.current || !remoteStream || showRemoteVideo) return;
 
     if (remoteAudioRef.current.srcObject !== remoteStream) {
       console.debug('[ActiveCallScreen] Binding remoteStream to audio element. Audio tracks:', remoteStream.getAudioTracks().length);
@@ -105,16 +109,19 @@ export default function ActiveCallScreen({
         console.warn('[ActiveCallScreen] remote audio autoplay blocked:', error);
         setAudioPlaybackBlocked(true);
       });
-  }, [remoteStream]);
+  }, [remoteStream, speakerOn, showRemoteVideo]);
 
   const enableAudioPlayback = async () => {
-    if (remoteAudioRef.current) {
-      try {
+    try {
+      if (remoteAudioRef.current && !showRemoteVideo) {
         await remoteAudioRef.current.play();
-        setAudioPlaybackBlocked(false);
-      } catch (error) {
-        console.warn('[ActiveCallScreen] enableAudioPlayback failed', error);
       }
+      if (remoteVideoRef.current && showRemoteVideo) {
+        await remoteVideoRef.current.play();
+      }
+      setAudioPlaybackBlocked(false);
+    } catch (error) {
+      console.warn('[ActiveCallScreen] enableAudioPlayback failed', error);
     }
   };
 
@@ -144,8 +151,10 @@ export default function ActiveCallScreen({
     <div ref={containerRef} className={`active-call ${isFullscreen ? 'active-call--fullscreen' : ''}`}>
       <div className="active-call__backdrop" />
 
-      {/* Dedicated Remote Audio Element for guaranteed voice playback (using layout-safe positioning instead of display: none to prevent mobile throttling) */}
-      <audio ref={remoteAudioRef} autoPlay playsInline style={{ position: 'absolute', width: '1px', height: '1px', opacity: 0, pointerEvents: 'none' }} />
+      {/* Dedicated Remote Audio Element for guaranteed voice playback in audio-only calls */}
+      {!showRemoteVideo && (
+        <audio ref={remoteAudioRef} autoPlay playsInline style={{ position: 'absolute', width: '1px', height: '1px', opacity: 0, pointerEvents: 'none' }} />
+      )}
 
       {/* Main Stream / Center View */}
       {showRemoteVideo ? (

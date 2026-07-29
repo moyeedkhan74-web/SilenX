@@ -71,7 +71,9 @@ if (hasTurnConfig) {
   console.info('[WebRTC] Using Metered Open Relay STUN/TURN fallback servers for NAT traversal.');
   iceServers.push({
     urls: [
-      'turn:openrelay.metered.ca:80',
+      'stun:openrelay.metered.ca:80',
+      'turn:openrelay.metered.ca:80?transport=udp',
+      'turn:openrelay.metered.ca:80?transport=tcp',
       'turn:openrelay.metered.ca:443',
       'turns:openrelay.metered.ca:443?transport=tcp'
     ],

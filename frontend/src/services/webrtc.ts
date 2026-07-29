@@ -596,16 +596,27 @@ export class WebRTCService {
 
   private async getUserMedia(callType: CallType): Promise<boolean> {
     try {
-      const constraints: MediaStreamConstraints = {
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true,
-        },
-        video: callType === 'video' ? { facingMode: 'user' } : false,
-      };
+      let stream: MediaStream;
+      try {
+        const constraints: MediaStreamConstraints = {
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+          },
+          video: callType === 'video' ? { facingMode: 'user' } : false,
+        };
+        stream = await navigator.mediaDevices.getUserMedia(constraints);
+      } catch (err) {
+        console.warn('[WebRTC] Advanced audio constraints failed, trying basic audio/video constraints:', err);
+        const fallbackConstraints: MediaStreamConstraints = {
+          audio: true,
+          video: callType === 'video' ? true : false,
+        };
+        stream = await navigator.mediaDevices.getUserMedia(fallbackConstraints);
+      }
 
-      this.localStream = await navigator.mediaDevices.getUserMedia(constraints);
+      this.localStream = stream;
       console.debug('[WebRTC] getUserMedia success, tracks:', this.localStream.getTracks().map((track) => track.kind));
 
       if (this.localVideoElement) {
@@ -640,13 +651,16 @@ export class WebRTCService {
 
       this.peerConnection.ontrack = (event) => {
         console.debug('[WebRTC] ontrack event:', event.track.kind, event.streams);
+
+        let currentTracks: MediaStreamTrack[] = [];
         if (event.streams && event.streams[0]) {
-          this.remoteStream = event.streams[0];
-        } else {
-          if (!this.remoteStream) {
-            this.remoteStream = new MediaStream();
-          }
-          this.remoteStream.addTrack(event.track);
+          currentTracks = event.streams[0].getTracks();
+        } else if (this.remoteStream) {
+          currentTracks = this.remoteStream.getTracks();
+        }
+
+        if (!currentTracks.some((t) => t.id === event.track.id)) {
+          currentTracks.push(event.track);
         }
 
         event.track.enabled = true;
@@ -660,6 +674,14 @@ export class WebRTCService {
           console.log(`[WebRTC] Remote track unmuted: ${event.track.kind}`);
           this.notifyStreamListeners();
         };
+
+        // CRITICAL FIX FOR REACT STREAM REACTIVITY:
+        // Always instantiate a NEW MediaStream reference wrapping all remote tracks.
+        // If we reuse the same MediaStream object reference, React's setRemoteStream(stream)
+        // ignores the state change (Object.is(prev, next) === true) and fails to re-render
+        // audio/video DOM elements when tracks arrive asynchronously!
+        const reactiveRemoteStream = new MediaStream(currentTracks);
+        this.remoteStream = reactiveRemoteStream;
 
         if (this.remoteVideoElement) {
           this.remoteVideoElement.srcObject = this.remoteStream;
@@ -768,7 +790,11 @@ export class WebRTCService {
     }
 
     try {
-      const offer = await this.peerConnection.createOffer();
+      const offerOptions: RTCOfferOptions = {
+        offerToReceiveAudio: true,
+        offerToReceiveVideo: this.currentCallType === 'video',
+      };
+      const offer = await this.peerConnection.createOffer(offerOptions);
       await this.peerConnection.setLocalDescription(offer);
 
       getSocket()?.emit('sdp-offer', {

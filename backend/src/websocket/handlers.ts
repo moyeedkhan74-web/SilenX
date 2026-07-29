@@ -461,7 +461,7 @@ export function registerSocketHandlers(io: Server): void {
       });
       saveDb();
 
-      socket.to(recipientSocketId).emit('call-incoming', {
+      io.to(recipientSocketId).emit('call-incoming', {
         callerId: userId,
         callerName: data.callerName,
         callerAvatarUrl: data.callerAvatarUrl,
@@ -503,7 +503,7 @@ export function registerSocketHandlers(io: Server): void {
         saveDb();
       }
 
-      socket.to(recipientSocketId).emit('call-accepted', {
+      io.to(recipientSocketId).emit('call-accepted', {
         responderId: userId,
         responderName: users.find(u => u.id === userId)?.displayName || 'Unknown',
         callLogId: log?.id || data.callLogId,
@@ -533,7 +533,7 @@ export function registerSocketHandlers(io: Server): void {
       }
 
       if (recipientSocketId) {
-        socket.to(recipientSocketId).emit('call-rejected', { by: userId });
+        io.to(recipientSocketId).emit('call-rejected', { by: userId });
       }
     });
 
@@ -561,7 +561,7 @@ export function registerSocketHandlers(io: Server): void {
       }
 
       if (recipientSocketId) {
-        socket.to(recipientSocketId).emit('call-ended', { by: userId });
+        io.to(recipientSocketId).emit('call-ended', { by: userId });
       }
     });
 
@@ -571,7 +571,7 @@ export function registerSocketHandlers(io: Server): void {
         return;
       }
 
-      socket.to(recipientSocketId).emit('sdp-offer-received', {
+      io.to(recipientSocketId).emit('sdp-offer-received', {
         sdp: data.sdp,
         senderId: userId,
       });
@@ -583,7 +583,7 @@ export function registerSocketHandlers(io: Server): void {
         return;
       }
 
-      socket.to(recipientSocketId).emit('sdp-answer-received', {
+      io.to(recipientSocketId).emit('sdp-answer-received', {
         sdp: data.sdp,
         senderId: userId,
       });
@@ -595,7 +595,7 @@ export function registerSocketHandlers(io: Server): void {
         return;
       }
 
-      socket.to(recipientSocketId).emit('ice-candidate-received', {
+      io.to(recipientSocketId).emit('ice-candidate-received', {
         candidate: data.candidate,
         senderId: userId,
       });
