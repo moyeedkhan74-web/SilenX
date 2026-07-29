@@ -10,10 +10,12 @@ interface CallState {
   callerAvatarUrl: string | null;
   callLogId: string | null;
   isCaller: boolean;
+  isRinging: boolean;
   duration: number;
   isAudioMuted: boolean;
   isVideoOff: boolean;
   setCallLogId: (id: string) => void;
+  setRinging: (isRinging: boolean) => void;
   initiateCall: (callType: CallType, targetId: string, targetName: string) => void;
   receiveCall: (callerId: string, callerName: string, callerAvatarUrl: string | null, callType: CallType, callLogId?: string) => void;
   acceptCall: () => void;
@@ -34,10 +36,12 @@ export const useCallStore = create<CallState>((set) => ({
   callerAvatarUrl: null,
   callLogId: null,
   isCaller: false,
+  isRinging: false,
   duration: 0,
   isAudioMuted: false,
   isVideoOff: false,
   setCallLogId: (id: string) => set({ callLogId: id }),
+  setRinging: (isRinging: boolean) => set({ isRinging }),
   initiateCall: (callType, targetId, targetName) =>
     set({
       isInCall: true,
@@ -48,6 +52,7 @@ export const useCallStore = create<CallState>((set) => ({
       callerAvatarUrl: null,
       callLogId: null,
       isCaller: true,
+      isRinging: false,
       duration: 0,
       isAudioMuted: false,
       isVideoOff: false,
@@ -62,11 +67,12 @@ export const useCallStore = create<CallState>((set) => ({
       callerAvatarUrl,
       callLogId: callLogId || null,
       isCaller: false,
+      isRinging: true,
       duration: 0,
       isAudioMuted: false,
       isVideoOff: false,
     }),
-  acceptCall: () => set({ callStatus: 'active', duration: 0 }),
+  acceptCall: () => set({ callStatus: 'active', isRinging: false, duration: 0 }),
   rejectCall: () =>
     set({
       isInCall: false,
@@ -77,6 +83,7 @@ export const useCallStore = create<CallState>((set) => ({
       callerAvatarUrl: null,
       callLogId: null,
       isCaller: false,
+      isRinging: false,
       duration: 0,
       isAudioMuted: false,
       isVideoOff: false,
@@ -91,6 +98,7 @@ export const useCallStore = create<CallState>((set) => ({
       callerAvatarUrl: null,
       callLogId: null,
       isCaller: false,
+      isRinging: false,
       duration: 0,
       isAudioMuted: false,
       isVideoOff: false,
@@ -105,6 +113,7 @@ export const useCallStore = create<CallState>((set) => ({
       callerAvatarUrl: null,
       callLogId: null,
       isCaller: false,
+      isRinging: false,
       duration: 0,
       isAudioMuted: false,
       isVideoOff: false,

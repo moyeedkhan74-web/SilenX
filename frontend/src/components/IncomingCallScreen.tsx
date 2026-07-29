@@ -9,6 +9,7 @@ interface IncomingCallScreenProps {
   callerAvatarUrl: string | null;
   callType: CallType | null;
   isCaller: boolean;
+  isRinging?: boolean;
   onAccept: () => void;
   onReject: () => void;
   onCancel: () => void;
@@ -19,6 +20,7 @@ const IncomingCallScreen: React.FC<IncomingCallScreenProps> = ({
   callerAvatarUrl,
   callType,
   isCaller,
+  isRinging = false,
   onAccept,
   onReject,
   onCancel,
@@ -26,9 +28,15 @@ const IncomingCallScreen: React.FC<IncomingCallScreenProps> = ({
   const isVideo = callType === 'video';
   const title = isVideo ? 'Video Call' : 'Voice Call';
   const displayName = callerName || 'Unknown caller';
-  const statusText = isCaller ? 'Ringing…' : `Incoming ${title}…`;
+  const statusText = isCaller
+    ? isRinging
+      ? 'Ringing…'
+      : 'Calling…'
+    : `Incoming ${title}…`;
   const subtitle = isCaller
-    ? 'Waiting for recipient to answer…'
+    ? isRinging
+      ? 'Waiting for recipient to answer…'
+      : 'Connecting call…'
     : 'Tap Accept to answer or Decline to reject.';
   const typeIcon = isVideo ? <Video size={16} /> : <Mic size={16} />;
 

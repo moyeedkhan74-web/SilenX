@@ -71,6 +71,7 @@ export class WebRTCService {
 
   private attachSocketListeners(socket: Socket): void {
     socket.on('call-incoming', this.handleIncomingCall);
+    socket.on('call-ringing-received', this.handleCallRingingReceived);
     socket.on('call-accepted', this.handleCallAccepted);
     socket.on('call-rejected', this.handleCallRejected);
     socket.on('call-ended', this.handleRemoteCallEnded);
@@ -82,6 +83,7 @@ export class WebRTCService {
 
   private detachSocketListeners(socket: Socket): void {
     socket.off('call-incoming', this.handleIncomingCall);
+    socket.off('call-ringing-received', this.handleCallRingingReceived);
     socket.off('call-accepted', this.handleCallAccepted);
     socket.off('call-rejected', this.handleCallRejected);
     socket.off('call-ended', this.handleRemoteCallEnded);
@@ -390,15 +392,7 @@ export class WebRTCService {
 
     useCallStore.getState().initiateCall(callType, targetUserId, targetName);
 
-    const ready = await this.prepareLocalMediaAndConnection(callType);
-    if (!ready) {
-      console.warn('[WebRTC] Outgoing call failed because local media access was denied or unavailable');
-      this.clearPendingOutboundCall();
-      return false;
-    }
-
-    this.startRingTone(true).catch(() => undefined);
-
+    // Emit call-initiate IMMEDIATELY over socket so recipient phone is notified with 0 delay!
     socket.emit('call-initiate', {
       targetUserId,
       callerName,
@@ -414,6 +408,14 @@ export class WebRTCService {
         this.endCall();
       }
     }, WebRTCService.CALL_TIMEOUT_MS);
+
+    // Prepare local media and peer connection in parallel
+    const ready = await this.prepareLocalMediaAndConnection(callType);
+    if (!ready) {
+      console.warn('[WebRTC] Outgoing call failed because local media access was denied or unavailable');
+      this.clearPendingOutboundCall();
+      return false;
+    }
 
     return true;
   }
@@ -827,7 +829,20 @@ export class WebRTCService {
       payload.callType,
       this.callLogId || undefined
     );
+
+    // Notify caller immediately that recipient phone received the call and is actively ringing
+    getSocket()?.emit('call-ringing', { targetUserId: payload.callerId });
+
     this.startRingTone(false).catch(() => undefined);
+  };
+
+  private handleCallRingingReceived = (payload: { responderId: string }): void => {
+    if (!this.isCaller || !this.targetUserId || payload?.responderId !== this.targetUserId) {
+      return;
+    }
+    console.debug('[WebRTC] call-ringing-received from recipient');
+    useCallStore.getState().setRinging(true);
+    this.startRingTone(true).catch(() => undefined);
   };
 
   private handleCallAccepted = async (payload: CallAcceptedPayload): Promise<void> => {

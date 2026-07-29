@@ -13,6 +13,7 @@ const CallOverlay: React.FC = () => {
     callerName,
     callerAvatarUrl,
     isCaller,
+    isRinging,
     isAudioMuted,
     isVideoOff,
     toggleAudio,
@@ -81,6 +82,7 @@ const CallOverlay: React.FC = () => {
           callerAvatarUrl={callerAvatarUrl}
           callType={callType}
           isCaller={isCaller}
+          isRinging={isRinging}
           onAccept={handleAccept}
           onReject={handleReject}
           onCancel={handleCancelOutgoingCall}

@@ -483,6 +483,16 @@ export function registerSocketHandlers(io: Server): void {
       }, 60_000);
     });
 
+    socket.on('call-ringing', (data: { targetUserId: string }) => {
+      console.debug('[Socket] call-ringing from', userId, 'to', data.targetUserId);
+      const recipientSocketId = getSocketIdForUser(data.targetUserId);
+      if (recipientSocketId) {
+        io.to(recipientSocketId).emit('call-ringing-received', {
+          responderId: userId,
+        });
+      }
+    });
+
     socket.on('call-accept', (data: CallRespondPayload & { callLogId?: string }) => {
       console.debug('[Socket] call-accept from', userId, 'to', data.targetUserId);
       const recipientSocketId = getSocketIdForUser(data.targetUserId);
