@@ -1,10 +1,10 @@
 apply plugin: 'com.android.application'
 
 android {
-    namespace = "com.slienx.app"
+    namespace = "com.dev.silenx"
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "com.slienx.app"
+        applicationId "com.dev.silenx"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
