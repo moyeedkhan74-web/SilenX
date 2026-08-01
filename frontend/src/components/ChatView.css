@@ -199,14 +199,28 @@
   position: absolute;
   left: 12px;
   right: 12px;
-  bottom: calc(100% + 10px);
+  bottom: calc(100% + 8px);
+  max-width: 420px;
+  max-height: min(380px, calc(100vh - 180px));
   background: var(--bg-primary);
   border: 1px solid var(--border-color);
   border-radius: 20px;
-  box-shadow: 0 18px 36px rgba(15, 23, 42, 0.2);
+  box-shadow: 0 18px 36px rgba(15, 23, 42, 0.25);
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
   z-index: 20;
   animation: picker-pop 180ms ease-out;
+}
+
+.picker-panel em-emoji-picker {
+  width: 100% !important;
+  max-width: 100% !important;
+  height: 320px !important;
+  max-height: min(320px, calc(100vh - 230px)) !important;
+  border: none !important;
+  --category-icon-size: 18px;
+  --font-size: 14px;
 }
  
 .picker-tabs {
@@ -504,6 +518,8 @@
   align-items: center;
   gap: 6px;
   padding: 6px;
+  max-width: calc(100vw - 24px);
+  overflow-x: auto;
   border-radius: 999px;
   background: rgba(var(--color-bg-rgb, 255, 255, 255), 0.95);
   border: 1px solid rgba(var(--color-accent-rgb), 0.14);
@@ -981,10 +997,7 @@
 }
 .icon-btn-sm:hover { background: var(--bg-tertiary); }
 
-.picker-panel {
-  border-bottom: 1px solid var(--border-color);
-  background: var(--bg-primary);
-}
+
 .picker-tabs {
   display: flex;
   border-bottom: 1px solid var(--border-color);

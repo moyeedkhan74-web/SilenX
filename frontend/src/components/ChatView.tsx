@@ -315,13 +315,17 @@ export const ChatView: React.FC = () => {
   };
 
   const handleAudioCall = async () => {
-    if (!activeConversationId || !otherUser?.id || !currentUser?.displayName) return;
-    if (activeConvo?.type !== 'direct') return;
+    if (!activeConversationId || !currentUser?.displayName) return;
+    const target = otherUser || activeConvo?.members.find((m) => m.id !== currentUser?.id);
+    if (!target?.id) {
+      showToast('No other members in group to call.');
+      return;
+    }
 
     const started = await webrtcService.startCall(
-      otherUser.id,
+      target.id,
       'audio',
-      otherUser.displayName,
+      chatName,
       currentUser.displayName,
       currentUser.avatarUrl || undefined
     );
@@ -332,13 +336,17 @@ export const ChatView: React.FC = () => {
   };
 
   const handleVideoCall = async () => {
-    if (!activeConversationId || !otherUser?.id || !currentUser?.displayName) return;
-    if (activeConvo?.type !== 'direct') return;
+    if (!activeConversationId || !currentUser?.displayName) return;
+    const target = otherUser || activeConvo?.members.find((m) => m.id !== currentUser?.id);
+    if (!target?.id) {
+      showToast('No other members in group to call.');
+      return;
+    }
 
     const started = await webrtcService.startCall(
-      otherUser.id,
+      target.id,
       'video',
-      otherUser.displayName,
+      chatName,
       currentUser.displayName,
       currentUser.avatarUrl || undefined
     );
@@ -548,8 +556,10 @@ export const ChatView: React.FC = () => {
     setActiveMessageId(messageId);
     if (!anchorElement) return;
     const rect = anchorElement.getBoundingClientRect();
-    const top = Math.max(12, rect.top - 54);
-    const left = Math.max(12, Math.min(window.innerWidth - 220, rect.left + rect.width / 2 - 110));
+    const menuWidth = 260;
+    const menuHeight = 60;
+    const top = Math.max(16, Math.min(window.innerHeight - menuHeight - 16, rect.top - 54));
+    const left = Math.max(16, Math.min(window.innerWidth - menuWidth - 16, rect.left + rect.width / 2 - menuWidth / 2));
     setMenuPosition({ top, left });
   };
 
@@ -618,16 +628,12 @@ export const ChatView: React.FC = () => {
           </div>
         </div>
         <div className="chatview-header-actions">
-          {activeConvo.type === 'direct' && (
-            <>
-              <button className="icon-btn" title="Start audio call" type="button" onClick={handleAudioCall}>
-                <Phone size={18} />
-              </button>
-              <button className="icon-btn" title="Start video call" type="button" onClick={handleVideoCall}>
-                <Video size={18} />
-              </button>
-            </>
-          )}
+          <button className="icon-btn call-btn" title="Start audio call" type="button" onClick={handleAudioCall}>
+            <Phone size={18} />
+          </button>
+          <button className="icon-btn call-btn" title="Start video call" type="button" onClick={handleVideoCall}>
+            <Video size={18} />
+          </button>
           <div className="menu-wrapper" ref={headerMenuRef}>
             <button className="icon-btn" title="More options" onClick={() => setMenuOpen((open) => !open)} type="button">
               <MoreVertical size={18} />

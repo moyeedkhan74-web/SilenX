@@ -279,6 +279,8 @@ export function MessageInputBar({ onSend, onSendRichMessage, replyTo, onCancelRe
               theme={isDark ? 'dark' : 'light'}
               previewPosition="none"
               skinTonePosition="none"
+              perLine={8}
+              maxFrequentRows={1}
             />
           )}
           {pickerTab === 'sticker' && (
