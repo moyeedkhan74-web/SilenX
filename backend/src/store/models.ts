@@ -13,6 +13,7 @@ const UserSchema = new Schema({
   lastSeen: { type: Date, required: true, default: Date.now },
   showOnlineStatus: { type: Boolean, default: true },
   bio: { type: String, default: '' },
+  publicKey: { type: String, default: null },
   createdAt: { type: Date, required: true, default: Date.now },
   updatedAt: { type: Date, required: true, default: Date.now },
   deletedAt: { type: Date, default: null },

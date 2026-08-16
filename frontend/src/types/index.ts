@@ -35,6 +35,7 @@ export interface ChatMessage {
   conversationId: string;
   senderId: string;
   text: string;
+  encryptedContent?: string;
   isSelf: boolean;
   time: string;
   createdAt?: string;
@@ -54,11 +55,11 @@ export interface ChatMessage {
     text: string;
   };
   contentType?: 'text' | 'system' | 'image' | 'video' | 'file' | 'location' | 'contact' | 'poll' | 'event' | 'voice-note';
-  mediaUrl?: string; // for images, videos, files, voice notes
-  fileName?: string; // for files and videos
-  fileSize?: string; // for files and videos
-  fileType?: string; // MIME type for download and preview
-  duration?: string; // for voice notes
+  mediaUrl?: string;
+  fileName?: string;
+  fileSize?: string;
+  fileType?: string;
+  duration?: string;
   locationData?: {
     latitude: number;
     longitude: number;
@@ -74,7 +75,7 @@ export interface ChatMessage {
     options: {
       id: string;
       text: string;
-      votes: string[]; // List of userIds
+      votes: string[];
     }[];
   };
   eventData?: {

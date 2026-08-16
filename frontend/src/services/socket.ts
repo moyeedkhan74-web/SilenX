@@ -3,6 +3,8 @@ import { SOCKET_URL } from '../config/webrtc-config';
 import { useChatStore } from '../store/chatStore';
 import { useAuthStore } from '../store/authStore';
 import type { ChatMessage } from '../types';
+import { decryptMessage } from '../utils/crypto';
+import { API_URL } from '../config/webrtc-config';
 
 let socket: Socket | null = null;
 let heartbeatInterval: ReturnType<typeof setInterval> | null = null;
@@ -85,10 +87,12 @@ export const connectSocket = (idToken?: string): Socket => {
     console.warn('[Socket] Server error:', err.code, err.message);
   });
 
-  socket.on('receive-message', (payload: any) => {
+  socket.on('receive-message', async (payload: any) => {
     const conversationId = payload?.conversationId;
     const encryptedContent = payload?.encryptedContent ?? payload?.text ?? '';
     const contentType = payload?.contentType || 'text';
+    const senderId = payload?.senderId;
+    
     if (!conversationId) return;
     if (contentType === 'text' && !encryptedContent) return;
 
@@ -101,11 +105,40 @@ export const connectSocket = (idToken?: string): Socket => {
 
     const messageDate = payload?.createdAt ? new Date(payload.createdAt) : new Date();
 
+    // Decrypt message content if it's encrypted
+    let decryptedText = encryptedContent;
+    if (senderId && encryptedContent) {
+      try {
+        const token = useAuthStore.getState().token;
+        if (token) {
+          // Fetch sender's public key
+          const res = await fetch(`${API_URL}/api/users/${senderId}/public-key`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (res.ok) {
+            const data = await res.json();
+            const senderPublicKey = data.publicKey;
+            if (senderPublicKey) {
+              const plaintext = decryptMessage(encryptedContent, senderPublicKey);
+              if (plaintext) {
+                decryptedText = plaintext;
+              } else {
+                decryptedText = '[Encrypted Message]';
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.error('[Socket] Failed to decrypt message:', error);
+        decryptedText = '[Encrypted Message]';
+      }
+    }
+
     const incomingMessage: ChatMessage = {
       id: payload?.tempId || payload?.id || crypto.randomUUID(),
       conversationId,
-      senderId: payload?.senderId || 'remote',
-      text: encryptedContent,
+      senderId: senderId || 'remote',
+      text: decryptedText,
       isSelf: false,
       time: messageDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       createdAt: messageDate.toISOString(),

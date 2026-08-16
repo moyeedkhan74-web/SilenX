@@ -18,6 +18,7 @@ import { authenticateWithGoogleBackend } from './services/authApi';
 import type { UserStatus } from './types';
 import './App.css';
 import { ThemeProvider } from './theme/ThemeContext';
+import { CryptoProvider, useCrypto } from './context/CryptoContext';
 
 const BootLoadingView = () => (
   <div className="app-loading-screen" role="status" aria-live="polite">
@@ -58,6 +59,33 @@ function App() {
   const setInitialized = useAuthStore((state) => state.setInitialized);
   const initialized = useAuthStore((state) => state.initialized);
 
+  return (
+    <ThemeProvider>
+      <CryptoProvider>
+        <AppInner
+          login={login}
+          logout={logout}
+          setInitialized={setInitialized}
+          initialized={initialized}
+        />
+      </CryptoProvider>
+    </ThemeProvider>
+  );
+}
+
+function AppInner({
+  login,
+  logout,
+  setInitialized,
+  initialized,
+}: {
+  login: (user: any, token: string) => void;
+  logout: () => void;
+  setInitialized: (value: boolean) => void;
+  initialized: boolean;
+}) {
+  const { initializeKeys } = useCrypto();
+
   useEffect(() => {
     if (!auth) {
       setInitialized(true);
@@ -87,7 +115,10 @@ function App() {
             },
             idToken
           );
- 
+
+          // Initialize E2EE keys after login
+          await initializeKeys();
+
           // Connect socket with the Firebase ID token for server-side verification
           try {
             const socket = connectSocket(idToken);
@@ -107,39 +138,37 @@ function App() {
     });
 
     return () => unsubscribe();
-  }, [login, logout, setInitialized]);
+  }, [login, logout, setInitialized, initializeKeys]);
 
   if (!initialized) {
     return <BootLoadingView />;
   }
 
   return (
-    <ThemeProvider>
-      <BrowserRouter>
-        <div className="app-container">
-          <Routes>
-            <Route path="/login" element={<LoginPage />} />
-            <Route
-              path="/"
-              element={
-                <ProtectedRoute>
-                  <DashboardPage />
-                </ProtectedRoute>
-              }
-            >
-              <Route index element={<Navigate to="/chats" replace />} />
-              <Route path="chats" element={<ChatsPage />} />
-              <Route path="contacts" element={<ContactsPage />} />
-              <Route path="calls" element={<CallsPage />} />
-              <Route path="profile" element={<ProfilePage />} />
-              <Route path="settings" element={<SettingsPage />} />
-            </Route>
-          </Routes>
+    <BrowserRouter>
+      <div className="app-container">
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
+          <Route
+            path="/"
+            element={
+              <ProtectedRoute>
+                <DashboardPage />
+              </ProtectedRoute>
+            }
+          >
+            <Route index element={<Navigate to="/chats" replace />} />
+            <Route path="chats" element={<ChatsPage />} />
+            <Route path="contacts" element={<ContactsPage />} />
+            <Route path="calls" element={<CallsPage />} />
+            <Route path="profile" element={<ProfilePage />} />
+            <Route path="settings" element={<SettingsPage />} />
+          </Route>
+        </Routes>
 
-          <CallOverlay />
-        </div>
-      </BrowserRouter>
-    </ThemeProvider>
+        <CallOverlay />
+      </div>
+    </BrowserRouter>
   );
 }
 

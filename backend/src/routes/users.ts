@@ -203,10 +203,38 @@ router.get('/search', (req: AuthenticatedRequest, res: Response) => {
 
 // GET /api/users/:id/public-key — Get user's public encryption key
 router.get('/:id/public-key', (req: AuthenticatedRequest, res: Response) => {
+  const targetUser = users.find(u => u.id === req.params.id);
+  if (!targetUser) {
+    res.status(404).json({ message: 'User not found' });
+    return;
+  }
   res.status(200).json({
     userId: req.params.id,
-    publicKey: 'pk_x25519_mock_key_bytes_xyz_789',
+    publicKey: targetUser.publicKey || null,
   });
+});
+
+// PUT /api/users/public-key — Upload current user's public encryption key
+router.put('/public-key', (req: AuthenticatedRequest, res: Response) => {
+  const currentUserId = req.currentUser!.dbId;
+  const { publicKey } = req.body;
+
+  if (!publicKey || typeof publicKey !== 'string') {
+    res.status(400).json({ message: 'publicKey is required and must be a string' });
+    return;
+  }
+
+  const selfUser = users.find(u => u.id === currentUserId);
+  if (!selfUser) {
+    res.status(404).json({ message: 'User profile not found' });
+    return;
+  }
+
+  selfUser.publicKey = publicKey;
+  selfUser.updatedAt = new Date();
+  saveDb();
+
+  res.status(200).json({ message: 'Public key updated successfully', publicKey });
 });
 
 export default router;
