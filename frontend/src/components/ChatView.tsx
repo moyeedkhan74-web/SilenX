@@ -19,7 +19,6 @@ import { useSettingsStore } from '../store/settingsStore';
 import WallpaperPicker from './WallpaperPicker';
 import './ChatView.css';
 import { formatLastSeen, formatMessageTime } from '../utils/date';
-import { useCrypto } from '../context/CryptoContext';
 
 export const ChatView: React.FC = () => {
   const isMobile = useIsMobile();
@@ -43,7 +42,6 @@ export const ChatView: React.FC = () => {
   const closeTimer = useRef<number | null>(null);
 
   const { chatWallpaper, chatWallpaperFit, chatWallpaperDim } = useSettingsStore();
-  const { encryptForUser, hasValidKeys } = useCrypto();
 
   const showToast = useCallback((message: string) => {
     setToast({ message, visible: true });
@@ -147,28 +145,17 @@ export const ChatView: React.FC = () => {
     };
   }, [activeConversationId, activeConvo, currentUser]);
 
-  const handleSend = async (payload?: { text: string; replyTo?: { sender: string; text: string } }) => {
+  const handleSend = (payload?: { text: string; replyTo?: { sender: string; text: string } }) => {
     const value = payload?.text?.trim() || inputValue.trim();
     if (!value || !activeConversationId || activeConversationState.isBlocked) return;
 
     const socket = connectSocket();
     const recipientId = activeConvo?.members?.find((member) => member.id !== currentUser?.id)?.id;
-    
-    // Encrypt message for recipient
-    let encryptedContent = value;
-    if (recipientId && hasValidKeys()) {
-      const payload = await encryptForUser(value, recipientId);
-      if (payload) {
-        encryptedContent = payload.ciphertext;
-      }
-    }
-
     const msg: ChatMessage = {
       id: crypto.randomUUID(),
       conversationId: activeConversationId,
       senderId: currentUser?.id || 'self',
-      text: value, // Store plaintext locally for display
-      encryptedContent: encryptedContent, // Store encrypted version for reference
+      text: value,
       isSelf: true,
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       createdAt: new Date().toISOString(),
@@ -185,7 +172,7 @@ export const ChatView: React.FC = () => {
     addMessage(activeConversationId, msg);
     socket?.emit('send-message', {
       conversationId: activeConversationId,
-      encryptedContent: encryptedContent,
+      encryptedContent: value,
       tempId: msg.id,
       recipientId,
       replyTo: payload?.replyTo,
@@ -194,7 +181,7 @@ export const ChatView: React.FC = () => {
     setReplyTo(undefined);
   };
 
-  const handleSendRichMessage = async (partial: Partial<ChatMessage>) => {
+  const handleSendRichMessage = (partial: Partial<ChatMessage>) => {
     if (!activeConversationId || activeConversationState.isBlocked) return;
 
     const socket = connectSocket();
@@ -226,19 +213,10 @@ export const ChatView: React.FC = () => {
       eventData: partial.eventData,
     };
 
-    // Encrypt text content if present
-    let encryptedContent = msg.text;
-    if (msg.text && recipientId && hasValidKeys()) {
-      const payload = await encryptForUser(msg.text, recipientId);
-      if (payload) {
-        encryptedContent = payload.ciphertext;
-      }
-    }
-
     addMessage(activeConversationId, msg);
     socket?.emit('send-message', {
       conversationId: activeConversationId,
-      encryptedContent: encryptedContent,
+      encryptedContent: msg.text,
       tempId: msg.id,
       recipientId,
       contentType: msg.contentType,
