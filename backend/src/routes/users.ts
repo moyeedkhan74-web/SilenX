@@ -237,4 +237,59 @@ router.put('/public-key', (req: AuthenticatedRequest, res: Response) => {
   res.status(200).json({ message: 'Public key updated successfully', publicKey });
 });
 
+// POST /api/users/fcm-token — Register FCM device token for authenticated user
+router.post('/fcm-token', (req: AuthenticatedRequest, res: Response) => {
+  const currentUserId = req.currentUser!.dbId;
+  const { token } = req.body;
+
+  if (!token || typeof token !== 'string') {
+    res.status(400).json({ message: 'FCM token is required and must be a string' });
+    return;
+  }
+
+  const selfUser = users.find(u => u.id === currentUserId);
+  if (!selfUser) {
+    res.status(404).json({ message: 'User profile not found' });
+    return;
+  }
+
+  // Avoid duplicates
+  if (!selfUser.fcmTokens) {
+    selfUser.fcmTokens = [];
+  }
+
+  if (!selfUser.fcmTokens.includes(token)) {
+    selfUser.fcmTokens.push(token);
+    selfUser.updatedAt = new Date();
+    saveDb();
+  }
+
+  res.status(200).json({ message: 'FCM token registered successfully', tokens: selfUser.fcmTokens });
+});
+
+// DELETE /api/users/fcm-token — Remove FCM token on user logout
+router.delete('/fcm-token', (req: AuthenticatedRequest, res: Response) => {
+  const currentUserId = req.currentUser!.dbId;
+  const { token } = req.body;
+
+  if (!token || typeof token !== 'string') {
+    res.status(400).json({ message: 'FCM token is required and must be a string' });
+    return;
+  }
+
+  const selfUser = users.find(u => u.id === currentUserId);
+  if (!selfUser) {
+    res.status(404).json({ message: 'User profile not found' });
+    return;
+  }
+
+  if (selfUser.fcmTokens) {
+    selfUser.fcmTokens = selfUser.fcmTokens.filter(t => t !== token);
+    selfUser.updatedAt = new Date();
+    saveDb();
+  }
+
+  res.status(200).json({ message: 'FCM token removed successfully', tokens: selfUser.fcmTokens });
+});
+
 export default router;
