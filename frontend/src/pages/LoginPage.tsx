@@ -20,11 +20,10 @@ const LoginPage: React.FC = () => {
   const login = useAuthStore((state) => state.login);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [devName, setDevName] = useState('');
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
-  // Developer Bypass Login State
-  const [showDevLogin, setShowDevLogin] = useState(false);
-  const [devName, setDevName] = useState('');
+
 
   const handleGoogleLogin = async () => {
     if (!auth || !googleProvider) {
@@ -88,7 +87,6 @@ const LoginPage: React.FC = () => {
       navigate('/');
     } catch (err: any) {
       console.error('[Login] Error:', err);
-      // If popup blocker blocked the popup, fallback immediately to redirect
       if (err?.code === 'auth/popup-blocked' || err?.code === 'auth/popup-closed-by-user' || err?.code === 'auth/cancelled-by-user' || !isMobile) {
         try {
           setStatusMessage('Popup blocked or closed. Redirecting instead...');
@@ -131,7 +129,7 @@ const LoginPage: React.FC = () => {
           avatarUrl: serverUser.avatarUrl || null,
           status: (serverUser.status as UserStatus) || 'online',
           lastSeen: new Date().toISOString(),
-          bio: serverUser.bio || 'Developer Demo Account',
+          bio: serverUser.bio || 'SilenX Member',
         },
         idToken
       );
@@ -145,7 +143,7 @@ const LoginPage: React.FC = () => {
       navigate('/');
     } catch (err: any) {
       console.error('[Dev Login] Error:', err);
-      setError(err?.message || 'Developer login failed.');
+      setError(err?.message || 'Login failed.');
     } finally {
       setLoading(false);
       setStatusMessage(null);
@@ -159,7 +157,7 @@ const LoginPage: React.FC = () => {
           <div className="login-auth-card">
             <img className="login-auth-logo" src="/silenX-logo.png" alt="SilenX logo" />
             <h2>Secure access</h2>
-            <p>{statusMessage || 'Verifying your Google account and preparing your private workspace.'}</p>
+            <p>{statusMessage || 'Verifying your account and preparing your private workspace.'}</p>
           </div>
         </div>
       ) : null}
@@ -209,7 +207,7 @@ const LoginPage: React.FC = () => {
               </div>
               <div className="feature-text">
                 <h3>Set up in seconds</h3>
-                <p>Sign in with your Google account — no phone number, no new password.</p>
+                <p>Sign in with Google OAuth or enter your display name to start.</p>
               </div>
             </div>
 
@@ -228,15 +226,16 @@ const LoginPage: React.FC = () => {
         <section className="card">
           <img className="mark" src="/silenX-logo.png" alt="SilenX logo" />
           <h1>Sign in</h1>
-          <p className="tagline">Continue with your Google account to get started.</p>
+          <p className="tagline">Choose your preferred login method below.</p>
 
+          {/* 1. FIRST: Google OAuth Login Button */}
           <button
             className="google-btn"
             onClick={handleGoogleLogin}
             disabled={loading}
             id="google-login-button"
           >
-            {loading && !showDevLogin ? (
+            {loading ? (
               <span className="login-spinner" />
             ) : (
               <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -246,57 +245,34 @@ const LoginPage: React.FC = () => {
                 <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.43-3.43C17.94 1.19 15.24 0 12 0A12 12 0 0 0 1.27 6.63l4 3.09C6.22 6.86 8.87 4.75 12 4.75z"/>
               </svg>
             )}
-            <span>{statusMessage && !showDevLogin ? statusMessage : 'Continue with Google'}</span>
+            <span>{statusMessage ? statusMessage : 'Continue with Google'}</span>
           </button>
 
           <div className="login-divider">
-            <span>or</span>
+            <span>or sign in with details</span>
           </div>
 
-          {!showDevLogin ? (
-            <button
-              type="button"
-              className="dev-toggle-btn"
-              onClick={() => setShowDevLogin(true)}
-              disabled={loading}
-            >
-              Sign in with Demo Account
+          {/* 2. NEXT: Account Details Input Form */}
+          <form onSubmit={handleDevLogin} className="dev-login-form">
+            <div className="dev-input-group">
+              <input
+                type="text"
+                placeholder="Enter your Display Name or Username"
+                value={devName}
+                onChange={(e) => setDevName(e.target.value)}
+                maxLength={24}
+                required
+                disabled={loading}
+              />
+            </div>
+            <button type="submit" className="dev-submit-btn" disabled={loading || !devName.trim()}>
+              {loading ? (
+                <span className="login-spinner" style={{ borderTopColor: '#ffffff' }} />
+              ) : (
+                'Enter Secure Chat'
+              )}
             </button>
-          ) : (
-            <form onSubmit={handleDevLogin} className="dev-login-form">
-              <div className="dev-input-group">
-                <input
-                  type="text"
-                  placeholder="Enter Display Name (e.g., Alice, Bob)"
-                  value={devName}
-                  onChange={(e) => setDevName(e.target.value)}
-                  maxLength={20}
-                  required
-                  disabled={loading}
-                />
-              </div>
-              <div className="dev-btn-group">
-                <button type="submit" className="dev-submit-btn" disabled={loading}>
-                  {loading && showDevLogin ? (
-                    <span className="login-spinner" style={{ borderTopColor: '#ffffff' }} />
-                  ) : (
-                    'Enter Secure Chat'
-                  )}
-                </button>
-                <button
-                  type="button"
-                  className="dev-cancel-btn"
-                  onClick={() => {
-                    setShowDevLogin(false);
-                    setError(null);
-                  }}
-                  disabled={loading}
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
-          )}
+          </form>
 
           {statusMessage ? (
             <div className="status">
