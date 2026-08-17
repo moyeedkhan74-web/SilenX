@@ -19,17 +19,16 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'npm'
 
       - name: Check Backend TypeScript
         run: |
           cd backend
-          npm ci
+          npm install --legacy-peer-deps
           npx tsc --noEmit
 
       - name: Check Frontend TypeScript & Production Build
         run: |
           cd frontend
-          npm ci
+          npm install --legacy-peer-deps
           npx tsc --noEmit
           npm run build
