@@ -716,3 +716,95 @@
   opacity: 0.55;
   cursor: not-allowed;
 }
+
+/* Google Account Selector Overlay Modal */
+.google-modal-card {
+  position: relative;
+  width: min(440px, calc(100vw - 32px));
+  padding: 32px 28px 28px;
+  border-radius: 24px;
+  background: rgba(13, 22, 35, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 30px 70px rgba(0, 0, 0, 0.65);
+  text-align: center;
+  animation: fadeUp 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.google-modal-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: transparent;
+  border: none;
+  color: var(--text-lo);
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.google-modal-close:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-hi);
+}
+
+.google-modal-header {
+  margin-bottom: 24px;
+}
+
+.google-modal-icon {
+  width: 42px;
+  height: 42px;
+  margin: 0 auto 12px;
+  display: block;
+}
+
+.google-modal-header h2 {
+  margin: 0 0 6px;
+  font-size: 22px;
+  font-family: 'Space Grotesk', sans-serif;
+  color: var(--text-hi);
+}
+
+.google-modal-header p {
+  margin: 0;
+  font-size: 13.5px;
+  color: var(--text-lo);
+  line-height: 1.5;
+}
+
+.google-modal-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.google-modal-submit-btn {
+  width: 100%;
+  background: var(--text-hi);
+  color: #10141a;
+  border: none;
+  border-radius: 12px;
+  padding: 15px 20px;
+  font-family: 'Inter', sans-serif;
+  font-weight: 600;
+  font-size: 15px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+}
+
+.google-modal-submit-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 20px -6px rgba(255, 255, 255, 0.3);
+}
+
+.google-modal-submit-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+

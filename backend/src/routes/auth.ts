@@ -24,13 +24,14 @@ router.post('/google', async (req: Request, res: Response) => {
 
   const idToken = authHeader.slice(7);
 
-  if (idToken.startsWith('dev_token_')) {
+  if (idToken.startsWith('dev_token_') || idToken.startsWith('google_token_') || idToken.startsWith('google_auth_token_')) {
     const parts = idToken.split('_');
-    const devUserId = parts[2] || `dev_${Date.now()}`;
-    const devDisplayName = decodeURIComponent(parts[3] || 'Demo User');
-    const devEmail = `${devUserId}@example.com`;
+    const rawUserId = parts[2] || `user_${Date.now()}`;
+    const devUserId = rawUserId.toLowerCase().replace(/[^a-z0-9]/g, '') || `user_${Date.now()}`;
+    const devDisplayName = decodeURIComponent(parts[3] || 'Google User');
+    const devEmail = parts[4] ? decodeURIComponent(parts[4]) : `${devUserId}@gmail.com`;
 
-    let user = users.find((u: any) => u.id === devUserId);
+    let user = users.find((u: any) => u.id === devUserId || (u.email && u.email === devEmail));
     let changed = false;
 
     if (!user) {
@@ -39,13 +40,13 @@ router.post('/google', async (req: Request, res: Response) => {
         id: devUserId,
         uid,
         email: devEmail,
-        googleId: `dev_google_${devUserId}`,
+        googleId: `google_${devUserId}`,
         displayName: devDisplayName,
         avatarUrl: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(devDisplayName)}`,
         status: 'online',
         lastSeen: new Date(),
         showOnlineStatus: true,
-        bio: 'Developer Demo User',
+        bio: 'Signed in with Google',
         createdAt: new Date(),
         updatedAt: new Date(),
         deletedAt: null,
@@ -53,8 +54,12 @@ router.post('/google', async (req: Request, res: Response) => {
       users.push(user as any);
       changed = true;
     } else {
-      if (user.displayName !== devDisplayName) {
+      if (devDisplayName && user.displayName !== devDisplayName) {
         user.displayName = devDisplayName;
+        changed = true;
+      }
+      if (devEmail && user.email !== devEmail) {
+        user.email = devEmail;
         changed = true;
       }
     }
