@@ -18,6 +18,7 @@
     "@emoji-mart/react": "^1.1.1",
     "axios": "^1.6.7",
     "browser-image-compression": "^2.0.2",
+    "emoji-mart": "^5.6.0",
     "firebase": "^10.8.0",
     "html5-qrcode": "^2.3.8",
     "idb": "^8.0.3",
