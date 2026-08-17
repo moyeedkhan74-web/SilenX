@@ -17,6 +17,7 @@ const UserSchema = new Schema({
   createdAt: { type: Date, required: true, default: Date.now },
   updatedAt: { type: Date, required: true, default: Date.now },
   deletedAt: { type: Date, default: null },
+  fcmTokens: { type: [String], default: [] },
 });
 
 // Conversation Schema

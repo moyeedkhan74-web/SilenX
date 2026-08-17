@@ -14,11 +14,12 @@ export interface User {
   avatarUrl: string | null;
   status: UserStatus;
   lastSeen: Date;
-  showOnlineStatus: boolean;
   bio: string;
+  publicKey?: string | null;
   createdAt: Date;
   updatedAt: Date;
   deletedAt: Date | null;
+  fcmTokens: string[];
 }
 
 export interface UserEncryptionKey {

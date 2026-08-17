@@ -181,6 +181,14 @@ export function registerSocketHandlers(io: Server): void {
         const recipientSocketId = getSocketIdForUser(memberId);
         if (recipientSocketId) {
           io.to(recipientSocketId).emit('receive-message', outgoing);
+        } else {
+          // User is offline - send push notification
+          sendPushToUser(memberId, {
+            conversationId: data.conversationId,
+            senderId: userId,
+            senderDisplayName: users.find(u => u.id === userId)?.displayName || 'SilenX User',
+            messageId: newMsg.id,
+          });
         }
       });
     });
