@@ -87,57 +87,72 @@ function AppInner({
   const { initializeKeys } = useCrypto();
 
   useEffect(() => {
+    // Safety timer: Never allow app to stay stuck on boot screen for over 2 seconds
+    const safetyTimer = setTimeout(() => {
+      setInitialized(true);
+    }, 2000);
+
     if (!auth) {
       setInitialized(true);
+      clearTimeout(safetyTimer);
       return;
     }
 
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      if (firebaseUser) {
-        try {
-          // Always obtain a fresh token — getIdToken(true) forces a refresh
-          const idToken = await firebaseUser.getIdToken(/* forceRefresh */ false);
-          const body = await authenticateWithGoogleBackend(idToken);
-          const serverUser = body.user;
-
-          // Store the Firebase ID token as our app token; it is refreshed by Firebase automatically
-          login(
-            {
-              id: serverUser.id,
-              uid: normalizeUid(serverUser.uid || serverUser.id),
-              email: serverUser.email || '',
-              displayName: serverUser.displayName || 'Secure User',
-              avatarUrl: serverUser.avatarUrl || null,
-              status: (serverUser.status as UserStatus) || 'online',
-              lastSeen: new Date().toISOString(),
-              bio: serverUser.bio || 'Signed in with Google',
-              showOnlineStatus: serverUser.showOnlineStatus !== false,
-            },
-            idToken
-          );
-
-          // Initialize E2EE keys after login
-          await initializeKeys();
-
-          // Connect socket with the Firebase ID token for server-side verification
+    const unsubscribe = onAuthStateChanged(
+      auth,
+      async (firebaseUser) => {
+        if (firebaseUser) {
           try {
-            const socket = connectSocket(idToken);
-            webrtcService.initialize(socket);
+            const idToken = await firebaseUser.getIdToken(false);
+            const body = await authenticateWithGoogleBackend(idToken);
+            const serverUser = body.user;
+
+            login(
+              {
+                id: serverUser.id,
+                uid: normalizeUid(serverUser.uid || serverUser.id),
+                email: serverUser.email || '',
+                displayName: serverUser.displayName || 'Secure User',
+                avatarUrl: serverUser.avatarUrl || null,
+                status: (serverUser.status as UserStatus) || 'online',
+                lastSeen: new Date().toISOString(),
+                bio: serverUser.bio || 'Signed in with Google',
+                showOnlineStatus: serverUser.showOnlineStatus !== false,
+              },
+              idToken
+            );
+
+            await initializeKeys();
+
+            try {
+              const socket = connectSocket(idToken);
+              webrtcService.initialize(socket);
+            } catch (error) {
+              console.warn('Socket connection failed:', error);
+            }
           } catch (error) {
-            console.warn('Socket connection failed:', error);
+            console.error('[App] Auth flow failed:', error);
+            await auth!.signOut().catch(() => {});
+            logout();
           }
-        } catch (error) {
-          console.error('[App] Auth flow failed:', error);
-          await auth!.signOut().catch(() => {});
+        } else {
+          // No user signed in currently
           logout();
         }
-      } else {
-        logout();
+        setInitialized(true);
+        clearTimeout(safetyTimer);
+      },
+      (error) => {
+        console.warn('[App] Auth state error:', error);
+        setInitialized(true);
+        clearTimeout(safetyTimer);
       }
-      setInitialized(true);
-    });
+    );
 
-    return () => unsubscribe();
+    return () => {
+      unsubscribe();
+      clearTimeout(safetyTimer);
+    };
   }, [login, logout, setInitialized, initializeKeys]);
 
   if (!initialized) {

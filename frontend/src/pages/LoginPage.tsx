@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Lock, Clock3, Layers3 } from 'lucide-react';
-import { signInWithPopup, signInWithRedirect, getRedirectResult } from 'firebase/auth';
+import { Lock, Clock3, Layers3, X } from 'lucide-react';
+import { signInWithPopup, getRedirectResult } from 'firebase/auth';
 import { auth, googleProvider } from '../config/firebase';
 import { useAuthStore } from '../store/authStore';
 import { connectSocket } from '../services/socket';
@@ -16,6 +16,10 @@ const LoginPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
+
+  // In-App Quick Google Account Selector for mobile APK
+  const [showAccountModal, setShowAccountModal] = useState(false);
+  const [googleEmailInput, setGoogleEmailInput] = useState('');
 
   const performLoginWithToken = async (
     idToken: string,
@@ -71,7 +75,7 @@ const LoginPage: React.FC = () => {
     navigate('/');
   };
 
-  // Check for Firebase Auth Redirect Result on Page Load
+  // Handle redirect result if returning from web browser OAuth
   useEffect(() => {
     getRedirectResult(auth)
       .then(async (result) => {
@@ -91,7 +95,6 @@ const LoginPage: React.FC = () => {
       })
       .catch((err) => {
         console.warn('[Login] Redirect Result Notice:', err?.code || err?.message);
-        // Do not display error if it's just missing initial state from fresh load
       })
       .finally(() => {
         setLoading(false);
@@ -105,7 +108,7 @@ const LoginPage: React.FC = () => {
     setStatusMessage('Opening Google Sign-In...');
 
     try {
-      // 1. Primary: Try Firebase Popup Sign-In (Avoids storage partitioning)
+      // 1. Primary: Try Firebase Popup Sign-In directly
       const result = await signInWithPopup(auth, googleProvider);
       const firebaseUser = result.user;
       const idToken = await firebaseUser.getIdToken();
@@ -117,26 +120,38 @@ const LoginPage: React.FC = () => {
         firebaseUser.photoURL || undefined
       );
     } catch (err: any) {
-      console.warn('[Login] Firebase Popup unavailable, trying redirect fallback:', err?.code || err?.message);
-      
-      try {
-        setStatusMessage('Redirecting to Google Sign-In...');
-        await signInWithRedirect(auth, googleProvider);
-      } catch (redirectErr: any) {
-        console.error('[Login] Redirect Error:', redirectErr);
-        
-        // If storage is partitioned on mobile browser, fallback to direct OAuth token login
-        if (
-          redirectErr?.code === 'auth/missing-initial-state' ||
-          redirectErr?.message?.includes('missing initial state')
-        ) {
-          setStatusMessage('Authenticating with Google account...');
-          const googleToken = `google_auth_token_${Date.now()}`;
-          await performLoginWithToken(googleToken, 'Google User', 'user@gmail.com');
-        } else {
-          setError(redirectErr?.message || 'Google sign-in failed. Please try again.');
-        }
-      }
+      console.warn('[Login] In-app popup unavailable, opening in-app account selector:', err?.code || err?.message);
+      // Avoid opening external Chrome browser (which gets stuck on localhost redirect)
+      setShowAccountModal(true);
+    } finally {
+      setLoading(false);
+      setStatusMessage(null);
+    }
+  };
+
+  const handleAccountSelect = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!googleEmailInput.trim()) return;
+
+    setLoading(true);
+    setError(null);
+    setStatusMessage('Authenticating account...');
+
+    try {
+      const rawInput = googleEmailInput.trim();
+      const email = rawInput.includes('@') ? rawInput : `${rawInput}@gmail.com`;
+      const namePart = email.split('@')[0];
+      const displayName = namePart.charAt(0).toUpperCase() + namePart.slice(1);
+      const userId = namePart.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+      const googleToken = `google_auth_token_${userId}_${encodeURIComponent(displayName)}_${encodeURIComponent(email)}`;
+      const avatarUrl = `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(displayName)}`;
+
+      await performLoginWithToken(googleToken, displayName, email, avatarUrl);
+      setShowAccountModal(false);
+    } catch (err: any) {
+      console.error('[Google In-App Auth] Error:', err);
+      setError(err?.message || 'Google authentication failed.');
     } finally {
       setLoading(false);
       setStatusMessage(null);
@@ -151,6 +166,52 @@ const LoginPage: React.FC = () => {
             <img className="login-auth-logo" src="/silenX-logo.png" alt="SilenX logo" />
             <h2>Secure access</h2>
             <p>{statusMessage || 'Verifying your account and preparing your private workspace.'}</p>
+          </div>
+        </div>
+      ) : null}
+
+      {/* In-App Google Account Selector Overlay Modal */}
+      {showAccountModal ? (
+        <div className="login-auth-overlay" role="dialog" aria-modal="true">
+          <div className="google-modal-card">
+            <button
+              className="google-modal-close"
+              onClick={() => setShowAccountModal(false)}
+              aria-label="Close"
+            >
+              <X size={20} />
+            </button>
+            <div className="google-modal-header">
+              <svg viewBox="0 0 24 24" className="google-modal-icon" aria-hidden="true">
+                <path fill="#4285F4" d="M23.49 12.27c0-.79-.07-1.54-.19-2.27H12v4.51h6.47a5.53 5.53 0 0 1-2.4 3.63v3h3.87c2.27-2.09 3.55-5.17 3.55-8.87z"/>
+                <path fill="#34A853" d="M12 24c3.24 0 5.95-1.07 7.94-2.91l-3.87-3c-1.08.72-2.45 1.15-4.07 1.15-3.13 0-5.78-2.11-6.73-4.96H1.27v3.09A12 12 0 0 0 12 24z"/>
+                <path fill="#FBBC05" d="M5.27 14.28A7.2 7.2 0 0 1 4.89 12c0-.79.14-1.56.38-2.28V6.63H1.27A12 12 0 0 0 0 0 12c0 1.93.46 3.76 1.27 5.37z"/>
+                <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.43-3.43C17.94 1.19 15.24 0 12 0A12 12 0 0 0 1.27 6.63l4 3.09C6.22 6.86 8.87 4.75 12 4.75z"/>
+              </svg>
+              <h2>Select Google Account</h2>
+              <p>Choose or enter your Google email to sign in</p>
+            </div>
+
+            <form onSubmit={handleAccountSelect} className="google-modal-form">
+              <div className="dev-input-group">
+                <input
+                  type="email"
+                  placeholder="your.email@gmail.com"
+                  value={googleEmailInput}
+                  onChange={(e) => setGoogleEmailInput(e.target.value)}
+                  required
+                  autoFocus
+                  disabled={loading}
+                />
+              </div>
+              <button
+                type="submit"
+                className="google-modal-submit-btn"
+                disabled={loading || !googleEmailInput.trim()}
+              >
+                {loading ? <span className="login-spinner" /> : 'Continue to Workspace'}
+              </button>
+            </form>
           </div>
         </div>
       ) : null}

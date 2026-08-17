@@ -1,4 +1,4 @@
-import { initializeApp, type FirebaseApp } from 'firebase/app';
+import { initializeApp, getApps, type FirebaseApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, setPersistence, browserLocalPersistence, type Auth } from 'firebase/auth';
 
 const firebaseConfig = {
@@ -16,19 +16,25 @@ let auth: Auth;
 let googleProvider: GoogleAuthProvider;
 
 try {
-  app = initializeApp(firebaseConfig);
+  app = getApps().length > 0 ? getApps()[0] : initializeApp(firebaseConfig);
   auth = getAuth(app);
-  setPersistence(auth, browserLocalPersistence).catch((pErr) => {
-    console.warn('Firebase persistence warning:', pErr);
-  });
+  
+  // Non-blocking persistence configuration
+  setTimeout(() => {
+    try {
+      setPersistence(auth, browserLocalPersistence).catch(() => {});
+    } catch {
+      // Ignore storage restrictions gracefully
+    }
+  }, 0);
+
   googleProvider = new GoogleAuthProvider();
   googleProvider.setCustomParameters({ prompt: 'select_account' });
 } catch (error) {
   console.warn('Firebase initialization warning:', error);
-  app = initializeApp(firebaseConfig, 'silenx-app');
+  app = getApps().length > 0 ? getApps()[0] : initializeApp(firebaseConfig, 'silenx-fallback');
   auth = getAuth(app);
   googleProvider = new GoogleAuthProvider();
-  googleProvider.setCustomParameters({ prompt: 'select_account' });
 }
 
 export { app, auth, googleProvider };
