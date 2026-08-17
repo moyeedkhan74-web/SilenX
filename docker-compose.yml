@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - '5000:5000'
+    environment:
+      - PORT=5000
+      - NODE_ENV=production
+      - MONGO_URI=mongodb://mongodb:27017/silenx
+      - JWT_SECRET=silenx_production_jwt_secret_key_2026
+      - FRONTEND_URL=https://silen-x.vercel.app
+    depends_on:
+      - mongodb
+    restart: always
+
+  mongodb:
+    image: mongo:7.0-alpine
+    container_name: silenx_mongo
+    ports:
+      - '27017:27017'
+    volumes:
+      - mongo_data:/data/db
+    restart: always
+
+volumes:
+  mongo_data:

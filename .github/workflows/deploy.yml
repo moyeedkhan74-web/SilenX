@@ -1,0 +1,35 @@
+name: SilenX CI Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  verify:
+    name: Verify Type Safety & Production Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Check Backend TypeScript
+        run: |
+          cd backend
+          npm ci
+          npx tsc --noEmit
+
+      - name: Check Frontend TypeScript & Production Build
+        run: |
+          cd frontend
+          npm ci
+          npx tsc --noEmit
+          npm run build

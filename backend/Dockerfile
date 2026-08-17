@@ -1,18 +1,31 @@
-FROM node:20-slim
+# Build Stage
+FROM node:20-alpine AS builder
 
 WORKDIR /app
 
 COPY package*.json ./
+RUN npm ci
 
-RUN npm install --include=dev
-
-COPY . .
+COPY tsconfig.json ./
+COPY src/ ./src/
 
 RUN npm run build
 
-ENV NODE_ENV=production
-ENV PORT=3000
+# Production Runtime Stage
+FROM node:20-alpine AS runner
 
-EXPOSE 3000
+WORKDIR /app
+
+ENV NODE_ENV=production
+ENV PORT=5000
+
+COPY package*.json ./
+RUN npm ci --only=production
+
+COPY --from=builder /app/dist ./dist
+
+EXPOSE 5000
+
+USER node
 
 CMD ["node", "dist/server.js"]

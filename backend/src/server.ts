@@ -4,6 +4,9 @@ import path from 'path';
 import fs from 'fs';
 import { Server } from 'socket.io';
 import cors from 'cors';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
+import crypto from 'crypto';
 import { config } from './config';
 import { registerSocketHandlers } from './websocket/handlers';
 import authRoutes from './routes/auth';
@@ -13,9 +16,18 @@ import callRoutes from './routes/calls';
 import groupRoutes from './routes/groups';
 import groupCallRoutes from './routes/groupCalls';
 import requestRoutes from './routes/requests';
+import mediaRoutes from './routes/media';
 import { connectDb } from './store/db';
 
 const app = express();
+
+// Security Headers
+app.use(
+  helmet({
+    contentSecurityPolicy: false, // Allow inline scripts/styles for flexibility
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
+  })
+);
 
 const allowedOrigins = [
   'https://silen-x.vercel.app',
@@ -31,16 +43,16 @@ if (config.frontendUrl) {
 }
 
 const checkOrigin = (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
-  // Allow requests with no origin (like mobile apps, curl, uptime check pings)
   if (!origin) {
     callback(null, true);
     return;
   }
 
-  const isAllowed = allowedOrigins.includes(origin) ||
-                    origin.startsWith('http://localhost:') ||
-                    origin.startsWith('http://127.0.0.1:') ||
-                    /^https:\/\/silen.*\.vercel\.app$/.test(origin);
+  const isAllowed =
+    allowedOrigins.includes(origin) ||
+    origin.startsWith('http://localhost:') ||
+    origin.startsWith('http://127.0.0.1:') ||
+    /^https:\/\/silen.*\.vercel\.app$/.test(origin);
 
   if (isAllowed) {
     callback(null, true);
@@ -60,17 +72,35 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 
-// Set Cross-Origin-Opener-Policy header to allow Google OAuth popups without browser blocking
+// Rate Limiters
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // 100 requests per 15 min per IP
+  message: { error: 'Too many authentication attempts, please try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const mediaUploadLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 50, // 50 uploads per hour
+  message: { error: 'Upload limit reached, please try again in an hour.' },
+});
+
 app.use((_req: Request, res: Response, next) => {
   res.setHeader('Cross-Origin-Opener-Policy', 'same-origin-allow-popups');
   next();
 });
 
-// Explicitly handle ALL OPTIONS preflight requests FIRST — before any route logic.
-// This ensures the browser always gets CORS headers even if a later handler throws.
 app.options('*', cors(corsOptions));
-
 app.use(express.json());
+
+// Serve local uploads folder fallback
+const uploadsPath = path.join(process.cwd(), 'uploads');
+if (!fs.existsSync(uploadsPath)) {
+  fs.mkdirSync(uploadsPath, { recursive: true });
+}
+app.use('/uploads', express.static(uploadsPath));
 
 const server = http.createServer(app);
 
@@ -82,7 +112,7 @@ const io = new Server(server, {
   },
 });
 
-// ─── REST API ──────────────────────────────────────────────
+// ─── REST API Routes ──────────────────────────────────────────────
 app.get('/health', (_req: Request, res: Response) => {
   res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
 });
@@ -91,7 +121,27 @@ app.get('/api/status', (_req: Request, res: Response) => {
   res.status(200).json({ usersOnline: io.engine.clientsCount });
 });
 
-app.use('/api/auth', authRoutes);
+// TURN Credentials Generator for WebRTC Calls
+app.get('/api/webrtc/turn-credentials', (_req: Request, res: Response) => {
+  const secret = process.env.TURN_SECRET || 'silenx_turn_secret_2026';
+  const username = `${Math.floor(Date.now() / 1000) + 3600}:silenx_user`;
+  const hmac = crypto.createHmac('sha1', secret);
+  hmac.update(username);
+  const password = hmac.digest('base64');
+
+  res.status(200).json({
+    username,
+    credential: password,
+    ttl: 3600,
+    uris: [
+      'turn:stun.l.google.com:19302',
+      process.env.TURN_SERVER_URL || 'turn:global.turn.twilio.com:3478',
+    ],
+  });
+});
+
+app.use('/api/auth', authLimiter, authRoutes);
+app.use('/api/media', mediaUploadLimiter, mediaRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/conversations', conversationRoutes);
 app.use('/api/calls', callRoutes);
@@ -103,75 +153,28 @@ app.use('/api/requests', requestRoutes);
 const frontendDist = path.join(__dirname, '../../frontend/dist');
 if (fs.existsSync(frontendDist)) {
   app.use(express.static(frontendDist));
-  // SPA catch-all: any non-API GET returns index.html
   app.get('*', (_req: Request, res: Response) => {
     res.sendFile(path.join(frontendDist, 'index.html'));
   });
 } else {
-  // If frontend is not built in the container, serve a clean status page
   app.get('*', (_req: Request, res: Response) => {
     res.status(200).send(`
       <!DOCTYPE html>
       <html>
       <head>
-        <title>SlienX API Gateway</title>
+        <title>SilenX API Gateway</title>
         <style>
-          body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background: #0b0e11;
-            color: #e9edef;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-          }
-          .card {
-            text-align: center;
-            background: #111b21;
-            padding: 2.5rem;
-            border-radius: 12px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-            max-width: 400px;
-          }
-          h1 {
-            color: #00a884;
-            margin-top: 0;
-            font-size: 1.8rem;
-          }
-          p {
-            line-height: 1.5;
-            color: #8696a0;
-            margin-bottom: 1.5rem;
-          }
-          a {
-            display: inline-block;
-            padding: 0.75rem 1.5rem;
-            background: #00a884;
-            color: #fff;
-            text-decoration: none;
-            border-radius: 20px;
-            font-weight: bold;
-            transition: background 0.2s;
-          }
-          a:hover {
-            background: #008f72;
-          }
-          .badge {
-            display: inline-block;
-            padding: 0.25rem 0.6rem;
-            background: #202c33;
-            border-radius: 4px;
-            font-size: 0.85rem;
-            font-family: monospace;
-            color: #34b7f1;
-            margin-top: 0.5rem;
-          }
+          body { font-family: system-ui, sans-serif; background: #0b0e11; color: #e9edef; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+          .card { text-align: center; background: #111b21; padding: 2.5rem; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.3); max-width: 400px; }
+          h1 { color: #00a884; margin-top: 0; font-size: 1.8rem; }
+          p { color: #8696a0; margin-bottom: 1.5rem; }
+          a { display: inline-block; padding: 0.75rem 1.5rem; background: #00a884; color: #fff; text-decoration: none; border-radius: 20px; font-weight: bold; }
+          .badge { display: inline-block; padding: 0.25rem 0.6rem; background: #202c33; border-radius: 4px; font-size: 0.85rem; font-family: monospace; color: #34b7f1; margin-top: 0.5rem; }
         </style>
       </head>
       <body>
         <div class="card">
-          <h1>SlienX API Gateway</h1>
+          <h1>SilenX API Gateway</h1>
           <p>The secure communication gateway is running successfully.</p>
           <div class="badge">Status: Online</div>
           <br/><br/>
@@ -184,16 +187,14 @@ if (fs.existsSync(frontendDist)) {
 }
 
 // ─── WebSocket ─────────────────────────────────────────────
-// Expose io on app so middleware/routes can broadcast without circular deps
 app.set('io', io);
 registerSocketHandlers(io);
 
 const port = Number(process.env.PORT) || 5000;
 
 const startServer = async () => {
-  // Listen immediately so that health check endpoints resolve instantly and don't block Render startup
   server.listen(port, () => {
-    console.log(`[Server] SlienX backend listening on port ${port}`);
+    console.log(`[Server] SilenX backend listening on port ${port}`);
   });
 
   try {
@@ -205,8 +206,6 @@ const startServer = async () => {
 
 startServer();
 
-// Global error handler — always emit CORS headers so the browser doesn't
-// mistake a server crash for a CORS block.
 app.use((err: any, req: express.Request, res: express.Response, _next: express.NextFunction) => {
   const origin = req.headers.origin as string | undefined;
   if (origin) {

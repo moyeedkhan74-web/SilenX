@@ -66,9 +66,9 @@ function isMemberOf(userId: string, conversationId: string): boolean {
   );
 }
 
-export function registerSocketHandlers(io: Server): void {
+export function registerSocketHandlers(io: any): void {
   // ── Token verification on connection ──────────────────────────────────────
-  io.use(async (socket, next) => {
+  io.use(async (socket: Socket, next: (err?: Error) => void) => {
     const token =
       (socket.handshake.auth as any)?.token ||
       (socket.handshake.headers as any)?.authorization?.replace('Bearer ', '');
@@ -622,7 +622,7 @@ export function registerSocketHandlers(io: Server): void {
 
     // ─── Disconnect ─────────────────────────────────────────────────────────
 
-    socket.on('disconnect', (reason) => {
+    socket.on('disconnect', (reason: string) => {
       console.log(`[Socket] User ${userId} disconnected: ${socket.id}, reason: ${reason}`);
       removeSocketById(socket.id);
       

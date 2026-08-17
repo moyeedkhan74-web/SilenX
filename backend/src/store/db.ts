@@ -171,7 +171,7 @@ export function saveDb() {
 export async function connectDb() {
   const mongoUri = process.env.MONGO_URI || 'mongodb://localhost:27017/slienx';
   console.log('[DB] Connecting to MongoDB...', mongoUri.replace(/:([^@]+)@/, ':****@'));
-  await mongoose.connect(mongoUri, { serverSelectionTimeoutMS: 45000 });
+  await mongoose.connect(mongoUri, { serverSelectionTimeoutMS: 45000 } as mongoose.ConnectOptions);
   console.log('[DB] Connected to MongoDB Atlas success');
 
   // Seed MongoDB with local db.json if database is completely empty

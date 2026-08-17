@@ -1,10 +1,10 @@
 import { getAdminApp } from '../config/firebaseAdmin';
-import { getMessaging, Messaging, Message, BatchResponse } from 'firebase-admin/messaging';
+import { getMessaging as getAdminMessaging, Messaging, MulticastMessage, BatchResponse } from 'firebase-admin/messaging';
 import { users } from '../store/db';
 
 let messaging: Messaging | null = null;
 
-function getMessaging(): Messaging | null {
+function getMessagingInstance(): Messaging | null {
   if (messaging) return messaging;
   
   const adminApp = getAdminApp();
@@ -14,7 +14,7 @@ function getMessaging(): Messaging | null {
   }
   
   try {
-    messaging = getMessaging(adminApp);
+    messaging = getAdminMessaging(adminApp);
     return messaging;
   } catch (error) {
     console.error('[PushService] Failed to get messaging instance:', error);
@@ -34,7 +34,7 @@ interface PushPayload {
  * Called when a message is sent to an offline/background user
  */
 export async function sendPushNotification(payload: PushPayload): Promise<boolean> {
-  const messagingInstance = getMessaging();
+  const messagingInstance = getMessagingInstance();
   
   if (!messagingInstance) {
     console.warn('[PushService] Messaging not available, skipping push notification');
@@ -45,15 +45,6 @@ export async function sendPushNotification(payload: PushPayload): Promise<boolea
   const sender = users.find(u => u.id === payload.senderId);
   const senderName = sender?.displayName || 'Someone';
 
-  // Find the target user (the recipient) - in a real implementation,
-  // we'd need to know which user this conversation belongs to
-  // For now, we'll broadcast to all users in the conversation except sender
-  
-  // This is a simplified implementation - in production you'd want to:
-  // 1. Get conversation members from the database
-  // 2. Filter out the sender
-  // 3. Send to all remaining members' tokens
-  
   // For now, let's send to all users except sender who have tokens
   const targetUsers = users.filter(u => 
     u.id !== payload.senderId && 
@@ -71,7 +62,7 @@ export async function sendPushNotification(payload: PushPayload): Promise<boolea
   for (const targetUser of targetUsers) {
     if (!targetUser.fcmTokens || targetUser.fcmTokens.length === 0) continue;
     
-    const message: Message = {
+    const message: MulticastMessage = {
       notification: {
         title: senderName,
         body: '🔒 Encrypted Message',
@@ -90,7 +81,7 @@ export async function sendPushNotification(payload: PushPayload): Promise<boolea
       // Handle failed tokens (remove invalid ones)
       if (response.failureCount > 0) {
         const failedTokens: string[] = [];
-        response.responses.forEach((resp, idx) => {
+        response.responses.forEach((resp: any, idx: number) => {
           if (!resp.success) {
             const error = resp.error;
             console.warn(`[PushService] Failed to send to token ${idx}:`, error?.message);
@@ -98,7 +89,7 @@ export async function sendPushNotification(payload: PushPayload): Promise<boolea
             // Remove invalid/expired tokens
             if (error?.code === 'messaging/registration-token-not-registered' ||
                 error?.code === 'messaging/invalid-registration-token') {
-              failedTokens.push(targetUser.fcmTokens[idx]);
+              failedTokens.push(targetUser.fcmTokens![idx]);
             }
           }
         });
@@ -122,7 +113,7 @@ export async function sendPushNotification(payload: PushPayload): Promise<boolea
  * Send push notification to specific user by their ID
  */
 export async function sendPushToUser(userId: string, payload: Omit<PushPayload, 'senderId'> & { senderId: string }): Promise<boolean> {
-  const messagingInstance = getMessaging();
+  const messagingInstance = getMessagingInstance();
   
   if (!messagingInstance) {
     console.warn('[PushService] Messaging not available');
@@ -138,7 +129,7 @@ export async function sendPushToUser(userId: string, payload: Omit<PushPayload, 
   const sender = users.find(u => u.id === payload.senderId);
   const senderName = sender?.displayName || 'Someone';
 
-  const message: Message = {
+  const message: MulticastMessage = {
     notification: {
       title: senderName,
       body: '🔒 Encrypted Message',
@@ -156,12 +147,12 @@ export async function sendPushToUser(userId: string, payload: Omit<PushPayload, 
     
     if (response.failureCount > 0) {
       const failedTokens: string[] = [];
-      response.responses.forEach((resp, idx) => {
+      response.responses.forEach((resp: any, idx: number) => {
         if (!resp.success) {
           const error = resp.error;
           if (error?.code === 'messaging/registration-token-not-registered' ||
               error?.code === 'messaging/invalid-registration-token') {
-            failedTokens.push(targetUser.fcmTokens[idx]);
+            failedTokens.push(targetUser.fcmTokens![idx]);
           }
         }
       });
@@ -182,7 +173,7 @@ export async function sendPushToUser(userId: string, payload: Omit<PushPayload, 
  * Initialize push service (called at server startup)
  */
 export function initializePushService(): void {
-  const messagingInstance = getMessaging();
+  const messagingInstance = getMessagingInstance();
   if (messagingInstance) {
     console.log('[PushService] Firebase Messaging initialized successfully');
   } else {
