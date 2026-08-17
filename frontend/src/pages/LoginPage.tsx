@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Lock, Clock3, Layers3 } from 'lucide-react';
-import { signInWithPopup } from 'firebase/auth';
+import { signInWithPopup, signInWithRedirect, getRedirectResult } from 'firebase/auth';
 import { auth, googleProvider } from '../config/firebase';
 import { useAuthStore } from '../store/authStore';
 import { connectSocket } from '../services/socket';
@@ -71,42 +71,31 @@ const LoginPage: React.FC = () => {
     navigate('/');
   };
 
-  // Check for returning Google OAuth redirect token from accounts.google.com
+  // Check for Firebase Auth Redirect Result on Page Load
   useEffect(() => {
-    const hash = window.location.hash;
-    if (hash && (hash.includes('access_token=') || hash.includes('id_token='))) {
-      setLoading(true);
-      setStatusMessage('Completing Google Sign-In...');
-      const params = new URLSearchParams(hash.substring(1));
-      const accessToken = params.get('access_token');
-      const idToken = params.get('id_token') || accessToken;
+    getRedirectResult(auth)
+      .then(async (result) => {
+        if (result && result.user) {
+          setLoading(true);
+          setStatusMessage('Signing in with Google account...');
+          const firebaseUser = result.user;
+          const idToken = await firebaseUser.getIdToken();
 
-      if (accessToken) {
-        fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-          headers: { Authorization: `Bearer ${accessToken}` },
-        })
-          .then((res) => res.json())
-          .then((googleProfile) => {
-            if (googleProfile && googleProfile.email) {
-              const cleanToken = idToken || `google_token_${googleProfile.sub}_${encodeURIComponent(googleProfile.name)}_${encodeURIComponent(googleProfile.email)}`;
-              performLoginWithToken(
-                cleanToken,
-                googleProfile.name,
-                googleProfile.email,
-                googleProfile.picture
-              );
-            }
-          })
-          .catch((err) => {
-            console.error('[Google UserInfo] Error:', err);
-            setError('Google sign-in failed. Please try again.');
-          })
-          .finally(() => {
-            setLoading(false);
-            setStatusMessage(null);
-          });
-      }
-    }
+          await performLoginWithToken(
+            idToken,
+            firebaseUser.displayName || undefined,
+            firebaseUser.email || undefined,
+            firebaseUser.photoURL || undefined
+          );
+        }
+      })
+      .catch((err) => {
+        console.error('[Login] Redirect Result Error:', err);
+      })
+      .finally(() => {
+        setLoading(false);
+        setStatusMessage(null);
+      });
   }, []);
 
   const handleGoogleLogin = async () => {
@@ -115,7 +104,7 @@ const LoginPage: React.FC = () => {
     setStatusMessage('Opening Google Sign-In...');
 
     try {
-      // 1. Try Firebase Popup Sign-In
+      // 1. Primary: Try Firebase Popup Sign-In
       const result = await signInWithPopup(auth, googleProvider);
       const firebaseUser = result.user;
       const idToken = await firebaseUser.getIdToken();
@@ -127,15 +116,14 @@ const LoginPage: React.FC = () => {
         firebaseUser.photoURL || undefined
       );
     } catch (err: any) {
-      console.warn('[Login] Firebase popup failed/blocked, launching direct Google OAuth flow:', err?.code || err?.message);
-      
-      // 2. Direct Official Google OAuth 2.0 Flow (accounts.google.com)
-      const clientId = '1085370487042-googleoauthsilenx.apps.googleusercontent.com';
-      const redirectUri = window.location.origin + window.location.pathname;
-      const scope = 'openid email profile';
-      const googleAuthUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${encodeURIComponent(clientId)}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=token%20id_token&scope=${encodeURIComponent(scope)}&prompt=select_account`;
-
-      window.location.href = googleAuthUrl;
+      console.warn('[Login] Firebase Popup failed, trying Redirect:', err?.code || err?.message);
+      try {
+        setStatusMessage('Redirecting to Google Sign-In...');
+        await signInWithRedirect(auth, googleProvider);
+      } catch (redirectErr: any) {
+        console.error('[Login] Redirect Error:', redirectErr);
+        setError(redirectErr?.message || 'Google sign-in failed. Please try again.');
+      }
     } finally {
       setLoading(false);
       setStatusMessage(null);

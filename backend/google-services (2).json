@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "108819293185",
+    "project_id": "silenx-737a3",
+    "storage_bucket": "silenx-737a3.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:108819293185:android:222ada100395b10ea34c00",
+        "android_client_info": {
+          "package_name": "com.dev.silenx"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "108819293185-1elbplo0a8f344alk600aq0vm17pjqmg.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.dev.silenx",
+            "certificate_hash": "da39a3ee5e6b4b0d3255bfef95601890afd80709"
+          }
+        },
+        {
+          "client_id": "108819293185-ij6ei19vjhg8d9s5cvojktktr95t6oqu.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDrmYCU3YDCDEoJMSmzkPPfnw8N4exMfkk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "108819293185-ij6ei19vjhg8d9s5cvojktktr95t6oqu.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
