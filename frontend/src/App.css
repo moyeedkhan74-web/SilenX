@@ -459,3 +459,31 @@ body {
     transition-delay: 0s !important;
   }
 }
+
+/* ============================================
+   MOBILE PHONE ALIGNMENT & SAFE AREA INSETS
+   ============================================ */
+@media (max-width: 768px) {
+  .app-container {
+    height: 100dvh;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  /* Tap targets for mobile touch optimization */
+  button, .btn, .icon-btn, .input-icon-btn {
+    min-height: 40px;
+    touch-action: manipulation;
+  }
+
+  /* Prevent text scaling glitches on orientation change */
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  /* Smooth mobile scrolling */
+  body, .chatview-messages, .sidebar {
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
