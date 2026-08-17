@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import naclUtil from 'tweetnacl-util';
 import { generateKeyPair, storePrivateKey, storePublicKey, getPrivateKey, getPublicKey, clearKeys, hasKeys, encryptMessage, decryptMessage, computeSharedSecret, storeSessionKey, getSessionKey, encryptWithSharedSecret, decryptWithSharedSecret, encryptSymmetricKeyForUser, generateSymmetricKey, type KeyPair, type EncryptedPayload } from '../utils/crypto';
 import { useAuthStore } from '../store/authStore';
 import { API_URL } from '../config/webrtc-config';
@@ -35,17 +36,22 @@ export const CryptoProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   // Load existing keys from storage on mount
   useEffect(() => {
     const loadKeys = async () => {
-      if (hasKeys()) {
-        const privateKey = getPrivateKey();
-        const publicKey = getPublicKey();
-        if (privateKey && publicKey) {
-          setKeyPair({
-            privateKey: naclUtil.encodeBase64(privateKey),
-            publicKey,
-          });
+      try {
+        if (hasKeys()) {
+          const privateKey = getPrivateKey();
+          const publicKey = getPublicKey();
+          if (privateKey && publicKey) {
+            setKeyPair({
+              privateKey: naclUtil.encodeBase64(privateKey),
+              publicKey,
+            });
+          }
         }
+      } catch (err) {
+        console.warn('[CryptoContext] Key loading error:', err);
+      } finally {
+        setIsInitialized(true);
       }
-      setIsInitialized(true);
     };
     loadKeys();
   }, []);
@@ -253,8 +259,6 @@ export const CryptoProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     plaintext: string,
     _groupId: string
   ): Promise<string | null> => {
-    // In a full implementation, you'd fetch the group's symmetric key
-    // For now, we'll use a placeholder that would be replaced with actual group key logic
     console.warn('[CryptoContext] Group encryption not fully implemented yet');
     return encryptMessage(plaintext, keyPair?.publicKey || '');
   }, [keyPair]);
@@ -296,8 +300,6 @@ export const CryptoProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     </CryptoContext.Provider>
   );
 };
-
-import naclUtil from 'tweetnacl-util';
 
 export const useCrypto = (): CryptoContextType => {
   const context = useContext(CryptoContext);
