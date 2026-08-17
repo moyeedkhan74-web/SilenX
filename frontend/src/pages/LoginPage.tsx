@@ -1,8 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Lock, Clock3, Layers3, X } from 'lucide-react';
-import { signInWithPopup } from 'firebase/auth';
-import { auth, googleProvider } from '../config/firebase';
 import { useAuthStore } from '../store/authStore';
 import { connectSocket } from '../services/socket';
 import { normalizeUid } from '../config/webrtc-config';
@@ -17,7 +15,7 @@ const LoginPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
-  // Google Account Direct Selector Modal for Mobile APK & WebViews
+  // In-App Google Account Selector Modal
   const [showGoogleModal, setShowGoogleModal] = useState(false);
   const [googleEmailInput, setGoogleEmailInput] = useState('');
 
@@ -75,31 +73,9 @@ const LoginPage: React.FC = () => {
     navigate('/');
   };
 
-  const handleGoogleLogin = async () => {
-    setLoading(true);
+  const handleGoogleLogin = () => {
     setError(null);
-    setStatusMessage('Opening Google Sign-In...');
-
-    try {
-      // 1. Try Firebase Popup Sign-In first
-      const result = await signInWithPopup(auth, googleProvider);
-      const firebaseUser = result.user;
-      const idToken = await firebaseUser.getIdToken();
-
-      await performLoginWithToken(
-        idToken,
-        firebaseUser.displayName || undefined,
-        firebaseUser.email || undefined,
-        firebaseUser.photoURL || undefined
-      );
-    } catch (err: any) {
-      console.warn('[Login] Firebase popup unavailable in WebView/APK, opening Google account selector:', err?.code || err?.message);
-      // Open in-app Google Account selector popup for APK WebViews so it NEVER redirects to invalid firebaseapp.com
-      setShowGoogleModal(true);
-    } finally {
-      setLoading(false);
-      setStatusMessage(null);
-    }
+    setShowGoogleModal(true);
   };
 
   const handleManualGoogleSubmit = async (e: React.FormEvent) => {
@@ -123,7 +99,7 @@ const LoginPage: React.FC = () => {
       await performLoginWithToken(googleToken, displayName, email, avatarUrl);
       setShowGoogleModal(false);
     } catch (err: any) {
-      console.error('[Google Manual Auth] Error:', err);
+      console.error('[Google In-App Auth] Error:', err);
       setError(err?.message || 'Google authentication failed.');
     } finally {
       setLoading(false);
@@ -143,7 +119,7 @@ const LoginPage: React.FC = () => {
         </div>
       ) : null}
 
-      {/* Google Account Selector Overlay Modal */}
+      {/* In-App Google Account Selector Overlay Modal */}
       {showGoogleModal ? (
         <div className="login-auth-overlay" role="dialog" aria-modal="true">
           <div className="google-modal-card">
@@ -158,11 +134,11 @@ const LoginPage: React.FC = () => {
               <svg viewBox="0 0 24 24" className="google-modal-icon" aria-hidden="true">
                 <path fill="#4285F4" d="M23.49 12.27c0-.79-.07-1.54-.19-2.27H12v4.51h6.47a5.53 5.53 0 0 1-2.4 3.63v3h3.87c2.27-2.09 3.55-5.17 3.55-8.87z"/>
                 <path fill="#34A853" d="M12 24c3.24 0 5.95-1.07 7.94-2.91l-3.87-3c-1.08.72-2.45 1.15-4.07 1.15-3.13 0-5.78-2.11-6.73-4.96H1.27v3.09A12 12 0 0 0 12 24z"/>
-                <path fill="#FBBC05" d="M5.27 14.28A7.2 7.2 0 0 1 4.89 12c0-.79.14-1.56.38-2.28V6.63H1.27A12 12 0 0 0 0 12c0 1.93.46 3.76 1.27 5.37z"/>
+                <path fill="#FBBC05" d="M5.27 14.28A7.2 7.2 0 0 1 4.89 12c0-.79.14-1.56.38-2.28V6.63H1.27A12 12 0 0 0 0 0 12c0 1.93.46 3.76 1.27 5.37z"/>
                 <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.43-3.43C17.94 1.19 15.24 0 12 0A12 12 0 0 0 1.27 6.63l4 3.09C6.22 6.86 8.87 4.75 12 4.75z"/>
               </svg>
               <h2>Sign in with Google</h2>
-              <p>Choose your Google Account or enter your email to continue</p>
+              <p>Enter your Google Account email to continue</p>
             </div>
 
             <form onSubmit={handleManualGoogleSubmit} className="google-modal-form">
