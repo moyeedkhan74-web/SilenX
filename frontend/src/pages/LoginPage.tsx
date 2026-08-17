@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Lock, Clock3, Layers3, X } from 'lucide-react';
+import { Lock, Clock3, Layers3 } from 'lucide-react';
+import { signInWithPopup } from 'firebase/auth';
+import { auth, googleProvider } from '../config/firebase';
 import { useAuthStore } from '../store/authStore';
 import { connectSocket } from '../services/socket';
 import { normalizeUid } from '../config/webrtc-config';
@@ -14,10 +16,6 @@ const LoginPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
-
-  // In-App Google Account Selector Modal
-  const [showGoogleModal, setShowGoogleModal] = useState(false);
-  const [googleEmailInput, setGoogleEmailInput] = useState('');
 
   const performLoginWithToken = async (
     idToken: string,
@@ -73,34 +71,71 @@ const LoginPage: React.FC = () => {
     navigate('/');
   };
 
-  const handleGoogleLogin = () => {
-    setError(null);
-    setShowGoogleModal(true);
-  };
+  // Check for returning Google OAuth redirect token from accounts.google.com
+  useEffect(() => {
+    const hash = window.location.hash;
+    if (hash && (hash.includes('access_token=') || hash.includes('id_token='))) {
+      setLoading(true);
+      setStatusMessage('Completing Google Sign-In...');
+      const params = new URLSearchParams(hash.substring(1));
+      const accessToken = params.get('access_token');
+      const idToken = params.get('id_token') || accessToken;
 
-  const handleManualGoogleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!googleEmailInput.trim()) return;
+      if (accessToken) {
+        fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        })
+          .then((res) => res.json())
+          .then((googleProfile) => {
+            if (googleProfile && googleProfile.email) {
+              const cleanToken = idToken || `google_token_${googleProfile.sub}_${encodeURIComponent(googleProfile.name)}_${encodeURIComponent(googleProfile.email)}`;
+              performLoginWithToken(
+                cleanToken,
+                googleProfile.name,
+                googleProfile.email,
+                googleProfile.picture
+              );
+            }
+          })
+          .catch((err) => {
+            console.error('[Google UserInfo] Error:', err);
+            setError('Google sign-in failed. Please try again.');
+          })
+          .finally(() => {
+            setLoading(false);
+            setStatusMessage(null);
+          });
+      }
+    }
+  }, []);
 
+  const handleGoogleLogin = async () => {
     setLoading(true);
     setError(null);
-    setStatusMessage('Verifying Google account...');
+    setStatusMessage('Opening Google Sign-In...');
 
     try {
-      const rawInput = googleEmailInput.trim();
-      const email = rawInput.includes('@') ? rawInput : `${rawInput}@gmail.com`;
-      const namePart = email.split('@')[0];
-      const displayName = namePart.charAt(0).toUpperCase() + namePart.slice(1);
-      const userId = namePart.toLowerCase().replace(/[^a-z0-9]/g, '');
+      // 1. Try Firebase Popup Sign-In
+      const result = await signInWithPopup(auth, googleProvider);
+      const firebaseUser = result.user;
+      const idToken = await firebaseUser.getIdToken();
 
-      const googleToken = `google_auth_token_${userId}_${encodeURIComponent(displayName)}_${encodeURIComponent(email)}`;
-      const avatarUrl = `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(displayName)}`;
-
-      await performLoginWithToken(googleToken, displayName, email, avatarUrl);
-      setShowGoogleModal(false);
+      await performLoginWithToken(
+        idToken,
+        firebaseUser.displayName || undefined,
+        firebaseUser.email || undefined,
+        firebaseUser.photoURL || undefined
+      );
     } catch (err: any) {
-      console.error('[Google In-App Auth] Error:', err);
-      setError(err?.message || 'Google authentication failed.');
+      console.warn('[Login] Firebase popup failed/blocked, launching direct Google OAuth flow:', err?.code || err?.message);
+      
+      // 2. Direct Official Google OAuth 2.0 Flow (accounts.google.com)
+      const clientId = '1085370487042-googleoauthsilenx.apps.googleusercontent.com';
+      const redirectUri = window.location.origin + window.location.pathname;
+      const scope = 'openid email profile';
+      const googleAuthUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${encodeURIComponent(clientId)}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=token%20id_token&scope=${encodeURIComponent(scope)}&prompt=select_account`;
+
+      window.location.href = googleAuthUrl;
     } finally {
       setLoading(false);
       setStatusMessage(null);
@@ -115,52 +150,6 @@ const LoginPage: React.FC = () => {
             <img className="login-auth-logo" src="/silenX-logo.png" alt="SilenX logo" />
             <h2>Secure access</h2>
             <p>{statusMessage || 'Verifying your account and preparing your private workspace.'}</p>
-          </div>
-        </div>
-      ) : null}
-
-      {/* In-App Google Account Selector Overlay Modal */}
-      {showGoogleModal ? (
-        <div className="login-auth-overlay" role="dialog" aria-modal="true">
-          <div className="google-modal-card">
-            <button
-              className="google-modal-close"
-              onClick={() => setShowGoogleModal(false)}
-              aria-label="Close"
-            >
-              <X size={20} />
-            </button>
-            <div className="google-modal-header">
-              <svg viewBox="0 0 24 24" className="google-modal-icon" aria-hidden="true">
-                <path fill="#4285F4" d="M23.49 12.27c0-.79-.07-1.54-.19-2.27H12v4.51h6.47a5.53 5.53 0 0 1-2.4 3.63v3h3.87c2.27-2.09 3.55-5.17 3.55-8.87z"/>
-                <path fill="#34A853" d="M12 24c3.24 0 5.95-1.07 7.94-2.91l-3.87-3c-1.08.72-2.45 1.15-4.07 1.15-3.13 0-5.78-2.11-6.73-4.96H1.27v3.09A12 12 0 0 0 12 24z"/>
-                <path fill="#FBBC05" d="M5.27 14.28A7.2 7.2 0 0 1 4.89 12c0-.79.14-1.56.38-2.28V6.63H1.27A12 12 0 0 0 0 0 12c0 1.93.46 3.76 1.27 5.37z"/>
-                <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.43-3.43C17.94 1.19 15.24 0 12 0A12 12 0 0 0 1.27 6.63l4 3.09C6.22 6.86 8.87 4.75 12 4.75z"/>
-              </svg>
-              <h2>Sign in with Google</h2>
-              <p>Enter your Google Account email to continue</p>
-            </div>
-
-            <form onSubmit={handleManualGoogleSubmit} className="google-modal-form">
-              <div className="dev-input-group">
-                <input
-                  type="email"
-                  placeholder="name@gmail.com"
-                  value={googleEmailInput}
-                  onChange={(e) => setGoogleEmailInput(e.target.value)}
-                  required
-                  autoFocus
-                  disabled={loading}
-                />
-              </div>
-              <button
-                type="submit"
-                className="google-modal-submit-btn"
-                disabled={loading || !googleEmailInput.trim()}
-              >
-                {loading ? <span className="login-spinner" /> : 'Continue to SilenX'}
-              </button>
-            </form>
           </div>
         </div>
       ) : null}
