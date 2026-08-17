@@ -3,7 +3,7 @@ name: Build SlienX APK
 on:
   push:
     branches: [main]
-  workflow_dispatch: # also allows manual trigger from GitHub UI
+  workflow_dispatch: # allow manual trigger from GitHub UI
 
 jobs:
   build:
@@ -11,31 +11,24 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Checkout code
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2. Set up Node.js
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
-          cache: 'npm'
-          cache-dependency-path: frontend/package-lock.json
+          node-version: '20'
 
-      # 3. Set up Java (required for Android Gradle build)
       - name: Set up Java 17
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
 
-      # 4. Install frontend dependencies
       - name: Install dependencies
-        run: npm install
+        run: npm install --legacy-peer-deps
         working-directory: frontend
 
-      # 5. Create .env file from GitHub Secrets
       - name: Create .env file
         run: |
           cat <<EOF > frontend/.env
@@ -49,27 +42,22 @@ jobs:
           VITE_SOCKET_URL=${{ secrets.VITE_SOCKET_URL }}
           EOF
 
-      # 6. Build the Vite frontend
       - name: Build frontend
         run: npm run build
         working-directory: frontend
 
-      # 7. Sync Capacitor android project
       - name: Sync Capacitor
         run: npx cap sync android
         working-directory: frontend
 
-      # 8. Make gradlew executable
       - name: Make gradlew executable
         run: chmod +x ./gradlew
         working-directory: frontend/android
 
-      # 9. Build the debug APK
       - name: Build Debug APK
         run: ./gradlew assembleDebug --no-daemon --stacktrace
         working-directory: frontend/android
 
-      # 10. Upload the APK as a downloadable artifact
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
