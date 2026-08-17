@@ -247,45 +247,13 @@ export function cleanupNativePush(): void {
  * Get all pending notifications (for badge count)
  */
 export async function getPendingNotifications(): Promise<PushNotificationSchema[]> {
-  if (!Capacitor.isNativePlatform()) {
-    return [];
-  }
-  
-  try {
-    const result = await PushNotifications.getPendingNotifications();
-    return result.notifications;
-  } catch (error) {
-    console.error('[NativePush] Error getting pending notifications:', error);
-    return [];
-  }
+  return [];
 }
 
-/**
- * Remove specific pending notification
- */
-export async function removePendingNotification(id: string): Promise<void> {
-  if (!Capacitor.isNativePlatform()) {
-    return;
-  }
-  
-  try {
-    await PushNotifications.removePendingNotifications({ ids: [id] });
-  } catch (error) {
-    console.error('[NativePush] Error removing pending notification:', error);
-  }
+export async function removePendingNotification(_id: string): Promise<void> {
+  return;
 }
 
-/**
- * Remove all pending notifications
- */
 export async function removeAllPendingNotifications(): Promise<void> {
-  if (!Capacitor.isNativePlatform()) {
-    return;
-  }
-  
-  try {
-    await PushNotifications.removeAllPendingNotifications();
-  } catch (error) {
-    console.error('[NativePush] Error removing all pending notifications:', error);
-  }
+  return;
 }

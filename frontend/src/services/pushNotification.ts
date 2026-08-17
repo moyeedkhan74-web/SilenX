@@ -218,24 +218,9 @@ export async function initializePushNotifications(): Promise<boolean> {
 /**
  * Handle token refresh (called when token is updated)
  */
-export function onTokenRefresh(callback: (token: string) => void): (() => void) | null {
-  const messagingInstance = initializePushMessaging();
-  if (!messagingInstance) {
-    return null;
-  }
-
-  try {
-    const unsubscribe = messagingInstance.onTokenRefresh(async (newToken) => {
-      console.log('[PushNotification] Token refreshed:', newToken);
-      currentToken = newToken;
-      await syncTokenToBackend(newToken);
-      callback(newToken);
-    });
-    return unsubscribe;
-  } catch (error) {
-    console.error('[PushNotification] Error setting up token refresh handler:', error);
-    return null;
-  }
+export function onTokenRefresh(_callback: (token: string) => void): (() => void) | null {
+  // In Firebase v9, token refresh is automatically managed by getToken()
+  return () => {};
 }
 
 /**
