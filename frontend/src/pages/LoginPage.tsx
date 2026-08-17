@@ -20,17 +20,9 @@ const LoginPage: React.FC = () => {
   const login = useAuthStore((state) => state.login);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [devName, setDevName] = useState('');
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
-
-
   const handleGoogleLogin = async () => {
-    if (!auth || !googleProvider) {
-      setError('Google sign-in is not configured. Add your Firebase environment values.');
-      return;
-    }
-
     setLoading(true);
     setError(null);
 
@@ -69,8 +61,8 @@ const LoginPage: React.FC = () => {
           id: serverUser.id,
           uid: normalizeUid(serverUser.uid || serverUser.id),
           email: serverUser.email || '',
-          displayName: serverUser.displayName || 'Secure User',
-          avatarUrl: serverUser.avatarUrl || null,
+          displayName: serverUser.displayName || firebaseUser.displayName || 'Secure User',
+          avatarUrl: serverUser.avatarUrl || firebaseUser.photoURL || null,
           status: (serverUser.status as UserStatus) || 'online',
           lastSeen: new Date().toISOString(),
           bio: serverUser.bio || 'Signed in with Google',
@@ -98,52 +90,6 @@ const LoginPage: React.FC = () => {
       } else {
         setError(err?.message || 'Google sign-in failed. Please try again.');
       }
-    } finally {
-      setLoading(false);
-      setStatusMessage(null);
-    }
-  };
-
-  const handleDevLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!devName.trim()) return;
-
-    setLoading(true);
-    setError(null);
-    setStatusMessage('Preparing private secure workspace...');
-
-    try {
-      const trimmedName = devName.trim();
-      const mockId = `dev_${trimmedName.toLowerCase().replace(/[^a-z0-9]/g, '') || Date.now()}`;
-      const idToken = `dev_token_${mockId}_${encodeURIComponent(trimmedName)}`;
-
-      const body = await authenticateWithGoogleBackend(idToken, (msg) => setStatusMessage(msg));
-      const serverUser = body.user;
-
-      login(
-        {
-          id: serverUser.id,
-          uid: normalizeUid(serverUser.uid || serverUser.id),
-          email: serverUser.email || '',
-          displayName: serverUser.displayName || trimmedName,
-          avatarUrl: serverUser.avatarUrl || null,
-          status: (serverUser.status as UserStatus) || 'online',
-          lastSeen: new Date().toISOString(),
-          bio: serverUser.bio || 'SilenX Member',
-        },
-        idToken
-      );
-
-      try {
-        connectSocket(idToken);
-      } catch (err) {
-        console.warn('Socket registration failed', err);
-      }
-
-      navigate('/');
-    } catch (err: any) {
-      console.error('[Dev Login] Error:', err);
-      setError(err?.message || 'Login failed.');
     } finally {
       setLoading(false);
       setStatusMessage(null);
@@ -207,7 +153,7 @@ const LoginPage: React.FC = () => {
               </div>
               <div className="feature-text">
                 <h3>Set up in seconds</h3>
-                <p>Sign in with Google OAuth or enter your display name to start.</p>
+                <p>Sign in with your Google account — no phone number or extra setup.</p>
               </div>
             </div>
 
@@ -226,9 +172,8 @@ const LoginPage: React.FC = () => {
         <section className="card">
           <img className="mark" src="/silenX-logo.png" alt="SilenX logo" />
           <h1>Sign in</h1>
-          <p className="tagline">Choose your preferred login method below.</p>
+          <p className="tagline">Continue with your Google account to get started.</p>
 
-          {/* 1. FIRST: Google OAuth Login Button */}
           <button
             className="google-btn"
             onClick={handleGoogleLogin}
@@ -241,38 +186,12 @@ const LoginPage: React.FC = () => {
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path fill="#4285F4" d="M23.49 12.27c0-.79-.07-1.54-.19-2.27H12v4.51h6.47a5.53 5.53 0 0 1-2.4 3.63v3h3.87c2.27-2.09 3.55-5.17 3.55-8.87z"/>
                 <path fill="#34A853" d="M12 24c3.24 0 5.95-1.07 7.94-2.91l-3.87-3c-1.08.72-2.45 1.15-4.07 1.15-3.13 0-5.78-2.11-6.73-4.96H1.27v3.09A12 12 0 0 0 12 24z"/>
-                <path fill="#FBBC05" d="M5.27 14.28A7.2 7.2 0 0 1 4.89 12c0-.79.14-1.56.38-2.28V6.63H1.27A12 12 0 0 0 0 12c0 1.93.46 3.76 1.27 5.37z"/>
+                <path fill="#FBBC05" d="M5.27 14.28A7.2 7.2 0 0 1 4.89 12c0-.79.14-1.56.38-2.28V6.63H1.27A12 12 0 0 0 0 0 12c0 1.93.46 3.76 1.27 5.37z"/>
                 <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.43-3.43C17.94 1.19 15.24 0 12 0A12 12 0 0 0 1.27 6.63l4 3.09C6.22 6.86 8.87 4.75 12 4.75z"/>
               </svg>
             )}
             <span>{statusMessage ? statusMessage : 'Continue with Google'}</span>
           </button>
-
-          <div className="login-divider">
-            <span>or sign in with details</span>
-          </div>
-
-          {/* 2. NEXT: Account Details Input Form */}
-          <form onSubmit={handleDevLogin} className="dev-login-form">
-            <div className="dev-input-group">
-              <input
-                type="text"
-                placeholder="Enter your Display Name or Username"
-                value={devName}
-                onChange={(e) => setDevName(e.target.value)}
-                maxLength={24}
-                required
-                disabled={loading}
-              />
-            </div>
-            <button type="submit" className="dev-submit-btn" disabled={loading || !devName.trim()}>
-              {loading ? (
-                <span className="login-spinner" style={{ borderTopColor: '#ffffff' }} />
-              ) : (
-                'Enter Secure Chat'
-              )}
-            </button>
-          </form>
 
           {statusMessage ? (
             <div className="status">
@@ -280,9 +199,11 @@ const LoginPage: React.FC = () => {
             </div>
           ) : null}
 
-          <div className="error" id="errorMsg">
-            {error}
-          </div>
+          {error ? (
+            <div className="error" id="errorMsg">
+              {error}
+            </div>
+          ) : null}
 
           <div className="foot">By continuing, you agree to SlienX's Terms &amp; Privacy Policy.</div>
         </section>
