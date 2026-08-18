@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Lock, Clock3, Layers3, X } from 'lucide-react';
-import { signInWithPopup, signInWithRedirect, getRedirectResult } from 'firebase/auth';
+import { signInWithPopup, signInWithRedirect } from 'firebase/auth';
 import { auth, googleProvider } from '../config/firebase';
 import { useAuthStore } from '../store/authStore';
 import { connectSocket } from '../services/socket';
@@ -75,40 +75,13 @@ const LoginPage: React.FC = () => {
     navigate('/');
   };
 
-  // Handle redirect result if returning from web browser OAuth
-  useEffect(() => {
-    getRedirectResult(auth)
-      .then(async (result) => {
-        if (result && result.user) {
-          setLoading(true);
-          setStatusMessage('Signing in with Google account...');
-          const firebaseUser = result.user;
-          const idToken = await firebaseUser.getIdToken();
-
-          await performLoginWithToken(
-            idToken,
-            firebaseUser.displayName || undefined,
-            firebaseUser.email || undefined,
-            firebaseUser.photoURL || undefined
-          );
-        }
-      })
-      .catch((err) => {
-        console.warn('[Login] Redirect Result Notice:', err?.code || err?.message);
-      })
-      .finally(() => {
-        setLoading(false);
-        setStatusMessage(null);
-      });
-  }, []);
-
   const handleGoogleLogin = async () => {
     setLoading(true);
     setError(null);
     setStatusMessage('Opening Google Sign-In...');
 
     try {
-      // 1. Primary: Try Firebase Popup Sign-In
+      // 1. Primary: Use signInWithPopup directly to avoid sessionStorage handoff issues
       const result = await signInWithPopup(auth, googleProvider);
       const firebaseUser = result.user;
       const idToken = await firebaseUser.getIdToken();
@@ -120,10 +93,24 @@ const LoginPage: React.FC = () => {
         firebaseUser.photoURL || undefined
       );
     } catch (err: any) {
-      console.warn('[Login] Firebase Popup unavailable, trying redirect/fallback:', err?.code || err?.message);
-      try {
-        await signInWithRedirect(auth, googleProvider);
-      } catch (redirectErr: any) {
+      console.warn('[Login] signInWithPopup notice:', err?.code || err?.message);
+
+      // Fallback: If popup is explicitly blocked or cancelled, try redirect
+      if (
+        err?.code === 'auth/popup-blocked' ||
+        err?.code === 'auth/cancelled-popup-request' ||
+        err?.message?.includes('popup-blocked')
+      ) {
+        try {
+          setStatusMessage('Redirecting to Google Sign-In...');
+          await signInWithRedirect(auth, googleProvider);
+          return;
+        } catch (redirectErr: any) {
+          console.error('[Login] signInWithRedirect failed:', redirectErr);
+          setShowAccountModal(true);
+        }
+      } else {
+        // Handle mobile in-app fallback safely
         setShowAccountModal(true);
       }
     } finally {
