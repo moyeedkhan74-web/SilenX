@@ -133,11 +133,26 @@ function AppInner({
           } catch (error) {
             console.error('[App] Auth flow failed:', error);
             await auth!.signOut().catch(() => {});
-            logout();
+            const currentStore = useAuthStore.getState();
+            if (!currentStore.user) {
+              logout();
+            }
           }
         } else {
-          // No user signed in currently
-          logout();
+          // If Firebase is null, do NOT wipe user session if user is logged in via store
+          const currentStore = useAuthStore.getState();
+          if (!currentStore.user && !currentStore.token) {
+            logout();
+          } else if (currentStore.user && currentStore.token) {
+            // Restore crypto & socket for existing session
+            initializeKeys().catch(() => {});
+            try {
+              const socket = connectSocket(currentStore.token);
+              webrtcService.initialize(socket);
+            } catch (err) {
+              console.warn('Socket reconnect notice:', err);
+            }
+          }
         }
         setInitialized(true);
         clearTimeout(safetyTimer);
