@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { MessageCircle, Users, Settings, LogOut, Phone } from 'lucide-react';
+import { MessageCircle, Users, Settings, LogOut, Phone, AlertTriangle, X } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
+import { auth } from '../../config/firebase';
 import { getSocket } from '../../services/socket';
 import { API_URL } from '../../config/webrtc-config';
 import { useIsMobile } from '../../hooks/useIsMobile';
@@ -13,7 +14,9 @@ export const Sidebar: React.FC<SidebarProps> = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const currentUser = useAuthStore((s) => s.user);
+  const logout = useAuthStore((s) => s.logout);
   const [pendingCount, setPendingCount] = useState(0);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const isMobile = useIsMobile();
 
   // Fetch pending request count & listen for live updates
@@ -71,8 +74,15 @@ export const Sidebar: React.FC<SidebarProps> = () => {
     return handleVisibility;
   }, [location.pathname]);
 
-  const handleLogout = () => {
-    console.log('[Auth] Clearing session and logging out');
+  const handleLogoutClick = () => {
+    setShowLogoutConfirm(true);
+  };
+
+  const handleConfirmLogout = () => {
+    setShowLogoutConfirm(false);
+    console.log('[Auth] Confirmed sign out. Clearing session.');
+    logout();
+    auth?.signOut().catch(() => {});
     navigate('/login');
   };
 
@@ -87,6 +97,64 @@ export const Sidebar: React.FC<SidebarProps> = () => {
 
   return (
     <aside className="sidebar">
+      {/* Double Verification Logout Modal */}
+      {showLogoutConfirm && (
+        <div className="login-auth-overlay" role="dialog" aria-modal="true" style={{ zIndex: 9999 }}>
+          <div className="google-modal-card" style={{ textAlign: 'center', padding: '24px 20px', maxWidth: '360px' }}>
+            <button
+              className="google-modal-close"
+              onClick={() => setShowLogoutConfirm(false)}
+              aria-label="Close"
+            >
+              <X size={20} />
+            </button>
+            <div style={{ margin: '0 auto 12px', width: 48, height: 48, borderRadius: '50%', background: 'rgba(239, 68, 68, 0.12)', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <AlertTriangle size={26} />
+            </div>
+            <h2 style={{ fontSize: 18, fontWeight: 700, margin: '0 0 8px', color: 'var(--text-primary)' }}>Sign Out</h2>
+            <p style={{ fontSize: 13.5, color: 'var(--text-secondary)', margin: '0 0 20px', lineHeight: 1.4 }}>
+              Are you sure you want to sign out of SlienX? You will need to sign in again to access your workspace.
+            </p>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
+              <button
+                type="button"
+                onClick={() => setShowLogoutConfirm(false)}
+                style={{
+                  flex: 1,
+                  padding: '10px 16px',
+                  borderRadius: 10,
+                  border: '1px solid var(--border-color)',
+                  background: 'var(--bg-secondary)',
+                  color: 'var(--text-primary)',
+                  fontWeight: 600,
+                  fontSize: 13.5,
+                  cursor: 'pointer'
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmLogout}
+                style={{
+                  flex: 1,
+                  padding: '10px 16px',
+                  borderRadius: 10,
+                  border: 'none',
+                  background: '#ef4444',
+                  color: '#fff',
+                  fontWeight: 600,
+                  fontSize: 13.5,
+                  cursor: 'pointer'
+                }}
+              >
+                Yes, Sign Out
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Logo — desktop only */}
       {!isMobile && (
         <div className="sidebar-logo" aria-label="SlienX">
@@ -116,7 +184,7 @@ export const Sidebar: React.FC<SidebarProps> = () => {
           );
         })}
         {isMobile && (
-          <button className="nav-item logout-nav-item" onClick={handleLogout} type="button">
+          <button className="nav-item logout-nav-item" onClick={handleLogoutClick} type="button">
             <div className="nav-icon-wrapper">
               <LogOut size={20} />
             </div>
@@ -127,7 +195,7 @@ export const Sidebar: React.FC<SidebarProps> = () => {
 
       {!isMobile && (
         <div className="sidebar-bottom">
-          <button className="nav-item" onClick={handleLogout} data-tooltip="Logout" type="button">
+          <button className="nav-item" onClick={handleLogoutClick} data-tooltip="Logout" type="button">
             <LogOut size={20} />
           </button>
         </div>

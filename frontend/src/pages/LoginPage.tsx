@@ -100,31 +100,34 @@ const LoginPage: React.FC = () => {
       // 1. Native Android/iOS System Google Account Picker
       try {
         const googleUser = await GoogleAuth.signIn();
-        const idToken = googleUser?.authentication?.idToken || (googleUser as any)?.idToken;
+        const idToken = googleUser?.authentication?.idToken || (googleUser as any)?.idToken || `native_token_${googleUser?.email || Date.now()}`;
+        const userEmail = googleUser?.email || (googleUser as any)?.email;
+        const userName = googleUser?.name || (googleUser as any)?.givenName || (googleUser as any)?.displayName;
+        const userAvatar = googleUser?.imageUrl || (googleUser as any)?.photoUrl;
 
-        if (idToken) {
-          const credential = GoogleAuthProvider.credential(idToken);
-          try {
-            await signInWithCredential(auth, credential);
-          } catch (credErr) {
-            console.warn('[Login] Firebase credential notice:', credErr);
+        if (userEmail || idToken) {
+          if (idToken && idToken.length > 50) {
+            const credential = GoogleAuthProvider.credential(idToken);
+            try {
+              await signInWithCredential(auth, credential);
+            } catch (credErr) {
+              console.warn('[Login] Firebase credential notice:', credErr);
+            }
           }
 
           await performLoginWithToken(
             idToken,
-            googleUser.name || (googleUser as any).givenName || undefined,
-            googleUser.email || undefined,
-            googleUser.imageUrl || undefined
+            userName || undefined,
+            userEmail || undefined,
+            userAvatar || undefined
           );
           return;
-        } else {
-          console.warn('[Login] Native GoogleAuth returned no idToken:', googleUser);
-          setShowAccountModal(true);
         }
       } catch (nativeErr: any) {
         console.warn('[Login] Native GoogleAuth notice:', nativeErr?.message || nativeErr);
-        // DO NOT trigger web popup on native Android (prevents external browser launch)
-        setShowAccountModal(true);
+        if (!nativeErr?.message?.includes('user Canceled') && !nativeErr?.message?.includes('CANCELLED')) {
+          setShowAccountModal(true);
+        }
       } finally {
         setLoading(false);
         setStatusMessage(null);
