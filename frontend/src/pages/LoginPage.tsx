@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Lock, Clock3, Layers3, X } from 'lucide-react';
+import { Capacitor } from '@capacitor/core';
 import { GoogleAuth } from '@codetrix-studio/capacitor-google-auth';
 import { GoogleAuthProvider, signInWithCredential, signInWithPopup } from 'firebase/auth';
 import { auth, googleProvider } from '../config/firebase';
@@ -27,7 +28,7 @@ const LoginPage: React.FC = () => {
       GoogleAuth.initialize({
         clientId: '108819293185-ij6ei19vjhg8d9s5cvojktktr95t6oqu.apps.googleusercontent.com',
         scopes: ['profile', 'email'],
-        grantOfflineAccess: true,
+        grantOfflineAccess: false,
       });
     } catch (e) {
       console.warn('[GoogleAuth] Initialize notice:', e);
@@ -93,47 +94,59 @@ const LoginPage: React.FC = () => {
     setError(null);
     setStatusMessage('Opening Google Sign-In...');
 
-    try {
-      // 1. Try Native Android System Google Account Selector (Pure Native OAuth)
-      const googleUser = await GoogleAuth.signIn();
-      if (googleUser && googleUser.authentication?.idToken) {
-        const idToken = googleUser.authentication.idToken;
-        const credential = GoogleAuthProvider.credential(idToken);
-        
-        try {
-          await signInWithCredential(auth, credential);
-        } catch (credErr) {
-          console.warn('[Login] Firebase credential notice:', credErr);
-        }
+    const isNative = Capacitor.isNativePlatform();
 
-        await performLoginWithToken(
-          idToken,
-          googleUser.name || (googleUser as any).givenName || undefined,
-          googleUser.email || undefined,
-          googleUser.imageUrl || undefined
-        );
-        return;
-      }
-    } catch (nativeErr: any) {
-      console.warn('[Login] Native GoogleAuth notice, attempting web popup:', nativeErr?.message || nativeErr);
-      
+    if (isNative) {
+      // 1. Native Android/iOS System Google Account Picker
       try {
-        // 2. Web Popup Fallback
-        const result = await signInWithPopup(auth, googleProvider);
-        const firebaseUser = result.user;
-        const idToken = await firebaseUser.getIdToken();
+        const googleUser = await GoogleAuth.signIn();
+        const idToken = googleUser?.authentication?.idToken || (googleUser as any)?.idToken;
 
-        await performLoginWithToken(
-          idToken,
-          firebaseUser.displayName || undefined,
-          firebaseUser.email || undefined,
-          firebaseUser.photoURL || undefined
-        );
-        return;
-      } catch (popupErr: any) {
-        console.warn('[Login] Web popup notice:', popupErr);
+        if (idToken) {
+          const credential = GoogleAuthProvider.credential(idToken);
+          try {
+            await signInWithCredential(auth, credential);
+          } catch (credErr) {
+            console.warn('[Login] Firebase credential notice:', credErr);
+          }
+
+          await performLoginWithToken(
+            idToken,
+            googleUser.name || (googleUser as any).givenName || undefined,
+            googleUser.email || undefined,
+            googleUser.imageUrl || undefined
+          );
+          return;
+        } else {
+          console.warn('[Login] Native GoogleAuth returned no idToken:', googleUser);
+          setShowAccountModal(true);
+        }
+      } catch (nativeErr: any) {
+        console.warn('[Login] Native GoogleAuth notice:', nativeErr?.message || nativeErr);
+        // DO NOT trigger web popup on native Android (prevents external browser launch)
         setShowAccountModal(true);
+      } finally {
+        setLoading(false);
+        setStatusMessage(null);
       }
+      return;
+    }
+
+    // 2. Standard Web Browser Flow
+    try {
+      const result = await signInWithPopup(auth, googleProvider);
+      const firebaseUser = result.user;
+      const idToken = await firebaseUser.getIdToken();
+
+      await performLoginWithToken(
+        idToken,
+        firebaseUser.displayName || undefined,
+        firebaseUser.email || undefined,
+        firebaseUser.photoURL || undefined
+      );
+    } catch (popupErr: any) {
+      console.warn('[Login] Web popup notice:', popupErr);
+      setShowAccountModal(true);
     } finally {
       setLoading(false);
       setStatusMessage(null);
