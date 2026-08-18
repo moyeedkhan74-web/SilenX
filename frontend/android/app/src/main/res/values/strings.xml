@@ -4,4 +4,5 @@
     <string name="title_activity_main">SlienX</string>
     <string name="package_name">com.dev.silenx</string>
     <string name="custom_url_scheme">com.dev.silenx</string>
+    <string name="server_client_id">108819293185-ij6ei19vjhg8d9s5cvojktktr95t6oqu.apps.googleusercontent.com</string>
 </resources>
