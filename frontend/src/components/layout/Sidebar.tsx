@@ -99,20 +99,77 @@ export const Sidebar: React.FC<SidebarProps> = () => {
     <aside className="sidebar">
       {/* Double Verification Logout Modal */}
       {showLogoutConfirm && (
-        <div className="login-auth-overlay" role="dialog" aria-modal="true" style={{ zIndex: 9999 }}>
-          <div className="google-modal-card" style={{ textAlign: 'center', padding: '24px 20px', maxWidth: '360px' }}>
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 99999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: 'rgba(0, 0, 0, 0.75)',
+            backdropFilter: 'blur(8px)',
+            WebkitBackdropFilter: 'blur(8px)',
+            padding: '16px',
+            boxSizing: 'border-box',
+          }}
+          role="dialog"
+          aria-modal="true"
+          onClick={() => setShowLogoutConfirm(false)}
+        >
+          <div
+            style={{
+              position: 'relative',
+              width: '100%',
+              maxWidth: '340px',
+              padding: '24px 20px',
+              borderRadius: '20px',
+              backgroundColor: '#0f172a',
+              border: '1px solid rgba(255, 255, 255, 0.14)',
+              boxShadow: '0 20px 50px rgba(0, 0, 0, 0.65)',
+              textAlign: 'center',
+              boxSizing: 'border-box',
+              color: '#f8fafc',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
             <button
-              className="google-modal-close"
               onClick={() => setShowLogoutConfirm(false)}
               aria-label="Close"
+              style={{
+                position: 'absolute',
+                top: 14,
+                right: 14,
+                background: 'transparent',
+                border: 'none',
+                color: '#94a3b8',
+                cursor: 'pointer',
+                padding: 4,
+                display: 'grid',
+                placeItems: 'center',
+              }}
             >
-              <X size={20} />
+              <X size={18} />
             </button>
-            <div style={{ margin: '0 auto 12px', width: 48, height: 48, borderRadius: '50%', background: 'rgba(239, 68, 68, 0.12)', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <AlertTriangle size={26} />
+            <div
+              style={{
+                margin: '0 auto 14px',
+                width: 48,
+                height: 48,
+                borderRadius: '50%',
+                backgroundColor: 'rgba(239, 68, 68, 0.14)',
+                color: '#ef4444',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <AlertTriangle size={24} />
             </div>
-            <h2 style={{ fontSize: 18, fontWeight: 700, margin: '0 0 8px', color: 'var(--text-primary)' }}>Sign Out</h2>
-            <p style={{ fontSize: 13.5, color: 'var(--text-secondary)', margin: '0 0 20px', lineHeight: 1.4 }}>
+            <h2 style={{ fontSize: 18, fontWeight: 700, margin: '0 0 8px', color: '#f8fafc' }}>
+              Sign Out
+            </h2>
+            <p style={{ fontSize: 13.5, color: '#94a3b8', margin: '0 0 22px', lineHeight: 1.45 }}>
               Are you sure you want to sign out of SlienX? You will need to sign in again to access your workspace.
             </p>
             <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
@@ -121,14 +178,14 @@ export const Sidebar: React.FC<SidebarProps> = () => {
                 onClick={() => setShowLogoutConfirm(false)}
                 style={{
                   flex: 1,
-                  padding: '10px 16px',
+                  padding: '10px 14px',
                   borderRadius: 10,
-                  border: '1px solid var(--border-color)',
-                  background: 'var(--bg-secondary)',
-                  color: 'var(--text-primary)',
+                  border: '1px solid rgba(255, 255, 255, 0.15)',
+                  backgroundColor: 'rgba(255, 255, 255, 0.08)',
+                  color: '#e2e8f0',
                   fontWeight: 600,
                   fontSize: 13.5,
-                  cursor: 'pointer'
+                  cursor: 'pointer',
                 }}
               >
                 Cancel
@@ -138,14 +195,14 @@ export const Sidebar: React.FC<SidebarProps> = () => {
                 onClick={handleConfirmLogout}
                 style={{
                   flex: 1,
-                  padding: '10px 16px',
+                  padding: '10px 14px',
                   borderRadius: 10,
                   border: 'none',
-                  background: '#ef4444',
-                  color: '#fff',
+                  backgroundColor: '#ef4444',
+                  color: '#ffffff',
                   fontWeight: 600,
                   fontSize: 13.5,
-                  cursor: 'pointer'
+                  cursor: 'pointer',
                 }}
               >
                 Yes, Sign Out

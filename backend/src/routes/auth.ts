@@ -24,14 +24,19 @@ router.post('/google', async (req: Request, res: Response) => {
 
   const idToken = authHeader.slice(7);
 
-  if (idToken.startsWith('dev_token_') || idToken.startsWith('google_token_') || idToken.startsWith('google_auth_token_')) {
+  if (idToken.startsWith('dev_token_') || idToken.startsWith('google_token_') || idToken.startsWith('google_auth_token_') || idToken.startsWith('native_token_')) {
     const parts = idToken.split('_');
     const rawUserId = parts[2] || `user_${Date.now()}`;
     const devUserId = rawUserId.toLowerCase().replace(/[^a-z0-9]/g, '') || `user_${Date.now()}`;
     const devDisplayName = decodeURIComponent(parts[3] || 'Google User');
-    const devEmail = parts[4] ? decodeURIComponent(parts[4]) : `${devUserId}@gmail.com`;
+    const devEmail = parts[4] ? decodeURIComponent(parts[4]) : (rawUserId.includes('@') ? rawUserId : `${devUserId}@gmail.com`);
 
-    let user = users.find((u: any) => u.id === devUserId || (u.email && u.email === devEmail));
+    // Match existing user account by email (case-insensitive) OR user ID
+    let user = users.find(
+      (u: any) =>
+        (u.email && devEmail && u.email.toLowerCase() === devEmail.toLowerCase()) ||
+        u.id === devUserId
+    );
     let changed = false;
 
     if (!user) {
