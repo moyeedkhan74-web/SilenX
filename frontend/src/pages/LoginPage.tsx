@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Lock, Clock3, Layers3, X } from 'lucide-react';
-import { signInWithPopup, getRedirectResult } from 'firebase/auth';
+import { signInWithPopup, signInWithRedirect, getRedirectResult } from 'firebase/auth';
 import { auth, googleProvider } from '../config/firebase';
 import { useAuthStore } from '../store/authStore';
 import { connectSocket } from '../services/socket';
@@ -17,7 +17,7 @@ const LoginPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
-  // In-App Quick Google Account Selector for mobile APK
+  // In-App Quick Google Account Selector for mobile APK fallback
   const [showAccountModal, setShowAccountModal] = useState(false);
   const [googleEmailInput, setGoogleEmailInput] = useState('');
 
@@ -108,7 +108,7 @@ const LoginPage: React.FC = () => {
     setStatusMessage('Opening Google Sign-In...');
 
     try {
-      // 1. Primary: Try Firebase Popup Sign-In directly
+      // 1. Primary: Try Firebase Popup Sign-In
       const result = await signInWithPopup(auth, googleProvider);
       const firebaseUser = result.user;
       const idToken = await firebaseUser.getIdToken();
@@ -120,9 +120,12 @@ const LoginPage: React.FC = () => {
         firebaseUser.photoURL || undefined
       );
     } catch (err: any) {
-      console.warn('[Login] In-app popup unavailable, opening in-app account selector:', err?.code || err?.message);
-      // Avoid opening external Chrome browser (which gets stuck on localhost redirect)
-      setShowAccountModal(true);
+      console.warn('[Login] Firebase Popup unavailable, trying redirect/fallback:', err?.code || err?.message);
+      try {
+        await signInWithRedirect(auth, googleProvider);
+      } catch (redirectErr: any) {
+        setShowAccountModal(true);
+      }
     } finally {
       setLoading(false);
       setStatusMessage(null);
