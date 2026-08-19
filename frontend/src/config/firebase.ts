@@ -1,5 +1,14 @@
 import { initializeApp, getApps, type FirebaseApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider, setPersistence, browserLocalPersistence, type Auth } from 'firebase/auth';
+import { 
+  getAuth, 
+  GoogleAuthProvider, 
+  setPersistence, 
+  indexedDBLocalPersistence, 
+  browserLocalPersistence, 
+  browserSessionPersistence, 
+  inMemoryPersistence, 
+  type Auth 
+} from 'firebase/auth';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY || 'AIzaSyDrmYCU3YDCDEoJMSmzkPPfnw8N4exMfkk',
@@ -19,14 +28,12 @@ try {
   app = getApps().length > 0 ? getApps()[0] : initializeApp(firebaseConfig);
   auth = getAuth(app);
   
-  // Non-blocking persistence configuration
-  setTimeout(() => {
-    try {
-      setPersistence(auth, browserLocalPersistence).catch(() => {});
-    } catch {
-      // Ignore storage restrictions gracefully
-    }
-  }, 0);
+  // Safe multi-tier persistence chain to handle browser storage quota limits
+  setPersistence(auth, indexedDBLocalPersistence)
+    .catch(() => setPersistence(auth, browserLocalPersistence))
+    .catch(() => setPersistence(auth, browserSessionPersistence))
+    .catch(() => setPersistence(auth, inMemoryPersistence))
+    .catch((err) => console.warn('[Firebase Auth] Persistence fallback notice:', err));
 
   googleProvider = new GoogleAuthProvider();
   googleProvider.setCustomParameters({ prompt: 'select_account' });

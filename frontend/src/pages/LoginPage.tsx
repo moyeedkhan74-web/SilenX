@@ -19,6 +19,37 @@ const LoginPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
+  // Safe token storage helper with QuotaExceededError handling
+  const safeSetItem = (key: string, value: string) => {
+    try {
+      localStorage.setItem(key, value);
+    } catch (err: any) {
+      if (err?.name === 'QuotaExceededError' || err?.code === 22) {
+        console.warn('[Storage] Quota exceeded. Cleaning up non-essential cache...');
+        // Clear non-critical keys to free space
+        Object.keys(localStorage).forEach((k) => {
+          if (!k.startsWith('firebase:authUser') && !k.startsWith('auth-storage')) {
+            localStorage.removeItem(k);
+          }
+        });
+        try {
+          localStorage.setItem(key, value);
+        } catch (retryErr) {
+          sessionStorage.setItem(key, value);
+        }
+      }
+    }
+  };
+
+  // Initialize safe storage on component mount
+  useEffect(() => {
+    // Set up safe storage - try localStorage, fall back to sessionStorage on quota exceeded
+    const testKey = '__silenx_storage_test__';
+    safeSetItem(testKey, 'test_value');
+    // Cleanup test key
+    try { localStorage.removeItem(testKey); } catch {}
+  }, []);
+
 useEffect(() => {
     try {
       GoogleAuth.initialize({
