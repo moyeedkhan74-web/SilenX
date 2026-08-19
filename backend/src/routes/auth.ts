@@ -28,8 +28,7 @@ router.post('/google', async (req: Request, res: Response) => {
     idToken.startsWith('dev_token_') ||
     idToken.startsWith('google_token_') ||
     idToken.startsWith('google_auth_token_') ||
-    idToken.startsWith('native_token_') ||
-    idToken.startsWith('native_auth_')
+    idToken.startsWith('native_token_')
   ) {
     const parts = idToken.split('_');
     const rawUserId = parts[2] || `user_${Date.now()}`;
@@ -37,12 +36,7 @@ router.post('/google', async (req: Request, res: Response) => {
     const devDisplayName = decodeURIComponent(parts[3] || 'Google User');
     const devEmail = parts[4] ? decodeURIComponent(parts[4]) : `${devUserId}@gmail.com`;
 
-    // Match by email first so identical emails share the exact same user account & chat history!
-    let user = users.find(
-      (u: any) =>
-        (devEmail && u.email && u.email.toLowerCase() === devEmail.toLowerCase()) ||
-        u.id === devUserId
-    );
+    let user = users.find((u: any) => u.id === devUserId || (u.email && u.email === devEmail));
     let changed = false;
 
     if (!user) {
@@ -100,12 +94,7 @@ router.post('/google', async (req: Request, res: Response) => {
   const displayName = (decodedToken as any).name as string | undefined || null;
   const avatarUrl = (decodedToken as any).picture as string | undefined || null;
 
-  // Match existing user by email first so device sign-ins (laptop vs mobile) share exact same user ID & chat history
-  let user = users.find(
-    (u: any) =>
-      (email && u.email && u.email.toLowerCase() === email.toLowerCase()) ||
-      u.id === firebaseUid
-  );
+  let user = users.find((u: any) => u.id === firebaseUid);
   let changed = false;
 
   if (!user) {

@@ -100,15 +100,10 @@ const LoginPage: React.FC = () => {
       // 1. Native Android/iOS System Google Account Picker
       try {
         const googleUser = await GoogleAuth.signIn();
+        const idToken = googleUser?.authentication?.idToken || (googleUser as any)?.idToken || `native_token_${googleUser?.email || Date.now()}`;
         const userEmail = googleUser?.email || (googleUser as any)?.email;
-        const userName = googleUser?.name || (googleUser as any)?.givenName || (googleUser as any)?.displayName || 'Google User';
+        const userName = googleUser?.name || (googleUser as any)?.givenName || (googleUser as any)?.displayName;
         const userAvatar = googleUser?.imageUrl || (googleUser as any)?.photoUrl;
-
-        const emailSlug = userEmail ? userEmail.split('@')[0].replace(/[^a-z0-9]/gi, '') : `user${Date.now()}`;
-        const rawToken = googleUser?.authentication?.idToken || (googleUser as any)?.idToken;
-        const idToken = (rawToken && rawToken.length > 50)
-          ? rawToken
-          : `native_token_${emailSlug}_${encodeURIComponent(userName)}_${encodeURIComponent(userEmail || `${emailSlug}@gmail.com`)}`;
 
         if (userEmail || idToken) {
           if (idToken && idToken.length > 50) {

@@ -33,10 +33,10 @@ const allowedOrigins = [
   'https://silen-x.vercel.app',
   'http://localhost:5173',
   'http://localhost:3000',
-  'http://localhost:5000',
-  'http://localhost',
-  'https://localhost',
+  // Capacitor/Ionic native app origins (Android & iOS WebView)
   'capacitor://localhost',
+  'ionic://localhost',
+  'http://localhost',
 ];
 
 if (config.frontendUrl) {
@@ -57,7 +57,7 @@ const checkOrigin = (origin: string | undefined, callback: (err: Error | null, a
     origin.startsWith('http://localhost:') ||
     origin.startsWith('http://127.0.0.1:') ||
     origin.startsWith('capacitor://') ||
-    origin.startsWith('https://localhost') ||
+    origin.startsWith('ionic://') ||
     /^https:\/\/silen.*\.vercel\.app$/.test(origin);
 
   if (isAllowed) {

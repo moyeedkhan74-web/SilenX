@@ -1,10 +1,16 @@
+const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
 const isLocalhost =
-  typeof window !== 'undefined' &&
-  (window.location.hostname === 'localhost' ||
-    window.location.hostname === '127.0.0.1' ||
-    window.location.hostname.startsWith('192.168.') ||
-    window.location.hostname.startsWith('10.') ||
-    window.location.hostname.endsWith('.local'));
+  hostname === 'localhost' ||
+  hostname === '127.0.0.1' ||
+  hostname.startsWith('192.168.') ||
+  hostname.startsWith('10.') ||
+  hostname.endsWith('.local');
+
+// Capacitor native apps run inside a WebView with origin "capacitor://localhost"
+// which is NOT localhost from a networking standpoint — it can reach the internet.
+const isCapacitorNative = typeof window !== 'undefined' &&
+  (window.location.protocol === 'capacitor:' || window.location.protocol === 'ionic:' ||
+   (window as any).Capacitor?.isNativePlatform?.() === true);
 
 // ─── TURN configuration ──────────────────────────────────────────────────────
 // Set VITE_TURN_URL, VITE_TURN_USERNAME, and VITE_TURN_PASSWORD in your
@@ -87,29 +93,46 @@ export const WEBRTC_CONFIG: RTCConfiguration = {
   iceCandidatePoolSize: 10,
 };
 
-import { Capacitor } from '@capacitor/core';
+// ─── Backend URLs ─────────────────────────────────────────────────────────────
+// On localhost: default to http://localhost:5000
+// On Capacitor native (Android/iOS): MUST use full https:// backend URL — the
+//   WebView cannot reach the same-origin backend, its origin is capacitor://localhost.
+// In production web: use VITE_API_URL or same-origin fallback (works with Vercel rewrites).
 
-const isNative = typeof window !== 'undefined' && Capacitor.isNativePlatform();
-const prodFallbackUrl = 'https://slienx-backend.onrender.com';
+const envApiUrl = (import.meta.env.VITE_API_URL as string | undefined)?.trim();
+const envSocketUrl = (import.meta.env.VITE_SOCKET_URL as string | undefined)?.trim();
 
-const defaultBackendUrl = isNative
-  ? prodFallbackUrl
-  : isLocalhost
-  ? 'http://localhost:5000'
-  : prodFallbackUrl;
+let defaultBackendUrl: string;
+if (isLocalhost) {
+  defaultBackendUrl = 'http://localhost:5000';
+} else if (isCapacitorNative) {
+  // On native Android/iOS, we MUST have a real URL set via VITE_API_URL.
+  // If not set, we will warn loudly. The app CANNOT function without it.
+  defaultBackendUrl = envApiUrl || '';
+  if (!defaultBackendUrl) {
+    console.error(
+      '[Config] CRITICAL: VITE_API_URL is not set in the build environment.\n' +
+      'The Android/iOS app cannot connect to the backend.\n' +
+      'Set VITE_API_URL=https://your-backend.onrender.com in .env.local before building.'
+    );
+  }
+} else {
+  // Web browser production — same-origin or Vercel rewrite
+  defaultBackendUrl = '';
+}
 
-export const API_URL: string =
-  (import.meta.env.VITE_API_URL as string | undefined)?.trim() || defaultBackendUrl;
+export const API_URL: string = envApiUrl || defaultBackendUrl;
+export const SOCKET_URL: string = envSocketUrl || envApiUrl || defaultBackendUrl;
 
-export const SOCKET_URL: string =
-  (import.meta.env.VITE_SOCKET_URL as string | undefined)?.trim() || defaultBackendUrl;
-
-if (!API_URL) {
+if (!isLocalhost && !API_URL) {
   console.warn('[Config] VITE_API_URL is not set. API calls may fail in production.');
 }
-if (!SOCKET_URL) {
+if (!isLocalhost && !SOCKET_URL) {
   console.warn('[Config] VITE_SOCKET_URL is not set. Socket connections may fail in production.');
 }
+
+// Export flag so other modules can check if running natively
+export { isCapacitorNative };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 export const normalizeUid = (value: string | null | undefined): string => {

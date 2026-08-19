@@ -35,32 +35,14 @@ export async function requireAuth(
 
   const idToken = authHeader.slice(7);
 
-  // Dev fallback / native auth token handling
-  if (idToken.startsWith('dev_token_') || idToken.startsWith('google_token_') || idToken.startsWith('google_auth_token_') || idToken.startsWith('native_token_')) {
-    const parts = idToken.split('_');
-    const rawUserId = parts[2] || `user_${Date.now()}`;
-    const devUserId = rawUserId.toLowerCase().replace(/[^a-z0-9]/g, '') || `user_${Date.now()}`;
-    const devEmail = parts[4] ? decodeURIComponent(parts[4]) : undefined;
-
-    const dbUser = users.find(
-      (u: any) =>
-        (devEmail && u.email && u.email.toLowerCase() === devEmail.toLowerCase()) ||
-        u.id === devUserId
-    );
-
-    if (dbUser) {
-      req.currentUser = { firebaseUid: devUserId, dbId: dbUser.id };
-      next();
-      return;
-    }
-  }
-
   const adminAuth = getAdminAuth();
   if (!adminAuth) {
+    // Firebase Admin not configured — return 503 in production, allow dev mode to pass through
     if (process.env.NODE_ENV === 'production') {
       res.status(503).json({ message: 'Auth service not configured on this server' });
       return;
     }
+    // DEV ONLY: no real admin SDK — still reject; developers must set GOOGLE_APPLICATION_CREDENTIALS
     res.status(503).json({ message: 'Firebase Admin SDK not initialised. Set GOOGLE_APPLICATION_CREDENTIALS in .env' });
     return;
   }
@@ -68,14 +50,10 @@ export async function requireAuth(
   try {
     const decodedToken = await adminAuth.verifyIdToken(idToken);
     const firebaseUid = decodedToken.uid;
-    const email = decodedToken.email || null;
 
-    // Look up the user record by email first or Firebase UID
+    // Look up the user record by their Firebase UID (which was set when they first logged in)
     const dbUser = users.find(
-      (u: any) =>
-        (email && u.email && u.email.toLowerCase() === email.toLowerCase()) ||
-        u.id === firebaseUid ||
-        (u as any).firebaseUid === firebaseUid
+      (u: any) => u.id === firebaseUid || (u as any).firebaseUid === firebaseUid
     );
 
     if (!dbUser) {
@@ -91,6 +69,7 @@ export async function requireAuth(
     if (wasOffline) {
       dbUser.status = 'online';
       saveDb();
+      // Broadcast presence change to all connected sockets
       const ioInstance = (req.app as any).get('io');
       if (ioInstance) {
         ioInstance.emit('user-status-changed', {

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import ReactDOM from 'react-dom';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { MessageCircle, Users, Settings, LogOut, Phone, AlertTriangle, X } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
@@ -97,120 +98,65 @@ export const Sidebar: React.FC<SidebarProps> = () => {
 
   return (
     <aside className="sidebar">
-      {/* Double Verification Logout Modal */}
-      {showLogoutConfirm && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            width: '100vw',
-            height: '100vh',
-            zIndex: 999999,
-            backgroundColor: 'rgba(0, 0, 0, 0.75)',
-            backdropFilter: 'blur(6px)',
-            WebkitBackdropFilter: 'blur(6px)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '16px',
-            boxSizing: 'border-box',
-          }}
-        >
-          <div
-            style={{
-              textAlign: 'center',
-              padding: '24px 20px',
-              maxWidth: '340px',
-              width: '100%',
-              borderRadius: '16px',
-              backgroundColor: 'var(--bg-secondary, #111b21)',
-              border: '1px solid var(--border-color, rgba(255, 255, 255, 0.12))',
-              boxShadow: '0 20px 40px rgba(0, 0, 0, 0.6)',
-              boxSizing: 'border-box',
-              position: 'relative',
-            }}
-          >
-            <button
-              onClick={() => setShowLogoutConfirm(false)}
-              aria-label="Close"
-              style={{
-                position: 'absolute',
-                top: 12,
-                right: 12,
-                background: 'transparent',
-                border: 'none',
-                color: 'var(--text-secondary, #8696a0)',
-                cursor: 'pointer',
-                padding: 4,
-              }}
-            >
-              <X size={20} />
-            </button>
-            <div
-              style={{
-                margin: '0 auto 12px',
-                width: 48,
-                height: 48,
-                borderRadius: '50%',
-                background: 'rgba(239, 68, 68, 0.15)',
-                color: '#ef4444',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <AlertTriangle size={26} />
-            </div>
-            <h2 style={{ fontSize: 18, fontWeight: 700, margin: '0 0 8px', color: 'var(--text-primary, #e9edef)' }}>
-              Sign Out
-            </h2>
-            <p style={{ fontSize: 13.5, color: 'var(--text-secondary, #8696a0)', margin: '0 0 20px', lineHeight: 1.4 }}>
-              Are you sure you want to sign out of SlienX? You will need to sign in again to access your workspace.
-            </p>
-            <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
+      {/* Double Verification Logout Modal rendered at root body level via Portal */}
+      {showLogoutConfirm &&
+        ReactDOM.createPortal(
+          <div className="login-auth-overlay" role="dialog" aria-modal="true" style={{ zIndex: 9999 }}>
+            <div className="google-modal-card" style={{ textAlign: 'center', padding: '24px 20px', maxWidth: '340px', width: '90%' }}>
               <button
-                type="button"
+                className="google-modal-close"
                 onClick={() => setShowLogoutConfirm(false)}
-                style={{
-                  flex: 1,
-                  padding: '10px 16px',
-                  borderRadius: 10,
-                  border: '1px solid var(--border-color, rgba(255,255,255,0.15))',
-                  background: 'var(--bg-primary, #202c33)',
-                  color: 'var(--text-primary, #e9edef)',
-                  fontWeight: 600,
-                  fontSize: 13.5,
-                  cursor: 'pointer',
-                }}
+                aria-label="Close"
               >
-                Cancel
+                <X size={20} />
               </button>
-              <button
-                type="button"
-                onClick={handleConfirmLogout}
-                style={{
-                  flex: 1,
-                  padding: '10px 16px',
-                  borderRadius: 10,
-                  border: 'none',
-                  background: '#ef4444',
-                  color: '#ffffff',
-                  fontWeight: 600,
-                  fontSize: 13.5,
-                  cursor: 'pointer',
-                }}
-              >
-                Yes, Sign Out
-              </button>
+              <div style={{ margin: '0 auto 12px', width: 48, height: 48, borderRadius: '50%', background: 'rgba(239, 68, 68, 0.12)', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <AlertTriangle size={26} />
+              </div>
+              <h2 style={{ fontSize: 18, fontWeight: 700, margin: '0 0 8px', color: 'var(--text-primary)' }}>Sign Out</h2>
+              <p style={{ fontSize: 13.5, color: 'var(--text-secondary)', margin: '0 0 20px', lineHeight: 1.4 }}>
+                Are you sure you want to sign out of SlienX? You will need to sign in again to access your workspace.
+              </p>
+              <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowLogoutConfirm(false)}
+                  style={{
+                    flex: 1,
+                    padding: '10px 16px',
+                    borderRadius: 10,
+                    border: '1px solid var(--border-color)',
+                    background: 'var(--bg-secondary)',
+                    color: 'var(--text-primary)',
+                    fontWeight: 600,
+                    fontSize: 13.5,
+                    cursor: 'pointer'
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmLogout}
+                  style={{
+                    flex: 1,
+                    padding: '10px 16px',
+                    borderRadius: 10,
+                    border: 'none',
+                    background: '#ef4444',
+                    color: '#fff',
+                    fontWeight: 600,
+                    fontSize: 13.5,
+                    cursor: 'pointer'
+                  }}
+                >
+                  Yes, Sign Out
+                </button>
+              </div>
             </div>
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body
+        )}
 
       {/* Logo — desktop only */}
       {!isMobile && (
