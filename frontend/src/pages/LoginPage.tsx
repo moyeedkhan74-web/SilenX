@@ -50,10 +50,10 @@ const LoginPage: React.FC = () => {
     try { localStorage.removeItem(testKey); } catch {}
   }, []);
 
-useEffect(() => {
+  useEffect(() => {
     try {
       GoogleAuth.initialize({
-        clientId: '108819293185-ij6ei19vjhg8d9s5cvojkttr95t6oqu.apps.googleusercontent.com',
+        clientId: '108819293185-ij6ei19vjhg8d9s5cvojktktr95t6oqu.apps.googleusercontent.com',
         scopes: ['profile', 'email'],
         grantOfflineAccess: false,
       });
