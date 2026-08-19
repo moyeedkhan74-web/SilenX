@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Lock, Clock3, Layers3, X } from 'lucide-react';
+import { Lock, Clock3, Layers3 } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
 import { GoogleAuth } from '@codetrix-studio/capacitor-google-auth';
-import { GoogleAuthProvider, signInWithCredential, signInWithPopup } from 'firebase/auth';
+import { GoogleAuthProvider, signInWithCredential, signInWithPopup, signInWithRedirect, getRedirectResult } from 'firebase/auth';
 import { auth, googleProvider } from '../config/firebase';
 import { useAuthStore } from '../store/authStore';
 import { connectSocket } from '../services/socket';
@@ -19,20 +19,31 @@ const LoginPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
-  // In-App Quick Google Account Selector for fallback
-  const [showAccountModal, setShowAccountModal] = useState(false);
-  const [googleEmailInput, setGoogleEmailInput] = useState('');
-
-  useEffect(() => {
+useEffect(() => {
     try {
       GoogleAuth.initialize({
-        clientId: '108819293185-ij6ei19vjhg8d9s5cvojktktr95t6oqu.apps.googleusercontent.com',
+        clientId: '108819293185-ij6ei19vjhg8d9s5cvojkttr95t6oqu.apps.googleusercontent.com',
         scopes: ['profile', 'email'],
         grantOfflineAccess: false,
       });
     } catch (e) {
       console.warn('[GoogleAuth] Initialize notice:', e);
     }
+  }, []);
+
+  // Check for redirect result on page load (for Vercel-deployed auth)
+  useEffect(() => {
+    getRedirectResult(auth).then(async (result) => {
+      if (result?.user) {
+        const idToken = await result.user.getIdToken();
+        await performLoginWithToken(
+          idToken,
+          result.user.displayName || undefined,
+          result.user.email || undefined,
+          result.user.photoURL || undefined
+        );
+      }
+    }).catch((err) => console.warn('Redirect login notice:', err));
   }, []);
 
   const performLoginWithToken = async (
@@ -97,22 +108,20 @@ const LoginPage: React.FC = () => {
     const isNative = Capacitor.isNativePlatform();
 
     if (isNative) {
-      // 1. Native Android/iOS System Google Account Picker
+      // 1. Native Android System Google Account Picker
       try {
         const googleUser = await GoogleAuth.signIn();
-        const idToken = googleUser?.authentication?.idToken || (googleUser as any)?.idToken || `native_token_${googleUser?.email || Date.now()}`;
+        const idToken = googleUser?.authentication?.idToken || (googleUser as any)?.idToken;
         const userEmail = googleUser?.email || (googleUser as any)?.email;
         const userName = googleUser?.name || (googleUser as any)?.givenName || (googleUser as any)?.displayName;
         const userAvatar = googleUser?.imageUrl || (googleUser as any)?.photoUrl;
 
-        if (userEmail || idToken) {
-          if (idToken && idToken.length > 50) {
-            const credential = GoogleAuthProvider.credential(idToken);
-            try {
-              await signInWithCredential(auth, credential);
-            } catch (credErr) {
-              console.warn('[Login] Firebase credential notice:', credErr);
-            }
+        if (idToken) {
+          const credential = GoogleAuthProvider.credential(idToken);
+          try {
+            await signInWithCredential(auth, credential);
+          } catch (credErr) {
+            console.warn('[Login] Firebase credential notice:', credErr);
           }
 
           await performLoginWithToken(
@@ -122,11 +131,19 @@ const LoginPage: React.FC = () => {
             userAvatar || undefined
           );
           return;
+        } else if (userEmail) {
+          await performLoginWithToken(
+            `native_token_${userEmail}_${Date.now()}`,
+            userName || undefined,
+            userEmail || undefined,
+            userAvatar || undefined
+          );
+          return;
         }
       } catch (nativeErr: any) {
-        console.warn('[Login] Native GoogleAuth notice:', nativeErr?.message || nativeErr);
+        console.warn('[Login] Native GoogleAuth error:', nativeErr);
         if (!nativeErr?.message?.includes('user Canceled') && !nativeErr?.message?.includes('CANCELLED')) {
-          setShowAccountModal(true);
+          setError(nativeErr?.message || 'Google Sign-In was cancelled or unavailable.');
         }
       } finally {
         setLoading(false);
@@ -135,7 +152,7 @@ const LoginPage: React.FC = () => {
       return;
     }
 
-    // 2. Standard Web Browser Flow
+    // 2. Standard Web Browser OAuth Popup Flow
     try {
       const result = await signInWithPopup(auth, googleProvider);
       const firebaseUser = result.user;
@@ -148,37 +165,20 @@ const LoginPage: React.FC = () => {
         firebaseUser.photoURL || undefined
       );
     } catch (popupErr: any) {
-      console.warn('[Login] Web popup notice:', popupErr);
-      setShowAccountModal(true);
-    } finally {
-      setLoading(false);
-      setStatusMessage(null);
-    }
-  };
-
-  const handleAccountSelect = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!googleEmailInput.trim()) return;
-
-    setLoading(true);
-    setError(null);
-    setStatusMessage('Authenticating account...');
-
-    try {
-      const rawInput = googleEmailInput.trim();
-      const email = rawInput.includes('@') ? rawInput : `${rawInput}@gmail.com`;
-      const namePart = email.split('@')[0];
-      const displayName = namePart.charAt(0).toUpperCase() + namePart.slice(1);
-      const userId = namePart.toLowerCase().replace(/[^a-z0-9]/g, '');
-
-      const googleToken = `google_auth_token_${userId}_${encodeURIComponent(displayName)}_${encodeURIComponent(email)}`;
-      const avatarUrl = `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(displayName)}`;
-
-      await performLoginWithToken(googleToken, displayName, email, avatarUrl);
-      setShowAccountModal(false);
-    } catch (err: any) {
-      console.error('[Google In-App Auth] Error:', err);
-      setError(err?.message || 'Google authentication failed.');
+      console.error('[Login] Web popup error:', popupErr);
+      if (popupErr?.code === 'auth/unauthorized-domain') {
+        setError('This domain (silen-x.vercel.app) is not authorized in Firebase Console -> Authentication -> Settings -> Authorized Domains.');
+      } else if (popupErr?.code === 'auth/popup-blocked' || popupErr?.code === 'auth/popup-closed-by-user') {
+        // Fallback to redirect method if popup is blocked
+        try {
+          await signInWithRedirect(auth, googleProvider);
+        } catch (redirectErr: any) {
+          console.error('[Login] Redirect fallback error:', redirectErr);
+          setError(redirectErr?.message || 'Google Sign-In failed.');
+        }
+      } else {
+        setError(popupErr?.message || 'Google Sign-In failed.');
+      }
     } finally {
       setLoading(false);
       setStatusMessage(null);
@@ -193,52 +193,6 @@ const LoginPage: React.FC = () => {
             <img className="login-auth-logo" src="/silenX-logo.png" alt="SilenX logo" />
             <h2>Secure access</h2>
             <p>{statusMessage || 'Verifying your account and preparing your private workspace.'}</p>
-          </div>
-        </div>
-      ) : null}
-
-      {/* In-App Google Account Selector Overlay Modal */}
-      {showAccountModal ? (
-        <div className="login-auth-overlay" role="dialog" aria-modal="true">
-          <div className="google-modal-card">
-            <button
-              className="google-modal-close"
-              onClick={() => setShowAccountModal(false)}
-              aria-label="Close"
-            >
-              <X size={20} />
-            </button>
-            <div className="google-modal-header">
-              <svg viewBox="0 0 24 24" className="google-modal-icon" aria-hidden="true">
-                <path fill="#4285F4" d="M23.49 12.27c0-.79-.07-1.54-.19-2.27H12v4.51h6.47a5.53 5.53 0 0 1-2.4 3.63v3h3.87c2.27-2.09 3.55-5.17 3.55-8.87z"/>
-                <path fill="#34A853" d="M12 24c3.24 0 5.95-1.07 7.94-2.91l-3.87-3c-1.08.72-2.45 1.15-4.07 1.15-3.13 0-5.78-2.11-6.73-4.96H1.27v3.09A12 12 0 0 0 12 24z"/>
-                <path fill="#FBBC05" d="M5.27 14.28A7.2 7.2 0 0 1 4.89 12c0-.79.14-1.56.38-2.28V6.63H1.27A12 12 0 0 0 0 0 12c0 1.93.46 3.76 1.27 5.37z"/>
-                <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.43-3.43C17.94 1.19 15.24 0 12 0A12 12 0 0 0 1.27 6.63l4 3.09C6.22 6.86 8.87 4.75 12 4.75z"/>
-              </svg>
-              <h2>Select Google Account</h2>
-              <p>Choose or enter your Google email to sign in</p>
-            </div>
-
-            <form onSubmit={handleAccountSelect} className="google-modal-form">
-              <div className="dev-input-group">
-                <input
-                  type="email"
-                  placeholder="your.email@gmail.com"
-                  value={googleEmailInput}
-                  onChange={(e) => setGoogleEmailInput(e.target.value)}
-                  required
-                  autoFocus
-                  disabled={loading}
-                />
-              </div>
-              <button
-                type="submit"
-                className="google-modal-submit-btn"
-                disabled={loading || !googleEmailInput.trim()}
-              >
-                {loading ? <span className="login-spinner" /> : 'Continue to Workspace'}
-              </button>
-            </form>
           </div>
         </div>
       ) : null}
@@ -318,12 +272,12 @@ const LoginPage: React.FC = () => {
             {loading ? (
               <span className="login-spinner" />
             ) : (
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path fill="#4285F4" d="M23.49 12.27c0-.79-.07-1.54-.19-2.27H12v4.51h6.47a5.53 5.53 0 0 1-2.4 3.63v3h3.87c2.27-2.09 3.55-5.17 3.55-8.87z"/>
-                <path fill="#34A853" d="M12 24c3.24 0 5.95-1.07 7.94-2.91l-3.87-3c-1.08.72-2.45 1.15-4.07 1.15-3.13 0-5.78-2.11-6.73-4.96H1.27v3.09A12 12 0 0 0 12 24z"/>
-                <path fill="#FBBC05" d="M5.27 14.28A7.2 7.2 0 0 1 4.89 12c0-.79.14-1.56.38-2.28V6.63H1.27A12 12 0 0 0 0 0 12c0 1.93.46 3.76 1.27 5.37z"/>
-                <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.43-3.43C17.94 1.19 15.24 0 12 0A12 12 0 0 0 1.27 6.63l4 3.09C6.22 6.86 8.87 4.75 12 4.75z"/>
-              </svg>
+<svg viewBox="0 0 24 24" aria-hidden="true" width="20" height="20">
+  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.30-4.52 6.16-4.52z"/>
+</svg>
             )}
             <span>{statusMessage ? statusMessage : 'Continue with Google'}</span>
           </button>
