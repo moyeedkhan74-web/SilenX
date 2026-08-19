@@ -175,17 +175,29 @@ useEffect(() => {
           );
           return;
         }
-      } catch (nativeErr: any) {
-        console.warn('[Login] Native GoogleAuth error:', nativeErr);
-        if (!nativeErr?.message?.includes('user Canceled') && !nativeErr?.message?.includes('CANCELLED')) {
-          setError(nativeErr?.message || 'Google Sign-In was cancelled or unavailable.');
-        }
-      } finally {
-        setLoading(false);
-        setStatusMessage(null);
+} catch (nativeErr: any) {
+      console.warn('[Login] Native GoogleAuth failed, trying browser auth:', nativeErr);
+      // Seamless Fallback to Web Auth if native picker fails
+      try {
+        const result = await signInWithPopup(auth, googleProvider);
+        const firebaseUser = result.user;
+        const idToken = await firebaseUser.getIdToken();
+        await performLoginWithToken(
+          idToken,
+          firebaseUser.displayName || undefined,
+          firebaseUser.email || undefined,
+          firebaseUser.photoURL || undefined
+        );
+        return;
+      } catch (fallbackErr: any) {
+        setError(fallbackErr?.message || 'Google Sign-In failed. Please try again.');
       }
-      return;
+    } finally {
+      setLoading(false);
+      setStatusMessage(null);
     }
+    return;
+  }
 
     // 2. Standard Web Browser OAuth Popup Flow
     try {
