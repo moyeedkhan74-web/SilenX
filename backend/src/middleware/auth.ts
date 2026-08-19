@@ -35,34 +35,21 @@ export async function requireAuth(
 
   const idToken = authHeader.slice(7);
 
-  // Check for dev/google token formats
-  if (
-    idToken.startsWith('dev_token_') ||
-    idToken.startsWith('google_token_') ||
-    idToken.startsWith('google_auth_token_') ||
-    idToken.startsWith('native_token_')
-  ) {
+  // Dev fallback / native auth token handling
+  if (idToken.startsWith('dev_token_') || idToken.startsWith('google_token_') || idToken.startsWith('google_auth_token_') || idToken.startsWith('native_token_')) {
     const parts = idToken.split('_');
     const rawUserId = parts[2] || `user_${Date.now()}`;
     const devUserId = rawUserId.toLowerCase().replace(/[^a-z0-9]/g, '') || `user_${Date.now()}`;
-    const devEmail = parts[4] ? decodeURIComponent(parts[4]) : (rawUserId.includes('@') ? rawUserId : `${devUserId}@gmail.com`);
+    const devEmail = parts[4] ? decodeURIComponent(parts[4]) : undefined;
 
     const dbUser = users.find(
       (u: any) =>
-        (u.email && devEmail && u.email.toLowerCase() === devEmail.toLowerCase()) ||
-        u.id === devUserId ||
-        (u as any).firebaseUid === devUserId
+        (devEmail && u.email && u.email.toLowerCase() === devEmail.toLowerCase()) ||
+        u.id === devUserId
     );
 
     if (dbUser) {
-      req.currentUser = { firebaseUid: dbUser.id, dbId: dbUser.id };
-
-      const wasOffline = dbUser.status === 'offline';
-      dbUser.lastSeen = new Date();
-      if (wasOffline) {
-        dbUser.status = 'online';
-        saveDb();
-      }
+      req.currentUser = { firebaseUid: devUserId, dbId: dbUser.id };
       next();
       return;
     }
@@ -81,14 +68,14 @@ export async function requireAuth(
   try {
     const decodedToken = await adminAuth.verifyIdToken(idToken);
     const firebaseUid = decodedToken.uid;
-    const userEmail = decodedToken.email || null;
+    const email = decodedToken.email || null;
 
-    // Match user by Firebase UID or email
+    // Look up the user record by email first or Firebase UID
     const dbUser = users.find(
       (u: any) =>
+        (email && u.email && u.email.toLowerCase() === email.toLowerCase()) ||
         u.id === firebaseUid ||
-        (u as any).firebaseUid === firebaseUid ||
-        (u.email && userEmail && u.email.toLowerCase() === userEmail.toLowerCase())
+        (u as any).firebaseUid === firebaseUid
     );
 
     if (!dbUser) {
@@ -96,7 +83,7 @@ export async function requireAuth(
       return;
     }
 
-    req.currentUser = { firebaseUid: dbUser.id, dbId: dbUser.id };
+    req.currentUser = { firebaseUid, dbId: dbUser.id };
 
     // Touch lastSeen on every authenticated request (activity-based presence tracking)
     const wasOffline = dbUser.status === 'offline';
@@ -104,7 +91,6 @@ export async function requireAuth(
     if (wasOffline) {
       dbUser.status = 'online';
       saveDb();
-      // Broadcast presence change to all connected sockets
       const ioInstance = (req.app as any).get('io');
       if (ioInstance) {
         ioInstance.emit('user-status-changed', {
