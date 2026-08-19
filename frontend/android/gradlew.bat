@@ -28,7 +28,6 @@ if "%OS%"=="Windows_NT" setlocal
 
 set DIRNAME=%~dp0
 if "%DIRNAME%"=="" set DIRNAME=.
-set "JAVA_HOME=C:\Users\moyee\jdk17_root\jdk-17.0.11+9"
 @rem This is normally unused
 set APP_BASE_NAME=%~n0
 set APP_HOME=%DIRNAME%
