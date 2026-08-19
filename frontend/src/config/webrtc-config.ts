@@ -106,16 +106,8 @@ let defaultBackendUrl: string;
 if (isLocalhost) {
   defaultBackendUrl = 'http://localhost:5000';
 } else if (isCapacitorNative) {
-  // On native Android/iOS, we MUST have a real URL set via VITE_API_URL.
-  // If not set, we will warn loudly. The app CANNOT function without it.
-  defaultBackendUrl = envApiUrl || '';
-  if (!defaultBackendUrl) {
-    console.error(
-      '[Config] CRITICAL: VITE_API_URL is not set in the build environment.\n' +
-      'The Android/iOS app cannot connect to the backend.\n' +
-      'Set VITE_API_URL=https://your-backend.onrender.com in .env.local before building.'
-    );
-  }
+  // On native Android/iOS, fall back to local LAN IP if VITE_API_URL is not configured
+  defaultBackendUrl = envApiUrl || 'http://192.168.1.46:5000';
 } else {
   // Web browser production — same-origin or Vercel rewrite
   defaultBackendUrl = '';
