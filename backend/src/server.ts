@@ -33,6 +33,10 @@ const allowedOrigins = [
   'https://silen-x.vercel.app',
   'http://localhost:5173',
   'http://localhost:3000',
+  'http://localhost:5000',
+  'http://localhost',
+  'https://localhost',
+  'capacitor://localhost',
 ];
 
 if (config.frontendUrl) {
@@ -52,6 +56,8 @@ const checkOrigin = (origin: string | undefined, callback: (err: Error | null, a
     allowedOrigins.includes(origin) ||
     origin.startsWith('http://localhost:') ||
     origin.startsWith('http://127.0.0.1:') ||
+    origin.startsWith('capacitor://') ||
+    origin.startsWith('https://localhost') ||
     /^https:\/\/silen.*\.vercel\.app$/.test(origin);
 
   if (isAllowed) {

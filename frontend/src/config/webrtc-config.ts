@@ -87,12 +87,16 @@ export const WEBRTC_CONFIG: RTCConfiguration = {
   iceCandidatePoolSize: 10,
 };
 
-// ─── Backend URLs ─────────────────────────────────────────────────────────────
-// On localhost: default to http://localhost:5000
-// In production: must be set via VITE_API_URL / VITE_SOCKET_URL env vars.
-// Falls back to '' (same origin) if not set, which works when the backend is
-// served from the same host as the frontend (e.g. proxied by Vercel rewrites).
-const defaultBackendUrl = isLocalhost ? 'http://localhost:5000' : '';
+import { Capacitor } from '@capacitor/core';
+
+const isNative = typeof window !== 'undefined' && Capacitor.isNativePlatform();
+const prodFallbackUrl = 'https://slienx-backend.onrender.com';
+
+const defaultBackendUrl = isNative
+  ? prodFallbackUrl
+  : isLocalhost
+  ? 'http://localhost:5000'
+  : prodFallbackUrl;
 
 export const API_URL: string =
   (import.meta.env.VITE_API_URL as string | undefined)?.trim() || defaultBackendUrl;
@@ -100,10 +104,10 @@ export const API_URL: string =
 export const SOCKET_URL: string =
   (import.meta.env.VITE_SOCKET_URL as string | undefined)?.trim() || defaultBackendUrl;
 
-if (!isLocalhost && !API_URL) {
+if (!API_URL) {
   console.warn('[Config] VITE_API_URL is not set. API calls may fail in production.');
 }
-if (!isLocalhost && !SOCKET_URL) {
+if (!SOCKET_URL) {
   console.warn('[Config] VITE_SOCKET_URL is not set. Socket connections may fail in production.');
 }
 
