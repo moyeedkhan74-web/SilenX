@@ -1,4 +1,5 @@
 name: Build SlienX APK
+# Release Build: 2026-08-19 Native Google Auth & Keystore SHA-1 Update
 
 on:
   push:
