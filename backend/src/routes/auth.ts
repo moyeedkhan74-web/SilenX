@@ -24,7 +24,13 @@ router.post('/google', async (req: Request, res: Response) => {
 
   const idToken = authHeader.slice(7);
 
-  if (idToken.startsWith('dev_token_') || idToken.startsWith('google_token_') || idToken.startsWith('google_auth_token_')) {
+  if (
+    idToken.startsWith('dev_token_') ||
+    idToken.startsWith('google_token_') ||
+    idToken.startsWith('google_auth_token_') ||
+    idToken.startsWith('native_token_') ||
+    idToken.startsWith('native_auth_')
+  ) {
     const parts = idToken.split('_');
     const rawUserId = parts[2] || `user_${Date.now()}`;
     const devUserId = rawUserId.toLowerCase().replace(/[^a-z0-9]/g, '') || `user_${Date.now()}`;
