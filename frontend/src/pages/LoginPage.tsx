@@ -108,19 +108,23 @@ useEffect(() => {
 
     const serverUser = body.user;
 
-    login(
-      {
-        id: serverUser.id,
-        uid: normalizeUid(serverUser.uid || serverUser.id),
-        email: serverUser.email || fallbackEmail || '',
-        displayName: serverUser.displayName || fallbackName || 'Google User',
-        avatarUrl: serverUser.avatarUrl || fallbackAvatar || null,
-        status: (serverUser.status as UserStatus) || 'online',
-        lastSeen: new Date().toISOString(),
-        bio: serverUser.bio || 'Signed in with Google',
-      },
-      idToken
-    );
+    try {
+      login(
+        {
+          id: serverUser.id,
+          uid: normalizeUid(serverUser.uid || serverUser.id),
+          email: serverUser.email || fallbackEmail || '',
+          displayName: serverUser.displayName || fallbackName || 'Google User',
+          avatarUrl: serverUser.avatarUrl || fallbackAvatar || null,
+          status: (serverUser.status as UserStatus) || 'online',
+          lastSeen: new Date().toISOString(),
+          bio: serverUser.bio || 'Signed in with Google',
+        },
+        idToken
+      );
+    } catch (storeErr: any) {
+      console.warn('[Login] Storage write notice:', storeErr);
+    }
 
     try {
       connectSocket(idToken);
