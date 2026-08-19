@@ -94,7 +94,7 @@ router.post('/google', async (req: Request, res: Response) => {
   const displayName = (decodedToken as any).name as string | undefined || null;
   const avatarUrl = (decodedToken as any).picture as string | undefined || null;
 
-  let user = users.find((u: any) => u.id === firebaseUid);
+  let user = users.find((u: any) => u.id === firebaseUid || (email && u.email && u.email.toLowerCase() === email.toLowerCase()));
   let changed = false;
 
   if (!user) {
