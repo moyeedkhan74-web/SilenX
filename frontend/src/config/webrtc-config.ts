@@ -118,11 +118,12 @@ export const API_URL: string = envApiUrl || defaultBackendUrl;
 export const SOCKET_URL: string = envSocketUrl || envApiUrl || defaultBackendUrl;
 
 if (!isLocalhost && !API_URL) {
-  console.warn('[Config] VITE_API_URL is not set. API calls may fail in production.');
-}
-if (!isLocalhost && !SOCKET_URL) {
-  console.warn('[Config] VITE_SOCKET_URL is not set. Socket connections may fail in production.');
-}
+   console.warn('[Config] VITE_API_URL is not set. API calls may fail in production.');
+ }
+ if (!isLocalhost && !SOCKET_URL) {
+   console.warn('[Config] VITE_SOCKET_URL is not set. Socket connections may fail in production.');
+ }
+;
 
 // Export flag so other modules can check if running natively
 export { isCapacitorNative };
