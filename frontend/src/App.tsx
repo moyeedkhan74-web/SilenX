@@ -108,9 +108,9 @@ function AppInner({
           if (firebaseUser) {
             try {
               const idToken = await Promise.race([
-                firebaseUser.getIdToken(false),
+                firebaseUser.getIdToken(true),
                 new Promise<never>((_, reject) => {
-                  setTimeout(() => reject(new Error('Firebase token request timed out')), 1500);
+                  setTimeout(() => reject(new Error('Firebase token request timed out')), 5000);
                 }),
               ]);
 
@@ -147,10 +147,21 @@ function AppInner({
                 console.warn('Socket connection failed:', error);
               }
             } catch (error) {
-              console.warn('[App] Backend startup slow or unavailable, continuing with a safe fallback:', error);
-              await auth!.signOut().catch(() => {});
+              console.warn('[App] Backend startup slow or unavailable, preserving existing session:', error);
+              // ⚠️ DO NOT sign out here — backend may be cold-starting (Render free tier).
+              // If the user already has a valid session in the store, keep it alive.
               const currentStore = useAuthStore.getState();
-              if (!currentStore.user) {
+              if (currentStore.user && currentStore.token) {
+                // Reuse existing session: reinit crypto + socket with stored token
+                initializeKeys().catch(() => {});
+                try {
+                  const socket = connectSocket(currentStore.token);
+                  webrtcService.initialize(socket);
+                } catch (socketErr) {
+                  console.warn('[App] Socket reconnect failed during fallback:', socketErr);
+                }
+              } else {
+                // No stored session at all — only then log out
                 logout();
               }
             }

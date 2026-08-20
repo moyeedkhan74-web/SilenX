@@ -129,6 +129,35 @@
   border-radius: 10px;
 }
 
+.scan-lookup-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 10px 16px;
+  border-radius: 12px;
+  background: rgba(var(--color-info-rgb, 6, 114, 227), 0.1);
+  border: 1px solid rgba(var(--color-info-rgb, 6, 114, 227), 0.25);
+  color: var(--info-dark, #2472f5);
+  font-weight: 500;
+  font-size: 0.9rem;
+}
+
+.scan-loading-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(var(--color-info-rgb, 6, 114, 227), 0.3);
+  border-top-color: var(--info-dark, #2472f5);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .camera-subtext {
   color: var(--text-secondary);
   font-size: 0.9rem;

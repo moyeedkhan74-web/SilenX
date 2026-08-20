@@ -178,10 +178,12 @@ export const AddContactModal: React.FC<AddContactModalProps> = ({ isOpen, onClos
       } else {
         const body = await res.json().catch(() => ({}));
         setError(body.message || 'No account found for this Secure ID. Please check the ID and try again.');
+        setScanSuccess(false);
       }
     } catch (err) {
       console.error('Lookup failed:', err);
       setError('Network error during lookup.');
+      setScanSuccess(false);
     } finally {
       setIsSearching(false);
     }
@@ -301,6 +303,30 @@ export const AddContactModal: React.FC<AddContactModalProps> = ({ isOpen, onClos
                 <div className="scan-success-banner">
                   <CheckCircle2 size={20} />
                   <span>QR code captured successfully!</span>
+                </div>
+              )}
+              
+              {/* Lookup feedback for scan tab */}
+              {scanSuccess && isSearching && (
+                <div className="scan-lookup-indicator">
+                  <div className="scan-loading-spinner" />
+                  <span>Looking up user...</span>
+                </div>
+              )}
+              
+              {error && (
+                <div style={{ textAlign: 'center' }}>
+                  <p className="scan-error">{error}</p>
+                  {uid && (
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      style={{ marginTop: 8, fontSize: 13, padding: '8px 16px' }}
+                      onClick={() => { setError(''); setScanSuccess(true); lookupByUid(uid); }}
+                    >
+                      🔄 Retry Lookup
+                    </button>
+                  )}
                 </div>
               )}
             </div>
