@@ -30,7 +30,6 @@ const ensureNetworkRecoveryListener = () => {
     networkRecoveryListenerAttached = false;
   };
 
-  (socket as Socket & { __cleanupNetworkListener?: () => void }) ??= socket;
   if (socket) {
     (socket as Socket & { __cleanupNetworkListener?: () => void }).__cleanupNetworkListener = cleanup;
   }
