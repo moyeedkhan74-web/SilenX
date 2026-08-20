@@ -20,6 +20,25 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <!-- App Links Intent Filter (Auto-Verify) -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <!-- Universal Links -->
+                <data android:scheme="http" />
+                <data android:scheme="https" />
+                <data android:host="silenx-737a3.firebaseapp.com" />
+                <data android:host="silenx-737a3.web.app" />
+                <data android:host="silenx.app" />
+            </intent-filter>
+            <!-- Custom URL Scheme Deep Linking -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="silenx" />
+            </intent-filter>
         </activity>
 
         <provider

@@ -83,7 +83,7 @@ const LoginPage: React.FC = () => {
     fallbackEmail?: string,
     fallbackAvatar?: string
   ) => {
-    setStatusMessage('Authenticating secure workspace...');
+    setStatusMessage('Connecting securely...');
     let body;
     try {
       body = await authenticateWithGoogleBackend(idToken, (msg) => setStatusMessage(msg));
@@ -227,7 +227,7 @@ const LoginPage: React.FC = () => {
           <div className="login-auth-card">
             <img className="login-auth-logo" src="/silenX-logo.png" alt="SilenX logo" />
             <h2>Secure access</h2>
-            <p>{statusMessage || 'Verifying your account and preparing your private workspace.'}</p>
+            <p>{statusMessage || 'Preparing your workspace...'}</p>
           </div>
         </div>
       ) : null}

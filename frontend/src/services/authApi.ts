@@ -20,7 +20,7 @@ export async function authenticateWithGoogleBackend(
   onStatusUpdate?: (msg: string) => void
 ): Promise<GoogleAuthResponse> {
   const maxRetries = 5;
-  const retryDelayMs = 3000;
+  const retryDelayMs = 1500;
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
@@ -54,7 +54,7 @@ export async function authenticateWithGoogleBackend(
       if (resp.status === 503 || resp.status === 502 || resp.status === 504) {
         if (attempt < maxRetries) {
           if (onStatusUpdate) {
-            onStatusUpdate(`Connecting to backend server (attempt ${attempt}/${maxRetries})…`);
+            onStatusUpdate('Connecting securely...');
           }
           await new Promise((r) => setTimeout(r, retryDelayMs));
           continue;
@@ -71,7 +71,7 @@ export async function authenticateWithGoogleBackend(
       console.warn(`[AuthAPI] Attempt ${attempt} failed:`, err?.message || err);
       if (attempt < maxRetries) {
         if (onStatusUpdate) {
-          onStatusUpdate(`Connecting to backend server (attempt ${attempt}/${maxRetries})…`);
+          onStatusUpdate('Connecting securely...');
         }
         await new Promise((r) => setTimeout(r, retryDelayMs));
         continue;

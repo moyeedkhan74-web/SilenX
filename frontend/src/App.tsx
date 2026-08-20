@@ -33,7 +33,7 @@ const BootLoadingView = () => (
       <div className="app-loading-content">
         <span className="app-loading-eyebrow">Secure Workspace</span>
         <h1>Welcome to SlienX</h1>
-        <p>Connecting your private space with a smooth, secure experience.</p>
+        <p>Preparing your workspace...</p>
       </div>
     </div>
   </div>
@@ -87,80 +87,96 @@ function AppInner({
   const { initializeKeys } = useCrypto();
 
   useEffect(() => {
-    // Safety timer: Never allow app to stay stuck on boot screen for over 2 seconds
     const safetyTimer = setTimeout(() => {
       setInitialized(true);
-    }, 2000);
+    }, 1500);
+
+    const finalizeBoot = () => {
+      clearTimeout(safetyTimer);
+      setInitialized(true);
+    };
 
     if (!auth) {
-      setInitialized(true);
-      clearTimeout(safetyTimer);
+      finalizeBoot();
       return;
     }
 
     const unsubscribe = onAuthStateChanged(
       auth,
       async (firebaseUser) => {
-        if (firebaseUser) {
-          try {
-            const idToken = await firebaseUser.getIdToken(false);
-            const body = await authenticateWithGoogleBackend(idToken);
-            const serverUser = body.user;
-
-            login(
-              {
-                id: serverUser.id,
-                uid: normalizeUid(serverUser.uid || serverUser.id),
-                email: serverUser.email || '',
-                displayName: serverUser.displayName || 'Secure User',
-                avatarUrl: serverUser.avatarUrl || null,
-                status: (serverUser.status as UserStatus) || 'online',
-                lastSeen: new Date().toISOString(),
-                bio: serverUser.bio || 'Signed in with Google',
-                showOnlineStatus: serverUser.showOnlineStatus !== false,
-              },
-              idToken
-            );
-
-            await initializeKeys();
-
+        try {
+          if (firebaseUser) {
             try {
-              const socket = connectSocket(idToken);
-              webrtcService.initialize(socket);
+              const idToken = await Promise.race([
+                firebaseUser.getIdToken(false),
+                new Promise<never>((_, reject) => {
+                  setTimeout(() => reject(new Error('Firebase token request timed out')), 1500);
+                }),
+              ]);
+
+              const body = await Promise.race([
+                authenticateWithGoogleBackend(idToken),
+                new Promise<never>((_, reject) => {
+                  setTimeout(() => reject(new Error('Backend startup timed out')), 5000);
+                }),
+              ]);
+
+              const serverUser = body.user;
+
+              login(
+                {
+                  id: serverUser.id,
+                  uid: normalizeUid(serverUser.uid || serverUser.id),
+                  email: serverUser.email || '',
+                  displayName: serverUser.displayName || 'Secure User',
+                  avatarUrl: serverUser.avatarUrl || null,
+                  status: (serverUser.status as UserStatus) || 'online',
+                  lastSeen: new Date().toISOString(),
+                  bio: serverUser.bio || 'Signed in with Google',
+                  showOnlineStatus: serverUser.showOnlineStatus !== false,
+                },
+                idToken
+              );
+
+              await initializeKeys();
+
+              try {
+                const socket = connectSocket(idToken);
+                webrtcService.initialize(socket);
+              } catch (error) {
+                console.warn('Socket connection failed:', error);
+              }
             } catch (error) {
-              console.warn('Socket connection failed:', error);
+              console.warn('[App] Backend startup slow or unavailable, continuing with a safe fallback:', error);
+              await auth!.signOut().catch(() => {});
+              const currentStore = useAuthStore.getState();
+              if (!currentStore.user) {
+                logout();
+              }
             }
-          } catch (error) {
-            console.error('[App] Auth flow failed:', error);
-            await auth!.signOut().catch(() => {});
+          } else {
+            // If Firebase is null, do NOT wipe user session if user is logged in via store
             const currentStore = useAuthStore.getState();
-            if (!currentStore.user) {
+            if (!currentStore.user && !currentStore.token) {
               logout();
+            } else if (currentStore.user && currentStore.token) {
+              // Restore crypto & socket for existing session
+              initializeKeys().catch(() => {});
+              try {
+                const socket = connectSocket(currentStore.token);
+                webrtcService.initialize(socket);
+              } catch (err) {
+                console.warn('Socket reconnect notice:', err);
+              }
             }
           }
-        } else {
-          // If Firebase is null, do NOT wipe user session if user is logged in via store
-          const currentStore = useAuthStore.getState();
-          if (!currentStore.user && !currentStore.token) {
-            logout();
-          } else if (currentStore.user && currentStore.token) {
-            // Restore crypto & socket for existing session
-            initializeKeys().catch(() => {});
-            try {
-              const socket = connectSocket(currentStore.token);
-              webrtcService.initialize(socket);
-            } catch (err) {
-              console.warn('Socket reconnect notice:', err);
-            }
-          }
+        } finally {
+          finalizeBoot();
         }
-        setInitialized(true);
-        clearTimeout(safetyTimer);
       },
       (error) => {
         console.warn('[App] Auth state error:', error);
-        setInitialized(true);
-        clearTimeout(safetyTimer);
+        finalizeBoot();
       }
     );
 
