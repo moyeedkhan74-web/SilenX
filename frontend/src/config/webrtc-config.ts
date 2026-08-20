@@ -106,8 +106,9 @@ let defaultBackendUrl: string;
 if (isLocalhost) {
   defaultBackendUrl = 'http://localhost:5000';
 } else if (isCapacitorNative) {
-  // On native Android/iOS, fall back to local LAN IP if VITE_API_URL is not configured
-  defaultBackendUrl = envApiUrl || 'http://192.168.1.46:5000';
+  // On native Android/iOS, use production URL if VITE_API_URL is not configured
+  // This ensures the app can reach the backend from any network (WiFi or mobile data)
+  defaultBackendUrl = envApiUrl || 'https://silenx.onrender.com';
 } else {
   // Web browser production — same-origin or Vercel rewrite
   defaultBackendUrl = '';
