@@ -5,9 +5,26 @@ import { useAuthStore } from '../store/authStore';
 import type { ChatMessage } from '../types';
 import { decryptMessage } from '../utils/crypto';
 import { API_URL } from '../config/webrtc-config';
+import { useEffect } from 'react';
 
 let socket: Socket | null = null;
 let heartbeatInterval: ReturnType<typeof setInterval> | null = null;
+
+/** Mobile network awareness: reconnect socket when browser detects online status */
+useEffect(() => {
+  const handleOnline = () => {
+    console.log('[Socket] Network restored, attempting reconnection...');
+    if (socket && !socket.connected) {
+      socket.connect();
+    }
+  };
+
+  window.addEventListener('online', handleOnline);
+
+  return () => {
+    window.removeEventListener('online', handleOnline);
+  };
+}, []);
 
 export const shouldReconnectSocket = (socketInstance: Pick<Socket, 'connected' | 'disconnected'> | null): boolean => {
   return !!socketInstance && socketInstance.disconnected;
@@ -15,12 +32,11 @@ export const shouldReconnectSocket = (socketInstance: Pick<Socket, 'connected' |
 
 const HEARTBEAT_INTERVAL_MS = 20_000; // 20 seconds
 
-/**
- * Connect (or reconnect) the Socket.io client.
- *
- * Automatically retrieves the Firebase ID token from the useAuthStore
- * if not provided as an argument. If socket is already connected and
- * the token matches, it returns the existing socket without reconnecting.
+/** 
+ * Connect (or reconnect) the Socket.io client. 
+ * Automatically retrieves the Firebase ID token from the useAuthStore 
+ * if not provided as an argument. If socket is already connected and 
+ * the token matches, it returns the existing socket without reconnecting. 
  */
 export const connectSocket = (idToken?: string): Socket => {
   const token = idToken || useAuthStore.getState().token;
