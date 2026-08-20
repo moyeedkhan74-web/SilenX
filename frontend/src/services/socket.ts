@@ -5,13 +5,16 @@ import { useAuthStore } from '../store/authStore';
 import type { ChatMessage } from '../types';
 import { decryptMessage } from '../utils/crypto';
 import { API_URL } from '../config/webrtc-config';
-import { useEffect } from 'react';
 
 let socket: Socket | null = null;
 let heartbeatInterval: ReturnType<typeof setInterval> | null = null;
+let networkRecoveryListenerAttached = false;
 
-/** Mobile network awareness: reconnect socket when browser detects online status */
-useEffect(() => {
+const ensureNetworkRecoveryListener = () => {
+  if (networkRecoveryListenerAttached || typeof window === 'undefined') {
+    return;
+  }
+
   const handleOnline = () => {
     console.log('[Socket] Network restored, attempting reconnection...');
     if (socket && !socket.connected) {
@@ -20,11 +23,18 @@ useEffect(() => {
   };
 
   window.addEventListener('online', handleOnline);
+  networkRecoveryListenerAttached = true;
 
-  return () => {
+  const cleanup = () => {
     window.removeEventListener('online', handleOnline);
+    networkRecoveryListenerAttached = false;
   };
-}, []);
+
+  (socket as Socket & { __cleanupNetworkListener?: () => void }) ??= socket;
+  if (socket) {
+    (socket as Socket & { __cleanupNetworkListener?: () => void }).__cleanupNetworkListener = cleanup;
+  }
+};
 
 export const shouldReconnectSocket = (socketInstance: Pick<Socket, 'connected' | 'disconnected'> | null): boolean => {
   return !!socketInstance && socketInstance.disconnected;
@@ -64,6 +74,8 @@ export const connectSocket = (idToken?: string): Socket => {
     console.warn('[Socket] No Firebase ID token available; creating disconnected socket.');
     return io(SOCKET_URL || '', { autoConnect: false });
   }
+
+  ensureNetworkRecoveryListener();
 
   const options = {
     reconnection: true,
