@@ -7,6 +7,7 @@ import Button from './ui/Button';
 import UserPreviewModal from './UserPreviewModal';
 import { API_URL, normalizeUid } from '../config/webrtc-config';
 import { useAuthStore } from '../store/authStore';
+import { auth } from '../config/firebase';
 import './AddContactModal.css';
 
 interface FoundUser {
@@ -157,11 +158,23 @@ export const AddContactModal: React.FC<AddContactModalProps> = ({ isOpen, onClos
     }
   };
 
+  const getFreshToken = async (): Promise<string | null> => {
+    try {
+      const firebaseUser = auth?.currentUser;
+      if (firebaseUser) {
+        return await firebaseUser.getIdToken(false);
+      }
+    } catch {
+      // Ignore token refresh errors and fallback
+    }
+    return useAuthStore.getState().token;
+  };
+
   const lookupByUid = async (searchUid: string) => {
     setIsSearching(true);
     setError('');
     try {
-      const token = useAuthStore.getState().token;
+      const token = await getFreshToken();
       if (!token) {
         setError('Authentication token missing. Please sign in again.');
         setIsSearching(false);
@@ -206,7 +219,7 @@ export const AddContactModal: React.FC<AddContactModalProps> = ({ isOpen, onClos
     if (!previewUser) return;
 
     try {
-      const token = useAuthStore.getState().token;
+      const token = await getFreshToken();
       if (!token) {
         setError('Authentication token missing. Please sign in again.');
         return;

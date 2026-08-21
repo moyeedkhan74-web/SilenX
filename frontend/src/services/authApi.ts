@@ -19,8 +19,8 @@ export async function authenticateWithGoogleBackend(
   idToken: string,
   onStatusUpdate?: (msg: string) => void
 ): Promise<GoogleAuthResponse> {
-  const maxRetries = 5;
-  const retryDelayMs = 1500;
+  const maxRetries = 8;
+  const retryDelayMs = 4000;
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {

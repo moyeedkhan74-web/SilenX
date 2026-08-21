@@ -110,14 +110,14 @@ function AppInner({
               const idToken = await Promise.race([
                 firebaseUser.getIdToken(true),
                 new Promise<never>((_, reject) => {
-                  setTimeout(() => reject(new Error('Firebase token request timed out')), 5000);
+                  setTimeout(() => reject(new Error('Firebase token request timed out')), 30000);
                 }),
               ]);
 
               const body = await Promise.race([
                 authenticateWithGoogleBackend(idToken),
                 new Promise<never>((_, reject) => {
-                  setTimeout(() => reject(new Error('Backend startup timed out')), 5000);
+                  setTimeout(() => reject(new Error('Backend startup timed out')), 30000);
                 }),
               ]);
 
