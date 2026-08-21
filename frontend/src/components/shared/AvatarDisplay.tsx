@@ -89,7 +89,7 @@ export const AvatarDisplay: React.FC<AvatarDisplayProps> = ({
             border: '2px solid var(--color-bg)',
           }}
         />
-      </>
+      )}
     </div>
   );
 };
