@@ -46,7 +46,7 @@ export function storePrivateKey(privateKey: string): void {
 export function getPrivateKey(): Uint8Array | null {
   const b64Key = localStorage.getItem(PRIVATE_KEY_STORAGE);
   if (!b64Key) return null;
-  return naclUtil.decodeBase64(b64Key);
+  return safeDecodeBase64(b64Key);
 }
 
 /**
@@ -78,8 +78,20 @@ export function clearKeys(): void {
 }
 
 /**
- * Generates a random nonce for encryption
+ * Decodes a Base64 string, automatically handling:
+ * - URL-safe Base64 (`-`, `_` → `+`, `/`)
+ * - Missing `=` padding
+ * - Invalid characters
  */
+function safeDecodeBase64(b64: string): Uint8Array {
+  // Replace URL-safe chars with standard Base64 chars
+  let standard = b64.replace(/-/g, '+').replace(/_/g, '/');
+  // Add missing padding
+  while (standard.length % 4) {
+    standard += '=';
+  }
+  return naclUtil.decodeBase64(standard);
+}
 export function generateNonce(): Uint8Array {
   return nacl.randomBytes(nacl.box.nonceLength);
 }
@@ -118,8 +130,8 @@ export function decryptMessage(encryptedMessageBase64: string, senderPublicKeyBa
     const secretKey = getPrivateKey();
     if (!secretKey) throw new Error('No local private key found');
 
-    const senderPublicKey = naclUtil.decodeBase64(senderPublicKeyBase64);
-    const fullMessage = naclUtil.decodeBase64(encryptedMessageBase64);
+    const senderPublicKey = safeDecodeBase64(senderPublicKeyBase64);
+    const fullMessage = safeDecodeBase64(encryptedMessageBase64);
 
     const nonce = fullMessage.slice(0, nacl.box.nonceLength);
     const ciphertext = fullMessage.slice(nacl.box.nonceLength);
@@ -145,7 +157,7 @@ export function computeSharedSecret(recipientPublicKeyBase64: string): Uint8Arra
     const secretKey = getPrivateKey();
     if (!secretKey) return null;
 
-    const recipientPublicKey = naclUtil.decodeBase64(recipientPublicKeyBase64);
+    const recipientPublicKey = safeDecodeBase64(recipientPublicKeyBase64);
     return nacl.box.before(recipientPublicKey, secretKey);
   } catch (error) {
     console.error('[Crypto] Failed to compute shared secret:', error);
@@ -178,7 +190,7 @@ export function encryptWithSharedSecret(plaintext: string, sharedSecret: Uint8Ar
  */
 export function decryptWithSharedSecret(encryptedMessageBase64: string, sharedSecret: Uint8Array): string | null {
   try {
-    const fullMessage = naclUtil.decodeBase64(encryptedMessageBase64);
+    const fullMessage = safeDecodeBase64(encryptedMessageBase64);
     const nonce = fullMessage.slice(0, nacl.box.nonceLength);
     const ciphertext = fullMessage.slice(nacl.box.nonceLength);
 
@@ -234,8 +246,8 @@ export function decryptSymmetricKey(encryptedKeyBase64: string, senderPublicKeyB
     const secretKey = getPrivateKey();
     if (!secretKey) return null;
 
-    const senderPublicKey = naclUtil.decodeBase64(senderPublicKeyBase64);
-    const fullMessage = naclUtil.decodeBase64(encryptedKeyBase64);
+    const senderPublicKey = safeDecodeBase64(senderPublicKeyBase64);
+    const fullMessage = safeDecodeBase64(encryptedKeyBase64);
 
     const nonce = fullMessage.slice(0, nacl.box.nonceLength);
     const ciphertext = fullMessage.slice(nacl.box.nonceLength);
@@ -305,7 +317,7 @@ export function getSessionKey(conversationId: string): Uint8Array | null {
   const key = SESSION_KEYS_PREFIX + conversationId;
   const b64Key = localStorage.getItem(key);
   if (!b64Key) return null;
-  return naclUtil.decodeBase64(b64Key);
+  return safeDecodeBase64(b64Key);
 }
 
 /**
