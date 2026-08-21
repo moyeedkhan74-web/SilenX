@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Image, Camera, MapPin, User, FileText, BarChart3, CalendarDays, Video, X } from 'lucide-react';
+import { capturePhoto } from '../services/camera';
 import './AttachmentMenu.css';
 
 interface AttachmentMenuProps {
@@ -158,7 +159,18 @@ export const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
   const items = [
     { icon: <Image size={22} />, label: 'Gallery', color: '#7c4dff', onClick: () => fileInputRef.current?.click() },
     { icon: <Video size={22} />, label: 'Video', color: '#009688', onClick: () => videoInputRef.current?.click() },
-    { icon: <Camera size={22} />, label: 'Camera', color: '#e91e63', onClick: () => cameraInputRef.current?.click() },
+    {
+      icon: <Camera size={22} />,
+      label: 'Camera',
+      color: '#e91e63',
+      onClick: async () => {
+        const photo = await capturePhoto();
+        if (photo?.dataUrl) {
+          onSendCamera(photo.dataUrl);
+          closeAndReset();
+        }
+      }
+    },
     { icon: <MapPin size={22} />, label: 'Location', color: '#00c853', onClick: () => setSubModal('location') },
     { icon: <User size={22} />, label: 'Contact', color: '#2979ff', onClick: () => setSubModal('contact') },
     { icon: <FileText size={22} />, label: 'Document', color: '#6d4c9e', onClick: () => docInputRef.current?.click() },

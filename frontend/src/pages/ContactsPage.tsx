@@ -112,6 +112,33 @@ export const ContactsPage: React.FC = () => {
     }
   };
 
+  const handleUnfriend = async (targetUserId: string, displayName: string) => {
+    if (!window.confirm(`Are you sure you want to remove ${displayName} from your contacts?`)) {
+      return;
+    }
+    // Optimistic UI update
+    setRequests((prev) =>
+      prev.filter(
+        (r) =>
+          !((r.senderId === targetUserId || r.fromUserId === targetUserId) ||
+            (r.receiverId === targetUserId || r.toUserId === targetUserId))
+      )
+    );
+
+    try {
+      const token = useAuthStore.getState().token;
+      if (!token) return;
+      await fetch(`${API_URL}/api/requests/friends/${encodeURIComponent(targetUserId)}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      loadRequests();
+    } catch (err) {
+      console.error('Unfriend failed:', err);
+      loadRequests();
+    }
+  };
+
   // Filter requests
   const pendingRequests = requests.filter(
     (r) => r.status === 'pending' && (r.toUserId === currentUser?.id || r.receiverId === currentUser?.id)
@@ -214,9 +241,27 @@ export const ContactsPage: React.FC = () => {
                   status={contact.status}
                   lastSeen={contact.lastSeen}
                   actions={
-                    <button className="btn btn-primary" onClick={() => startChat(contact.uid)} style={{ padding: '6px 12px', fontSize: '13px' }}>
-                      Secure Chat
-                    </button>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button className="btn btn-primary" onClick={() => startChat(contact.uid)} style={{ padding: '6px 12px', fontSize: '13px' }}>
+                        Secure Chat
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleUnfriend(contact.id, contact.displayName)}
+                        style={{
+                          padding: '6px 12px',
+                          fontSize: '13px',
+                          background: 'rgba(239, 68, 68, 0.12)',
+                          color: '#ef4444',
+                          border: '1px solid rgba(239, 68, 68, 0.25)',
+                          borderRadius: '6px',
+                          cursor: 'pointer',
+                          fontWeight: 600
+                        }}
+                      >
+                        Unfriend
+                      </button>
+                    </div>
                   }
                 />
               ))

@@ -315,9 +315,38 @@ router.post('/:id/accept', (req: AuthenticatedRequest, res: Response) => {
   res.status(200).json({ status: 'accepted', conversation: existingConversation });
 });
 
+// POST /api/requests/:id/decline — decline incoming request
+router.post('/:id/decline', (req: AuthenticatedRequest, res: Response) => {
+  const id = req.params.id;
+  const currentUserId = req.currentUser!.dbId;
 
+  const reqObj = friendRequests.find((r: any) => r.id === id);
+  if (!reqObj) {
+    res.status(404).json({ message: 'Request not found' });
+    return;
+  }
 
-// DELETE /api/requests/friends/:targetUserId � Unfriend a contact
+  const senderId = (reqObj as any).senderId || (reqObj as any).fromUserId;
+  const receiverId = (reqObj as any).receiverId || (reqObj as any).toUserId;
+
+  if (receiverId !== currentUserId) {
+    res.status(403).json({ message: 'Cannot decline requests not addressed to you' });
+    return;
+  }
+
+  reqObj.status = 'declined';
+  (reqObj as any).updatedAt = new Date();
+  saveDb();
+
+  const senderSocketId = getSocketIdForUser(senderId);
+  if (senderSocketId && io) {
+    io.to(senderSocketId).emit('request:declined', { id: reqObj.id });
+  }
+
+  res.status(200).json({ status: 'declined' });
+});
+
+// DELETE /api/requests/friends/:targetUserId — Unfriend a contact
 router.delete('/friends/:targetUserId', (req: AuthenticatedRequest, res: Response) => {
   const currentUserId = req.currentUser!.dbId;
   const targetUserId = req.params.targetUserId;
@@ -355,42 +384,11 @@ router.delete('/friends/:targetUserId', (req: AuthenticatedRequest, res: Respons
 
   // Notify target user if online
   const targetSocketId = getSocketIdForUser(targetUserId);
-  if targetSocketId and io {
-    io.to(targetSocketId).emit('request:declined', { id: unfriend_ });
+  if (targetSocketId && io) {
+    io.to(targetSocketId).emit('request:declined', { id: `unfriend_${currentUserId}` });
   }
 
   res.status(200).json({ status: 'unfriended', targetUserId });
-})
-
-// POST /api/requests/:id/decline — decline incoming request
-router.post('/:id/decline', (req: AuthenticatedRequest, res: Response) => {
-  const id = req.params.id;
-  const currentUserId = req.currentUser!.dbId;
-
-  const reqObj = friendRequests.find((r: any) => r.id === id);
-  if (!reqObj) {
-    res.status(404).json({ message: 'Request not found' });
-    return;
-  }
-
-  const senderId = (reqObj as any).senderId || (reqObj as any).fromUserId;
-  const receiverId = (reqObj as any).receiverId || (reqObj as any).toUserId;
-
-  if (receiverId !== currentUserId) {
-    res.status(403).json({ message: 'Cannot decline requests not addressed to you' });
-    return;
-  }
-
-  reqObj.status = 'declined';
-  (reqObj as any).updatedAt = new Date();
-  saveDb();
-
-  const senderSocketId = getSocketIdForUser(senderId);
-  if (senderSocketId && io) {
-    io.to(senderSocketId).emit('request:declined', { id: reqObj.id });
-  }
-
-  res.status(200).json({ status: 'declined' });
 });
 
 export default router;
