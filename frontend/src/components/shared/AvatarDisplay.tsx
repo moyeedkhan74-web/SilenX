@@ -30,51 +30,62 @@ export const AvatarDisplay: React.FC<AvatarDisplayProps> = ({
   status
 }) => {
   const [imgError, setImgError] = useState(false);
+  const [imgLoaded, setImgLoaded] = useState(false);
   const hasStatus = online !== undefined || status !== undefined;
   const isOnline = online !== undefined ? online : status === 'online';
   const initials = name ? name.charAt(0).toUpperCase() : '?';
+  const bg = hashColor(name);
 
-  const shouldShowImg = avatarUrl && !imgError;
+  const showImg = avatarUrl && !imgError;
 
   return (
     <div className="avatar-display-container" style={{ position: 'relative', display: 'inline-flex', flexShrink: 0 }}>
-      {shouldShowImg ? (
-        <img
-          src={avatarUrl}
-          alt={name}
-          style={{
-            width: size,
-            height: size,
-            borderRadius: '50%',
-            objectFit: 'cover',
-            display: 'block',
-          }}
-          onError={() => {
-            console.warn(`[AvatarDisplay] Failed to load avatar for ${name}, falling back to initials.`);
-            setImgError(true);
-          }}
-        />
-      ) : (
-        <div
-          style={{
-            width: size,
-            height: size,
-            borderRadius: '50%',
-            background: hashColor(name),
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: 'var(--color-on-accent)',
-            fontSize: size * 0.38,
-            fontWeight: 700,
-            userSelect: 'none',
-            letterSpacing: '-0.5px',
-          }}
-        >
-          {initials}
-        </div>
-      )}
-      
+      {/* Always render initials circle as background — image layers on top once loaded */}
+      <div
+        style={{
+          width: size,
+          height: size,
+          borderRadius: '50%',
+          background: bg,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: 'var(--color-on-accent)',
+          fontSize: size * 0.38,
+          fontWeight: 700,
+          userSelect: 'none',
+          letterSpacing: '-0.5px',
+          position: 'relative',
+        }}
+      >
+        {initials}
+        {/* Image overlaid on top — invisible until loaded */}
+        {showImg && (
+          <img
+            src={avatarUrl}
+            alt={name}
+            loading="lazy"
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: size,
+              height: size,
+              borderRadius: '50%',
+              objectFit: 'cover',
+              display: 'block',
+              opacity: imgLoaded ? 1 : 0,
+              transition: 'opacity 0.25s ease',
+            }}
+            onLoad={() => setImgLoaded(true)}
+            onError={() => {
+              console.warn(`[AvatarDisplay] Failed to load avatar for ${name}, showing initials.`);
+              setImgError(true);
+            }}
+          />
+        )}
+      </div>
+
       {hasStatus && (
         <span
           className={`status-dot ${isOnline ? 'online' : 'offline'}`}

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { UserPlus, UserCheck, Inbox } from 'lucide-react';
 import { API_URL } from '../config/webrtc-config';
 import { useChatStore } from '../store/chatStore';
@@ -25,6 +26,7 @@ interface RequestItem {
 }
 
 export const ContactsPage: React.FC = () => {
+  const navigate = useNavigate();
   const [requests, setRequests] = useState<RequestItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -76,13 +78,11 @@ export const ContactsPage: React.FC = () => {
         const data = await res.json();
         await fetchConversations();
         loadRequests();
-        
-        // Auto-redirect to the chat with the added user
+
+        // Auto-navigate to the new chat immediately
         if (data?.conversation?.id) {
           setActiveConversation(data.conversation.id);
-          window.location.hash = '#/chats';
-          window.history.pushState({}, '', '/chats');
-          window.dispatchEvent(new PopStateEvent('popstate'));
+          navigate('/chats');
         }
       } else {
         // Rollback on server error
@@ -162,11 +162,7 @@ export const ContactsPage: React.FC = () => {
     const newConvo = await createConversation(uid);
     if (newConvo) {
       setActiveConversation(newConvo.id);
-      // Navigate to /chats (since we use routing now, redirects can be clean)
-      window.location.hash = '#/chats'; // Fallback if routing uses hashes, but the standard redirect is clean
-      window.history.pushState({}, '', '/chats');
-      // Dispatch popstate event to trigger router reload
-      window.dispatchEvent(new PopStateEvent('popstate'));
+      navigate('/chats');
     }
   };
 
@@ -305,9 +301,7 @@ export const ContactsPage: React.FC = () => {
         onCreateSuccess={(conversationId) => {
           setIsGroupOpen(false);
           setActiveConversation(conversationId);
-          window.location.hash = '#/chats';
-          window.history.pushState({}, '', '/chats');
-          window.dispatchEvent(new PopStateEvent('popstate'));
+          navigate('/chats');
         }}
       />
     </div>
