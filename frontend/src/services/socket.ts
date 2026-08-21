@@ -3,9 +3,34 @@ import { SOCKET_URL } from '../config/webrtc-config';
 import { useChatStore } from '../store/chatStore';
 import { useAuthStore } from '../store/authStore';
 import { auth } from '../config/firebase';
-import type { ChatMessage } from '../types';
 import { decryptMessage } from '../utils/crypto';
+import type { ChatMessage } from '../types';
 import { API_URL } from '../config/webrtc-config';
+
+// Public key cache to avoid fetching on every message
+const publicKeyCache: Record<string, string> = {};
+
+export const getPublicKey = async (userId: string): Promise<string | null> => {
+  // Check cache first
+  if (publicKeyCache[userId]) return publicKeyCache[userId];
+
+  try {
+    const token = useAuthStore.getState().token;
+    if (!token) return null;
+    const res = await fetch(`${API_URL}/api/users/${userId}/public-key`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (res.ok) {
+      const data = await res.json();
+      const publicKey = data.publicKey;
+      publicKeyCache[userId] = publicKey || '';
+      return publicKeyCache[userId];
+    }
+  } catch (error) {
+    console.error('[Socket] Failed to fetch public key:', error);
+  }
+  return null;
+};
 
 let socket: Socket | null = null;
 let heartbeatInterval: ReturnType<typeof setInterval> | null = null;
@@ -42,11 +67,11 @@ export const shouldReconnectSocket = (socketInstance: Pick<Socket, 'connected' |
 
 const HEARTBEAT_INTERVAL_MS = 20_000; // 20 seconds
 
-/** 
- * Connect (or reconnect) the Socket.io client. 
- * Automatically retrieves the Firebase ID token from the useAuthStore 
- * if not provided as an argument. If socket is already connected and 
- * the token matches, it returns the existing socket without reconnecting. 
+/**
+ * Connect (or reconnect) the Socket.io client.
+ * Automatically retrieves the Firebase ID token from the useAuthStore
+ * if not provided as an argument. If socket is already connected and
+ * the token matches, it returns the existing socket without reconnecting.
  */
 export const connectSocket = (idToken?: string): Socket => {
   const token = idToken || useAuthStore.getState().token;
@@ -107,31 +132,31 @@ export const connectSocket = (idToken?: string): Socket => {
     }
   });
 
-socket.on('connect_error', async (error) => {
-  console.error(`[Socket] Connection Error: ${error.message}`);
-  if (error.message === 'UNAUTHORIZED' || error.message?.includes('UNAUTHORIZED')) {
-    try {
-      const currentUser = auth.currentUser;
-      if (currentUser) {
-        console.info('[Socket] UNAUTHORIZED received — Force-refreshing Firebase token...');
-        const freshToken = await currentUser.getIdToken(true);
-        useAuthStore.getState().setToken(freshToken);
-        if (socket) {
-          socket.auth = { token: freshToken };
-          socket.connect();
+  socket.on('connect_error', async (error) => {
+    console.error(`[Socket] Connection Error: ${error.message}`);
+    if (error.message === 'UNAUTHORIZED' || error.message?.includes('UNAUTHORIZED')) {
+      try {
+        const currentUser = auth.currentUser;
+        if (currentUser) {
+          console.info('[Socket] UNAUTHORIZED received — Force-refreshing Firebase token...');
+          const freshToken = await currentUser.getIdToken(true);
+          useAuthStore.getState().setToken(freshToken);
+          if (socket) {
+            socket.auth = { token: freshToken };
+            socket.connect();
+          }
         }
+      } catch (refreshErr) {
+        console.warn('[Socket] Token refresh on connect_error failed:', refreshErr);
       }
-    } catch (refreshErr) {
-      console.warn('[Socket] Token refresh on connect_error failed:', refreshErr);
     }
-  }
-});
+  });
 
   socket.on('error', (err: { code: string; message: string }) => {
     console.warn('[Socket] Server error:', err.code, err.message);
   });
 
-  socket.on('receive-message', async (payload: any) => {
+socket.on('receive-message', async (payload: any) => {
     const conversationId = payload?.conversationId;
     const encryptedContent = payload?.encryptedContent ?? payload?.text ?? '';
     const contentType = payload?.contentType || 'text';
@@ -151,29 +176,42 @@ socket.on('connect_error', async (error) => {
 
     // Decrypt message content if it's encrypted
     let decryptedText = encryptedContent;
-    if (senderId && encryptedContent) {
-      try {
-        const token = useAuthStore.getState().token;
-        if (token) {
-          // Fetch sender's public key
-          const res = await fetch(`${API_URL}/api/users/${senderId}/public-key`, {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          if (res.ok) {
-            const data = await res.json();
-            const senderPublicKey = data.publicKey;
-            if (senderPublicKey) {
-              const plaintext = decryptMessage(encryptedContent, senderPublicKey);
-              if (plaintext) {
-                decryptedText = plaintext;
-              } else {
-                decryptedText = '[Encrypted Message]';
-              }
+    
+    // Check if content appears to be plaintext (not Base64 encrypted)
+    const isLikelyPlaintext = !encryptedContent || 
+      /^[^\s\S]*$/.test(encryptedContent) || // Empty or whitespace only
+      encryptedContent.length < 20 || // Very short, likely not encrypted
+      /^[a-zA-Z0-9\s]+$/.test(encryptedContent); // Only alphanumeric, likely plaintext
+
+    if (senderId && encryptedContent && !isLikelyPlaintext) {
+      // Try to get public key from cache first
+      const cachedPublicKey = publicKeyCache[senderId];
+      let senderPublicKey = cachedPublicKey;
+      
+      if (!cachedPublicKey) {
+        // Fetch public key and cache it
+        const cached = await getPublicKey(senderId);
+        senderPublicKey = cached || '';
+      }
+      
+      if (senderPublicKey) {
+        try {
+          const token = useAuthStore.getState().token;
+          if (token) {
+            const plaintext = decryptMessage(encryptedContent, senderPublicKey);
+            if (plaintext) {
+              decryptedText = plaintext;
+            } else {
+              decryptedText = '[Encrypted Message]';
             }
+          } else {
+            decryptedText = '[Encrypted Message]';
           }
+        } catch (error) {
+          console.error('[Socket] Failed to decrypt message:', error);
+          decryptedText = '[Encrypted Message]';
         }
-      } catch (error) {
-        console.error('[Socket] Failed to decrypt message:', error);
+      } else {
         decryptedText = '[Encrypted Message]';
       }
     }
@@ -206,9 +244,9 @@ socket.on('connect_error', async (error) => {
     };
 
     useChatStore.getState().addMessage(conversationId, incomingMessage);
-  });
+});
 
-  socket.on('receive-message-reaction', (payload: any) => {
+socket.on('receive-message-reaction', (payload: any) => {
     const { conversationId, messageId, userId, emoji } = payload || {};
     if (!conversationId || !messageId || !userId) return;
     useChatStore.getState().reactToMessage(conversationId, messageId, userId, emoji);

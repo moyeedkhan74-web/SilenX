@@ -25,7 +25,14 @@ export class KeyManager {
   static getPrivateKey(): Uint8Array | null {
     const b64Key = localStorage.getItem(STORAGE_KEY);
     if (!b64Key) return null;
-    return naclUtil.decodeBase64(b64Key);
+    // Use the safe decode function from frontend utils
+    // Fall back to original for backward compatibility
+    try {
+      return naclUtil.decodeBase64(b64Key);
+    } catch {
+      // If decode fails, return null
+      return null;
+    }
   }
 
   /**

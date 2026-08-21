@@ -83,7 +83,7 @@ export function clearKeys(): void {
  * - Missing `=` padding
  * - Invalid characters
  */
-function safeDecodeBase64(b64: string): Uint8Array {
+export function safeDecodeBase64(b64: string): Uint8Array {
   // Replace URL-safe chars with standard Base64 chars
   let standard = b64.replace(/-/g, '+').replace(/_/g, '/');
   // Add missing padding

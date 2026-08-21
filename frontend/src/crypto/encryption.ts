@@ -1,5 +1,6 @@
 import nacl from 'tweetnacl';
 import naclUtil from 'tweetnacl-util';
+import { safeDecodeBase64 } from '../utils/crypto';
 import { KeyManager } from './keyManager';
 
 /**
@@ -11,14 +12,14 @@ export function encryptMessage(plaintext: string, recipientPublicKeyBase64: stri
     const secretKey = KeyManager.getPrivateKey();
     if (!secretKey) throw new Error('No local private key found');
 
-    const receiverPublicKey = naclUtil.decodeBase64(recipientPublicKeyBase64);
+    const recipientPublicKey = safeDecodeBase64(recipientPublicKeyBase64);
     const messageUint8 = naclUtil.decodeUTF8(plaintext);
     
     // Generate random nonce (24 bytes)
     const nonce = nacl.randomBytes(nacl.box.nonceLength);
 
     // Encrypt the message
-    const encryptedBox = nacl.box(messageUint8, nonce, receiverPublicKey, secretKey);
+    const encryptedBox = nacl.box(messageUint8, nonce, recipientPublicKey, secretKey);
 
     // Combine nonce and ciphertext: [nonce (24 bytes) ... ciphertext]
     const fullMessage = new Uint8Array(nonce.length + encryptedBox.length);
@@ -41,8 +42,8 @@ export function decryptMessage(encryptedMessageBase64: string, senderPublicKeyBa
     const secretKey = KeyManager.getPrivateKey();
     if (!secretKey) throw new Error('No local private key found');
 
-    const senderPublicKey = naclUtil.decodeBase64(senderPublicKeyBase64);
-    const fullMessage = naclUtil.decodeBase64(encryptedMessageBase64);
+    const senderPublicKey = safeDecodeBase64(senderPublicKeyBase64);
+    const fullMessage = safeDecodeBase64(encryptedMessageBase64);
 
     // Extract the nonce (first 24 bytes)
     const nonce = fullMessage.slice(0, nacl.box.nonceLength);
