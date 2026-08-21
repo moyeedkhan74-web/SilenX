@@ -37,6 +37,7 @@ const allowedOrigins = [
   'capacitor://localhost',
   'ionic://localhost',
   'http://localhost',
+  'https://localhost',
 ];
 
 if (config.frontendUrl) {
@@ -54,7 +55,8 @@ const checkOrigin = (origin: string | undefined, callback: (err: Error | null, a
 
   const isAllowed =
     allowedOrigins.includes(origin) ||
-    origin.startsWith('http://localhost:') ||
+    origin.startsWith('http://localhost') ||
+    origin.startsWith('https://localhost') ||
     origin.startsWith('http://127.0.0.1:') ||
     origin.startsWith('capacitor://') ||
     origin.startsWith('ionic://') ||

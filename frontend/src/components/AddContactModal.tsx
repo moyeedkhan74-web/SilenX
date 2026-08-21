@@ -7,6 +7,7 @@ import Button from './ui/Button';
 import UserPreviewModal from './UserPreviewModal';
 import { API_URL, normalizeUid } from '../config/webrtc-config';
 import { useAuthStore } from '../store/authStore';
+import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '../config/firebase';
 import './AddContactModal.css';
 
@@ -159,21 +160,33 @@ export const AddContactModal: React.FC<AddContactModalProps> = ({ isOpen, onClos
   };
 
   const getFreshToken = async (): Promise<string | null> => {
-    try {
-      const firebaseUser = auth?.currentUser;
-      if (firebaseUser) {
-        return await firebaseUser.getIdToken(false);
-      }
-    } catch {
-      // Ignore token refresh errors and fallback
+  try {
+    let user = auth?.currentUser;
+    if (!user) {
+      await new Promise<void>(resolve => {
+        const unsub = onAuthStateChanged(auth, u => {
+          user = u;
+          unsub();
+          resolve();
+        });
+        setTimeout(() => { unsub(); resolve(); }, 3000);
+      });
     }
-    return useAuthStore.getState().token;
-  };
+    if (user) {
+      const freshToken = await user.getIdToken(true); // Force refresh
+      useAuthStore.getState().setToken(freshToken); // Persist updated fresh token
+      return freshToken;
+    }
+  } catch (e) {
+    console.warn('[AddContactModal] Token refresh error:', e);
+  }
+  return useAuthStore.getState().token;
+};
 
-  const lookupByUid = async (searchUid: string) => {
+const lookupByUid = async (searchUid: string) => {
     setIsSearching(true);
     setError('');
-
+    
     const maxAttempts = 5;
     const delayMs = 2500;
 
@@ -196,6 +209,7 @@ export const AddContactModal: React.FC<AddContactModalProps> = ({ isOpen, onClos
           },
         });
 
+        // Handle Render 502/503/504 cold-start gateway pages
         if (res.ok) {
           const user: FoundUser = await res.json();
           setPreviewUser(user);
@@ -204,7 +218,6 @@ export const AddContactModal: React.FC<AddContactModalProps> = ({ isOpen, onClos
           return;
         }
 
-        // Handle Render 502/503/504 cold-start gateway pages
         if (res.status === 503 || res.status === 502 || res.status === 504) {
           if (attempt < maxAttempts) {
             await new Promise((r) => setTimeout(r, delayMs));
