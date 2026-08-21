@@ -108,7 +108,7 @@ useEffect(() => {
           if (firebaseUser) {
             try {
               const idToken = await Promise.race([
-                firebaseUser.getIdToken(true),
+                firebaseUser.getIdToken(false), // Use false to avoid triggering unnecessary socket reconnect loops
                 new Promise<never>((_, reject) => {
                   setTimeout(() => reject(new Error('Firebase token request timed out')), 30000);
                 }),
@@ -196,8 +196,11 @@ useEffect(() => {
       if (user) {
         try {
           const freshToken = await user.getIdToken();
-          useAuthStore.getState().setToken(freshToken);
-          console.log('[Auth] Refreshed Firebase ID token in store');
+          const currentToken = useAuthStore.getState().token;
+          if (freshToken !== currentToken) {
+            useAuthStore.getState().setToken(freshToken);
+            console.log('[Auth] Refreshed Firebase ID token in store');
+          }
         } catch (err) {
           console.warn('[Auth] Failed to update ID token:', err);
         }

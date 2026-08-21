@@ -201,19 +201,6 @@ router.get('/search', (req: AuthenticatedRequest, res: Response) => {
   }
 });
 
-// GET /api/users/:id/public-key — Get user's public encryption key
-router.get('/:id/public-key', (req: AuthenticatedRequest, res: Response) => {
-  const targetUser = users.find(u => u.id === req.params.id);
-  if (!targetUser) {
-    res.status(404).json({ message: 'User not found' });
-    return;
-  }
-  res.status(200).json({
-    userId: req.params.id,
-    publicKey: targetUser.publicKey || null,
-  });
-});
-
 // PUT /api/users/public-key — Upload current user's public encryption key
 router.put('/public-key', (req: AuthenticatedRequest, res: Response) => {
   const currentUserId = req.currentUser!.dbId;
@@ -236,6 +223,9 @@ router.put('/public-key', (req: AuthenticatedRequest, res: Response) => {
 
   res.status(200).json({ message: 'Public key updated successfully', publicKey });
 });
+
+// GET /api/users/:id/public-key — Get user's public encryption key
+router.get('/:id/public-key', (req: AuthenticatedRequest, res: Response) => {
 
 // POST /api/users/fcm-token — Register FCM device token for authenticated user
 router.post('/fcm-token', (req: AuthenticatedRequest, res: Response) => {
