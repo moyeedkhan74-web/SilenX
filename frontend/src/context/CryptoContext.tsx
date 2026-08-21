@@ -65,6 +65,11 @@ export const CryptoProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       return;
     }
 
+    // Skip redundant initialization if keyPair is already loaded in memory
+    if (keyPair && isInitialized) {
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
 

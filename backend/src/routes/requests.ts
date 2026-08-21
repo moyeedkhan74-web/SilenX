@@ -315,6 +315,53 @@ router.post('/:id/accept', (req: AuthenticatedRequest, res: Response) => {
   res.status(200).json({ status: 'accepted', conversation: existingConversation });
 });
 
+
+
+// DELETE /api/requests/friends/:targetUserId — Unfriend a contact
+router.delete('/friends/:targetUserId', (req: AuthenticatedRequest, res: Response) => {
+  const currentUserId = req.currentUser!.dbId;
+  const targetUserId = req.params.targetUserId;
+
+  if (!targetUserId) {
+    res.status(400).json({ message: 'targetUserId is required' });
+    return;
+  }
+
+  // Remove from friends array
+  const friendIndex = friends.findIndex(
+    (f) =>
+      (f.userId1 === currentUserId && f.userId2 === targetUserId) ||
+      (f.userId1 === targetUserId && f.userId2 === currentUserId)
+  );
+
+  if (friendIndex !== -1) {
+    friends.splice(friendIndex, 1);
+  }
+
+  // Remove or update associated friend requests
+  const requestIndex = friendRequests.findIndex(
+    (r: any) =>
+      ((r.senderId === currentUserId || r.fromUserId === currentUserId) &&
+        (r.receiverId === targetUserId || r.toUserId === targetUserId)) ||
+      ((r.senderId === targetUserId || r.fromUserId === targetUserId) &&
+        (r.receiverId === currentUserId || r.toUserId === currentUserId))
+  );
+
+  if (requestIndex !== -1) {
+    friendRequests.splice(requestIndex, 1);
+  }
+
+  saveDb();
+
+  // Notify target user if online
+  const targetSocketId = getSocketIdForUser(targetUserId);
+  if targetSocketId and io {
+    io.to(targetSocketId).emit('request:declined', { id: unfriend_ });
+  }
+
+  res.status(200).json({ status: 'unfriended', targetUserId });
+})
+
 // POST /api/requests/:id/decline â€” decline incoming request
 router.post('/:id/decline', (req: AuthenticatedRequest, res: Response) => {
   const id = req.params.id;

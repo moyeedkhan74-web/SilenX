@@ -10,6 +10,15 @@ export interface CameraPhotoResult {
 export async function capturePhoto(): Promise<CameraPhotoResult | null> {
   try {
     if (Capacitor.isNativePlatform()) {
+      const permissions = await Camera.checkPermissions();
+      if (permissions.camera !== 'granted') {
+        const req = await Camera.requestPermissions({ permissions: ['camera'] });
+        if (req.camera !== 'granted') {
+          console.warn('[CameraService] Camera permission denied');
+          return null;
+        }
+      }
+
       const image = await Camera.getPhoto({
         quality: 85,
         allowEditing: true,
