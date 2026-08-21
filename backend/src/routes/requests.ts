@@ -287,7 +287,7 @@ router.post('/:id/accept', (req: AuthenticatedRequest, res: Response) => {
     const member2 = {
       id: `m_${newConvoId}_other`,
       conversationId: newConvoId,
-      userId: receiver.id,
+      userId: receiverId,
       joinedAt: new Date(),
       leftAt: null,
       muted: false,

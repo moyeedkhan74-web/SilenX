@@ -81,10 +81,13 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 
+// Trust proxy for rate limiting behind Render/CDN
+app.set('trust proxy', 1);
+
 // Rate Limiters
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // 100 requests per 15 min per IP
+  max: 500, // Increased max limit for multi-tab / mobile sync
   message: { error: 'Too many authentication attempts, please try again later.' },
   standardHeaders: true,
   legacyHeaders: false,

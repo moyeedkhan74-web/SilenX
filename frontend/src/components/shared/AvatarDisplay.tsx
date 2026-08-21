@@ -1,6 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 
-const COLORS = ['var(--avatar-color-1)', 'var(--avatar-color-2)', 'var(--avatar-color-3)', 'var(--avatar-color-4)', 'var(--avatar-color-5)', 'var(--avatar-color-6)', 'var(--avatar-color-7)', 'var(--avatar-color-8)', 'var(--avatar-color-9)'];
+const COLORS = [
+  'var(--avatar-color-1)', 'var(--avatar-color-2)', 'var(--avatar-color-3)',
+  'var(--avatar-color-4)', 'var(--avatar-color-5)', 'var(--avatar-color-6)',
+  'var(--avatar-color-7)', 'var(--avatar-color-8)', 'var(--avatar-color-9)'
+];
 
 function hashColor(name = '') {
   let hash = 0;
@@ -25,13 +29,16 @@ export const AvatarDisplay: React.FC<AvatarDisplayProps> = ({
   online,
   status
 }) => {
+  const [imgError, setImgError] = useState(false);
   const hasStatus = online !== undefined || status !== undefined;
   const isOnline = online !== undefined ? online : status === 'online';
   const initials = name ? name.charAt(0).toUpperCase() : '?';
 
+  const shouldShowImg = avatarUrl && !imgError;
+
   return (
     <div className="avatar-display-container" style={{ position: 'relative', display: 'inline-flex', flexShrink: 0 }}>
-      {avatarUrl ? (
+      {shouldShowImg ? (
         <img
           src={avatarUrl}
           alt={name}
@@ -42,9 +49,9 @@ export const AvatarDisplay: React.FC<AvatarDisplayProps> = ({
             objectFit: 'cover',
             display: 'block',
           }}
-          onError={(e) => {
-            // Fallback when image loading fails
-            (e.target as HTMLElement).style.display = 'none';
+          onError={() => {
+            console.warn(`[AvatarDisplay] Failed to load avatar for ${name}, falling back to initials.`);
+            setImgError(true);
           }}
         />
       ) : (
@@ -82,7 +89,7 @@ export const AvatarDisplay: React.FC<AvatarDisplayProps> = ({
             border: '2px solid var(--color-bg)',
           }}
         />
-      )}
+      </>
     </div>
   );
 };
