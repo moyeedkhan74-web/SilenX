@@ -245,9 +245,7 @@ router.post('/:id/accept', (req: AuthenticatedRequest, res: Response) => {
   }
 
   const senderSocketId = getSocketIdForUser(senderId);
-  if (senderSocketId && io) {
-    io.to(senderSocketId).emit('request:accepted', { id: reqObj.id, by: receiverId });
-  }
+  // NOTE: We emit 'request:accepted' AFTER conversation creation so we can include the full convo payload.
 
   let existingConversation = findDirectConversationBetween(senderId, receiverId);
   const alreadyFriends = areFriends(senderId, receiverId);
@@ -276,18 +274,20 @@ router.post('/:id/accept', (req: AuthenticatedRequest, res: Response) => {
 
     conversations.push(newConvo);
 
+    // member1 = the acceptor (receiver of original request = currentUser)
     const member1 = {
-      id: `m_${newConvoId}_self`,
+      id: `m_${newConvoId}_recv`,
       conversationId: newConvoId,
       userId: currentUserId,
       joinedAt: new Date(),
       leftAt: null,
       muted: false,
     };
+    // member2 = the original sender of the friend request
     const member2 = {
-      id: `m_${newConvoId}_other`,
+      id: `m_${newConvoId}_send`,
       conversationId: newConvoId,
-      userId: receiverId,
+      userId: senderId,
       joinedAt: new Date(),
       leftAt: null,
       muted: false,
@@ -308,8 +308,50 @@ router.post('/:id/accept', (req: AuthenticatedRequest, res: Response) => {
 
     saveDb();
     existingConversation = newConvo;
+
+    // Build a rich conversation payload with both members for socket notification
+    const convoPayload = {
+      id: newConvoId,
+      type: 'direct',
+      name: null,
+      avatarUrl: null,
+      lastMessage: systemMsg.encryptedContent,
+      lastMessageTime: systemMsg.createdAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      unreadCount: 0,
+      members: [
+        {
+          id: receiver.id,
+          uid: receiver.uid,
+          displayName: receiver.displayName,
+          avatarUrl: receiver.avatarUrl || null,
+          status: (receiver as any).showOnlineStatus !== false ? receiver.status : 'offline',
+          lastSeen: '',
+        },
+        {
+          id: sender.id,
+          uid: sender.uid,
+          displayName: sender.displayName,
+          avatarUrl: sender.avatarUrl || null,
+          status: (sender as any).showOnlineStatus !== false ? sender.status : 'offline',
+          lastSeen: '',
+        },
+      ],
+    };
+
+    // Notify SENDER that their request was accepted AND push the new conversation to them
+    if (senderSocketId && io) {
+      io.to(senderSocketId).emit('request:accepted', {
+        id: reqObj.id,
+        by: receiverId,
+        conversation: convoPayload,
+      });
+    }
   } else {
     saveDb();
+    // Conversation already existed — still notify sender
+    if (senderSocketId && io) {
+      io.to(senderSocketId).emit('request:accepted', { id: reqObj.id, by: receiverId });
+    }
   }
 
   res.status(200).json({ status: 'accepted', conversation: existingConversation });

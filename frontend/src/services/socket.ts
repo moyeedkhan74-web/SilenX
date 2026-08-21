@@ -214,6 +214,20 @@ socket.on('connect_error', async (error) => {
     useChatStore.getState().reactToMessage(conversationId, messageId, userId, emoji);
   });
 
+  // When your friend request is accepted, instantly add the new conversation to the chat list
+  socket.on('request:accepted', (payload: any) => {
+    if (payload?.conversation) {
+      const convo = payload.conversation;
+      useChatStore.setState((state) => {
+        const alreadyExists = state.conversations.some((c) => c.id === convo.id);
+        if (alreadyExists) return {};
+        return { conversations: [convo, ...state.conversations] };
+      });
+    }
+    // Also trigger a full refresh incase state is stale
+    useChatStore.getState().fetchConversations();
+  });
+
   socket.on('poll-voted', (payload: any) => {
     const { conversationId, messageId, pollData } = payload || {};
     if (!conversationId || !messageId || !pollData) return;

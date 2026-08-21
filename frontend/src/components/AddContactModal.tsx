@@ -311,7 +311,11 @@ const lookupByUid = async (searchUid: string) => {
         <div className="modal-tab-content">
           {activeTab === 'scan' ? (
             <div className="scan-tab">
-              <div id="qr-reader" className="qr-reader-container" />
+              <div
+                id="qr-reader"
+                className="qr-reader-container"
+                style={scannerActive ? undefined : { display: 'none' }}
+              />
               
               {scanError && (
                 <p className="scan-error">{scanError}</p>

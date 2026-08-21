@@ -42,9 +42,9 @@ export const ContactCard: React.FC<ContactCardProps> = ({
       marginBottom: '12px',
       gap: '12px'
     }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '14px', overflow: 'hidden', flex: 1 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '14px', overflow: 'hidden', flex: 1, minWidth: 0 }}>
         <AvatarDisplay name={displayName} avatarUrl={avatarUrl} size={48} status={status} />
-        <div style={{ overflow: 'hidden', flex: 1 }}>
+        <div style={{ overflow: 'hidden', flex: 1, minWidth: 0 }}>
           <h4 style={{ margin: 0, fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)', textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}>
             {displayName}
           </h4>
@@ -52,9 +52,11 @@ export const ContactCard: React.FC<ContactCardProps> = ({
             fontFamily: 'monospace',
             fontSize: '11px',
             color: 'var(--text-tertiary)',
-            wordBreak: 'break-all',
             display: 'block',
-            marginTop: '2px'
+            marginTop: '2px',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
           }}>
             {uid}
           </code>
