@@ -1,16 +1,17 @@
+import { Capacitor } from '@capacitor/core';
+
+// Capacitor native apps run inside a WebView on Android/iOS
+export const isCapacitorNative = typeof window !== 'undefined' && Capacitor.isNativePlatform();
+
 const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
-const isLocalhost =
+// isLocalhost must NOT be true if running natively on a mobile app
+const isLocalhost = !isCapacitorNative && (
   hostname === 'localhost' ||
   hostname === '127.0.0.1' ||
   hostname.startsWith('192.168.') ||
   hostname.startsWith('10.') ||
-  hostname.endsWith('.local');
-
-// Capacitor native apps run inside a WebView with origin "capacitor://localhost"
-// which is NOT localhost from a networking standpoint — it can reach the internet.
-const isCapacitorNative = typeof window !== 'undefined' &&
-  (window.location.protocol === 'capacitor:' || window.location.protocol === 'ionic:' ||
-   (window as any).Capacitor?.isNativePlatform?.() === true);
+  hostname.endsWith('.local')
+);
 
 // ─── TURN configuration ──────────────────────────────────────────────────────
 // Set VITE_TURN_URL, VITE_TURN_USERNAME, and VITE_TURN_PASSWORD in your
@@ -103,12 +104,11 @@ const envApiUrl = (import.meta.env.VITE_API_URL as string | undefined)?.trim();
 const envSocketUrl = (import.meta.env.VITE_SOCKET_URL as string | undefined)?.trim();
 
 let defaultBackendUrl: string;
-if (isLocalhost) {
-  defaultBackendUrl = 'http://localhost:5000';
-} else if (isCapacitorNative) {
+if (isCapacitorNative) {
   // On native Android/iOS, use production URL if VITE_API_URL is not configured
-  // This ensures the app can reach the backend from any network (WiFi or mobile data)
   defaultBackendUrl = envApiUrl || 'https://silenx.onrender.com';
+} else if (isLocalhost) {
+  defaultBackendUrl = 'http://localhost:5000';
 } else {
   // Web browser production — same-origin or Vercel rewrite
   defaultBackendUrl = '';
@@ -123,10 +123,6 @@ if (!isLocalhost && !API_URL) {
  if (!isLocalhost && !SOCKET_URL) {
    console.warn('[Config] VITE_SOCKET_URL is not set. Socket connections may fail in production.');
  }
-;
-
-// Export flag so other modules can check if running natively
-export { isCapacitorNative };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 export const normalizeUid = (value: string | null | undefined): string => {

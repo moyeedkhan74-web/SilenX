@@ -173,32 +173,61 @@ export const AddContactModal: React.FC<AddContactModalProps> = ({ isOpen, onClos
   const lookupByUid = async (searchUid: string) => {
     setIsSearching(true);
     setError('');
-    try {
-      const token = await getFreshToken();
-      if (!token) {
-        setError('Authentication token missing. Please sign in again.');
-        setIsSearching(false);
-        return;
-      }
-      const res = await fetch(`${API_URL}/api/users/search?uid=${encodeURIComponent(searchUid)}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      if (res.ok) {
-        const user: FoundUser = await res.json();
-        setPreviewUser(user);
-      } else {
+
+    const maxAttempts = 5;
+    const delayMs = 2500;
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        const token = await getFreshToken();
+        if (!token) {
+          setError('Authentication token missing. Please sign in again.');
+          setIsSearching(false);
+          return;
+        }
+
+        if (attempt > 1) {
+          setError(`Waking up server (attempt ${attempt}/${maxAttempts})...`);
+        }
+
+        const res = await fetch(`${API_URL}/api/users/search?uid=${encodeURIComponent(searchUid)}`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (res.ok) {
+          const user: FoundUser = await res.json();
+          setPreviewUser(user);
+          setError('');
+          setIsSearching(false);
+          return;
+        }
+
+        // Handle Render 502/503/504 cold-start gateway pages
+        if (res.status === 503 || res.status === 502 || res.status === 504) {
+          if (attempt < maxAttempts) {
+            await new Promise((r) => setTimeout(r, delayMs));
+            continue;
+          }
+        }
+
         const body = await res.json().catch(() => ({}));
         setError(body.message || 'No account found for this Secure ID. Please check the ID and try again.');
         setScanSuccess(false);
+        setIsSearching(false);
+        return;
+      } catch (err) {
+        console.warn(`Lookup attempt ${attempt} failed:`, err);
+        if (attempt < maxAttempts) {
+          await new Promise((r) => setTimeout(r, delayMs));
+          continue;
+        }
+        setError('Network error during lookup. Please check your internet connection.');
+        setScanSuccess(false);
+        setIsSearching(false);
+        return;
       }
-    } catch (err) {
-      console.error('Lookup failed:', err);
-      setError('Network error during lookup.');
-      setScanSuccess(false);
-    } finally {
-      setIsSearching(false);
     }
   };
 
