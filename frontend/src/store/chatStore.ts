@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import type { Conversation, ChatMessage, UserStatus } from '../types';
 import { API_URL } from '../config/webrtc-config';
 import { useAuthStore } from './authStore';
+import { apiFetch } from '../utils/apiFetch';
 
 interface ChatState {
   conversations: Conversation[];
@@ -89,12 +90,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
   fetchConversations: async () => {
     set({ isLoading: true });
     try {
-      const token = useAuthStore.getState().token;
-      if (!token) return;
-      const res = await fetch(`${API_URL}/api/conversations`, {
+      const res = await apiFetch(`${API_URL}/api/conversations`, {
         headers: {
-          Authorization: `Bearer ${token}`,
-        }
+          Authorization: `Bearer ${useAuthStore.getState().token}`,
+        },
       });
       if (res.ok) {
         const data = await res.json();
@@ -110,12 +109,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   fetchMessages: async (conversationId: string) => {
     try {
-      const token = useAuthStore.getState().token;
-      if (!token) return;
-      const res = await fetch(`${API_URL}/api/conversations/${conversationId}/messages`, {
+      const res = await apiFetch(`${API_URL}/api/conversations/${conversationId}/messages`, {
         headers: {
-          Authorization: `Bearer ${token}`,
-        }
+          Authorization: `Bearer ${useAuthStore.getState().token}`,
+        },
       });
       if (res.ok) {
         const data = await res.json();
@@ -144,13 +141,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   createConversation: async (recipientUid: string) => {
     try {
-      const token = useAuthStore.getState().token;
-      if (!token) return null;
-      const res = await fetch(`${API_URL}/api/conversations`, {
+      const res = await apiFetch(`${API_URL}/api/conversations`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${useAuthStore.getState().token}`,
         },
         body: JSON.stringify({ type: 'direct', recipientUid }),
       });
@@ -177,11 +172,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
       const token = useAuthStore.getState().token;
       if (!token) return null;
 
-      const res = await fetch(`${API_URL}/api/groups`, {
+      const res = await apiFetch(`${API_URL}/api/groups`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${useAuthStore.getState().token}`,
         },
         body: JSON.stringify(payload),
       });
@@ -239,11 +234,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
       const token = useAuthStore.getState().token;
       if (!token) return false;
 
-      const res = await fetch(`${API_URL}/api/groups/${encodeURIComponent(groupId)}`, {
+      const res = await apiFetch(`${API_URL}/api/groups/${encodeURIComponent(groupId)}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${useAuthStore.getState().token}`,
         },
         body: JSON.stringify(payload),
       });
@@ -468,13 +463,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }),
   deleteConversation: async (convId) => {
     try {
-      const token = useAuthStore.getState().token;
-      if (!token) return;
-      const res = await fetch(`${API_URL}/api/conversations/${encodeURIComponent(convId)}`, {
+      const res = await apiFetch(`${API_URL}/api/conversations/${encodeURIComponent(convId)}`, {
         method: 'DELETE',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
       });
 
       if (res.ok) {

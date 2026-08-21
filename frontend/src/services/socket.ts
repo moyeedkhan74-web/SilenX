@@ -2,6 +2,7 @@ import { io, Socket } from 'socket.io-client';
 import { SOCKET_URL } from '../config/webrtc-config';
 import { useChatStore } from '../store/chatStore';
 import { useAuthStore } from '../store/authStore';
+import { auth } from '../config/firebase';
 import type { ChatMessage } from '../types';
 import { decryptMessage } from '../utils/crypto';
 import { API_URL } from '../config/webrtc-config';
@@ -106,9 +107,25 @@ export const connectSocket = (idToken?: string): Socket => {
     }
   });
 
-  socket.on('connect_error', (error) => {
-    console.error(`[Socket] Connection Error: ${error.message}`);
-  });
+socket.on('connect_error', async (error) => {
+  console.error(`[Socket] Connection Error: ${error.message}`);
+  if (error.message === 'UNAUTHORIZED' || error.message?.includes('UNAUTHORIZED')) {
+    try {
+      const currentUser = auth.currentUser;
+      if (currentUser) {
+        console.info('[Socket] UNAUTHORIZED received — Force-refreshing Firebase token...');
+        const freshToken = await currentUser.getIdToken(true);
+        useAuthStore.getState().setToken(freshToken);
+        if (socket) {
+          socket.auth = { token: freshToken };
+          socket.connect();
+        }
+      }
+    } catch (refreshErr) {
+      console.warn('[Socket] Token refresh on connect_error failed:', refreshErr);
+    }
+  }
+});
 
   socket.on('error', (err: { code: string; message: string }) => {
     console.warn('[Socket] Server error:', err.code, err.message);

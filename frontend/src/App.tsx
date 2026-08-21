@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
-import { onAuthStateChanged } from 'firebase/auth';
+import { onAuthStateChanged, onIdTokenChanged } from 'firebase/auth';
 import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
 import ChatsPage from './pages/ChatsPage';
@@ -86,7 +86,7 @@ function AppInner({
 }) {
   const { initializeKeys } = useCrypto();
 
-  useEffect(() => {
+useEffect(() => {
     const safetyTimer = setTimeout(() => {
       setInitialized(true);
     }, 1500);
@@ -191,8 +191,22 @@ function AppInner({
       }
     );
 
+    // 🆕 Add onIdTokenChanged listener for automatic token refresh
+    const unsubToken = onIdTokenChanged(auth, async (user) => {
+      if (user) {
+        try {
+          const freshToken = await user.getIdToken();
+          useAuthStore.getState().setToken(freshToken);
+          console.log('[Auth] Refreshed Firebase ID token in store');
+        } catch (err) {
+          console.warn('[Auth] Failed to update ID token:', err);
+        }
+      }
+    });
+
     return () => {
       unsubscribe();
+      unsubToken();
       clearTimeout(safetyTimer);
     };
   }, [login, logout, setInitialized, initializeKeys]);
