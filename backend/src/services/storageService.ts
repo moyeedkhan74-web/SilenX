@@ -3,6 +3,7 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import crypto from 'crypto';
 import path from 'path';
 import fs from 'fs';
+import os from 'os';
 
 // Environment variables for Cloud Storage (Backblaze B2 / AWS S3)
 const S3_ENDPOINT = process.env.B2_ENDPOINT || process.env.S3_ENDPOINT || '';
@@ -88,9 +89,16 @@ export async function uploadFile(
   }
 
   // Local fallback storage
-  const uploadsDir = path.join(process.cwd(), 'uploads', 'media', `${year}`, `${month}`);
-  if (!fs.existsSync(uploadsDir)) {
-    fs.mkdirSync(uploadsDir, { recursive: true });
+  let uploadsDir = path.join(process.cwd(), 'uploads', 'media', `${year}`, `${month}`);
+  try {
+    if (!fs.existsSync(uploadsDir)) {
+      fs.mkdirSync(uploadsDir, { recursive: true });
+    }
+  } catch {
+    uploadsDir = path.join(os.tmpdir(), 'silenx-uploads', 'media', `${year}`, `${month}`);
+    if (!fs.existsSync(uploadsDir)) {
+      fs.mkdirSync(uploadsDir, { recursive: true });
+    }
   }
 
   const localFilePath = path.join(uploadsDir, `${uuid}${ext}`);

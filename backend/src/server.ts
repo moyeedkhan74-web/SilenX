@@ -2,6 +2,7 @@ import express, { Request, Response } from 'express';
 import http from 'http';
 import path from 'path';
 import fs from 'fs';
+import os from 'os';
 import { Server } from 'socket.io';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -103,10 +104,22 @@ app.use((_req: Request, res: Response, next) => {
 app.options('*', cors(corsOptions));
 app.use(express.json());
 
-// Serve local uploads folder fallback
-const uploadsPath = path.join(process.cwd(), 'uploads');
-if (!fs.existsSync(uploadsPath)) {
-  fs.mkdirSync(uploadsPath, { recursive: true });
+// Serve local uploads folder fallback (safely handle permission restrictions in container environments)
+let uploadsPath = path.join(process.cwd(), 'uploads');
+try {
+  if (!fs.existsSync(uploadsPath)) {
+    fs.mkdirSync(uploadsPath, { recursive: true });
+  }
+} catch (err) {
+  console.warn('[Server] Container permission restricted on ./uploads. Falling back to OS temp dir.');
+  uploadsPath = path.join(os.tmpdir(), 'silenx-uploads');
+  try {
+    if (!fs.existsSync(uploadsPath)) {
+      fs.mkdirSync(uploadsPath, { recursive: true });
+    }
+  } catch (tmpErr) {
+    console.error('[Server] Failed to create fallback tmp uploads dir:', tmpErr);
+  }
 }
 app.use('/uploads', express.static(uploadsPath));
 
