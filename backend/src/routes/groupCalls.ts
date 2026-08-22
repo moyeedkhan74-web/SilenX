@@ -86,13 +86,42 @@ router.post('/livekit/token', async (req: AuthenticatedRequest, res: Response) =
     return;
   }
 
-  const roomName = req.body.roomName || `group_${req.body.groupId || 'default'}`;
+  // Room names are always derived server-side from validated participants so a
+  // client can never join an arbitrary room:
+  //   1-on-1 direct calls -> direct_<sorted user ids>
+  //   group calls         -> group_<groupId>
+  const mode = req.body?.mode === 'group' ? 'group' : 'direct';
+  let roomName: string;
+
+  if (mode === 'group') {
+    const groupId = String(req.body?.groupId || '');
+    const group = groups.find((g) => g.id === groupId);
+    if (!group) {
+      res.status(404).json({ message: 'Group not found' });
+      return;
+    }
+    if (!group.members.includes(currentUserId)) {
+      res.status(403).json({ message: 'Not allowed to join this group call' });
+      return;
+    }
+    roomName = `group_${groupId}`;
+  } else {
+    const targetUserId = String(req.body?.targetUserId || '');
+    const targetUser = users.find((u) => u.id === targetUserId);
+    if (!targetUser) {
+      res.status(404).json({ message: 'Call target not found' });
+      return;
+    }
+    roomName = `direct_${[currentUserId, targetUserId].sort().join('_')}`;
+  }
+
   const identity = user.id;
   const name = user.displayName || 'Guest';
 
   const at = new AccessToken(config.livekitApiKey, config.livekitApiSecret, {
     identity,
     name,
+    ttl: 3600, // 1 hour
   });
 
   const grant: VideoGrant = {
@@ -100,6 +129,7 @@ router.post('/livekit/token', async (req: AuthenticatedRequest, res: Response) =
     roomJoin: true,
     canPublish: true,
     canSubscribe: true,
+    canPublishData: true,
   };
   at.addGrant(grant);
 
@@ -111,6 +141,7 @@ router.post('/livekit/token', async (req: AuthenticatedRequest, res: Response) =
     roomName,
     identity,
     name,
+    e2ee: true,
   });
 });
 

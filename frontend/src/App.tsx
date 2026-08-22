@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+﻿import React, { useEffect } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { onAuthStateChanged, onIdTokenChanged } from 'firebase/auth';
 import LoginPage from './pages/LoginPage';
@@ -13,7 +13,7 @@ import { auth } from './config/firebase';
 import { useAuthStore } from './store/authStore';
 import { normalizeUid } from './config/webrtc-config';
 import { connectSocket } from './services/socket';
-import { webrtcService } from './services/webrtc';
+import { livekitService } from './services/livekit';
 import { authenticateWithGoogleBackend } from './services/authApi';
 import type { UserStatus } from './types';
 import './App.css';
@@ -142,13 +142,13 @@ useEffect(() => {
 
               try {
                 const socket = connectSocket(idToken);
-                webrtcService.initialize(socket);
+                livekitService.initialize(socket);
               } catch (error) {
                 console.warn('Socket connection failed:', error);
               }
             } catch (error) {
               console.warn('[App] Backend startup slow or unavailable, preserving existing session:', error);
-              // ⚠️ DO NOT sign out here — backend may be cold-starting (Render free tier).
+              // âš ï¸ DO NOT sign out here â€” backend may be cold-starting (Render free tier).
               // If the user already has a valid session in the store, keep it alive.
               const currentStore = useAuthStore.getState();
               if (currentStore.user && currentStore.token) {
@@ -156,12 +156,12 @@ useEffect(() => {
                 initializeKeys().catch(() => {});
                 try {
                   const socket = connectSocket(currentStore.token);
-                  webrtcService.initialize(socket);
+                  livekitService.initialize(socket);
                 } catch (socketErr) {
                   console.warn('[App] Socket reconnect failed during fallback:', socketErr);
                 }
               } else {
-                // No stored session at all — only then log out
+                // No stored session at all â€” only then log out
                 logout();
               }
             }
@@ -175,7 +175,7 @@ useEffect(() => {
               initializeKeys().catch(() => {});
               try {
                 const socket = connectSocket(currentStore.token);
-                webrtcService.initialize(socket);
+                livekitService.initialize(socket);
               } catch (err) {
                 console.warn('Socket reconnect notice:', err);
               }
@@ -191,7 +191,7 @@ useEffect(() => {
       }
     );
 
-    // 🆕 Add onIdTokenChanged listener for automatic token refresh
+    // ðŸ†• Add onIdTokenChanged listener for automatic token refresh
     const unsubToken = onIdTokenChanged(auth, async (user) => {
       if (user) {
         try {
@@ -247,3 +247,7 @@ useEffect(() => {
 }
 
 export default App;
+
+
+
+

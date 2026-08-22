@@ -1,8 +1,8 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+﻿import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { Phone, PhoneIncoming, PhoneMissed, PhoneOutgoing, Video, RefreshCw, MoreVertical, Trash2 } from 'lucide-react';
 import { Avatar } from '../components/Avatar';
 import { useAuthStore } from '../store/authStore';
-import { webrtcService } from '../services/webrtc';
+import { livekitService } from '../services/livekit';
 import { API_URL } from '../config/webrtc-config';
 
 interface CallLogEntry {
@@ -92,7 +92,7 @@ const CallsPage: React.FC = () => {
 
   const handleCallBack = async (targetUser: { id: string; displayName: string }, callType: 'audio' | 'video') => {
     if (!currentUser?.displayName) return;
-    const started = await webrtcService.startCall(
+    const started = await livekitService.startCall(
       targetUser.id,
       callType,
       targetUser.displayName,
@@ -428,7 +428,7 @@ const CallsPage: React.FC = () => {
               </div>
             )}
           </div>
-          <h1>📞 Calls</h1>
+          <h1>ðŸ“ž Calls</h1>
         </div>
         <button type="button" className="calls-refresh-btn" onClick={fetchLogs} title="Refresh">
           <RefreshCw size={16} />
@@ -436,7 +436,7 @@ const CallsPage: React.FC = () => {
       </div>
 
       {loading ? (
-        <div className="calls-loading">Loading call history…</div>
+        <div className="calls-loading">Loading call historyâ€¦</div>
       ) : error ? (
         <div className="calls-error">
           <p>{error}</p>
@@ -549,3 +549,5 @@ const CallsPage: React.FC = () => {
 };
 
 export default CallsPage;
+
+

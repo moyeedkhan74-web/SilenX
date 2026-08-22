@@ -1,9 +1,9 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import './CallOverlay.css';
 import ActiveCallScreen from './ActiveCallScreen';
 import IncomingCallScreen from './IncomingCallScreen';
 import { useCallStore } from '../store/callStore';
-import { webrtcService } from '../services/webrtc';
+import { livekitService } from '../services/livekit';
 
 const CallOverlay: React.FC = () => {
   const {
@@ -20,24 +20,24 @@ const CallOverlay: React.FC = () => {
     toggleVideo,
   } = useCallStore();
 
-  const [localStream, setLocalStream] = useState<MediaStream | null>(webrtcService.getLocalStream());
-  const [remoteStream, setRemoteStream] = useState<MediaStream | null>(webrtcService.getRemoteStream());
+  const [localStream, setLocalStream] = useState<MediaStream | null>(livekitService.getLocalStream());
+  const [remoteStream, setRemoteStream] = useState<MediaStream | null>(livekitService.getRemoteStream());
 
   useEffect(() => {
-    const unsubscribe = webrtcService.subscribeToStreamUpdates((local, remote) => {
+    const unsubscribe = livekitService.subscribeToStreamUpdates((local, remote) => {
       setLocalStream(local);
       setRemoteStream(remote);
     });
     return unsubscribe;
   }, []);
 
-  const isMicrophoneMuted = localStream ? webrtcService.isMicrophoneMuted() : isAudioMuted;
+  const isMicrophoneMuted = localStream ? livekitService.isMicrophoneMuted() : isAudioMuted;
 
   if (!isInCall) return null;
 
   const handleAccept = async () => {
     console.debug('[CallOverlay] accept button clicked');
-    const success = await webrtcService.acceptIncomingCall();
+    const success = await livekitService.acceptIncomingCall();
     if (!success) {
       window.alert('Unable to access your camera or microphone. Please allow permissions and try again.');
     }
@@ -45,28 +45,28 @@ const CallOverlay: React.FC = () => {
 
   const handleReject = () => {
     console.debug('[CallOverlay] reject button clicked');
-    // webrtcService.rejectCall() already calls resetCallState() → endCall()
-    webrtcService.rejectCall();
+    // livekitService.rejectCall() already calls resetCallState() â†’ endCall()
+    livekitService.rejectCall();
   };
 
   const handleEndCall = () => {
-    webrtcService.endCall();
+    livekitService.endCall();
   };
 
   const handleCancelOutgoingCall = () => {
     console.debug('[CallOverlay] outgoing call canceled');
-    webrtcService.endCall();
+    livekitService.endCall();
   };
 
   const handleToggleAudio = () => {
-    const newMuted = webrtcService.toggleAudio();
+    const newMuted = livekitService.toggleAudio();
     if (newMuted !== isMicrophoneMuted) {
       toggleAudio();
     }
   };
 
   const handleToggleVideo = async () => {
-    const newCameraOff = await webrtcService.toggleVideo();
+    const newCameraOff = await livekitService.toggleVideo();
     // Always sync store to match actual WebRTC state
     const storeVideoOff = useCallStore.getState().isVideoOff;
     if (newCameraOff !== storeVideoOff) {
@@ -106,3 +106,4 @@ const CallOverlay: React.FC = () => {
 };
 
 export default CallOverlay;
+

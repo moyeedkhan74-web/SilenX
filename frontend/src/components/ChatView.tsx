@@ -3,7 +3,7 @@ import { ArrowLeft, Phone, Video, MoreVertical, Lock, Search, Bell, UserX, Flag,
 import { useIsMobile } from '../hooks/useIsMobile';
 import { useChatStore } from '../store/chatStore';
 import { connectSocket } from '../services/socket';
-import { webrtcService } from '../services/webrtc';
+import { livekitService } from '../services/livekit';
 import type { ChatMessage } from '../types';
 import { Avatar } from './Avatar';
 import { MessageInputBar } from './MessageInputBar';
@@ -322,7 +322,7 @@ export const ChatView: React.FC = () => {
       return;
     }
 
-    const started = await webrtcService.startCall(
+    const started = await livekitService.startCall(
       target.id,
       'audio',
       chatName,
@@ -343,7 +343,7 @@ export const ChatView: React.FC = () => {
       return;
     }
 
-    const started = await webrtcService.startCall(
+    const started = await livekitService.startCall(
       target.id,
       'video',
       chatName,

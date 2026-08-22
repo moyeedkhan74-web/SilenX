@@ -145,23 +145,35 @@ app.get('/api/status', (_req: Request, res: Response) => {
   res.status(200).json({ usersOnline: io.engine.clientsCount });
 });
 
-// TURN Credentials Generator for WebRTC Calls
-app.get('/api/webrtc/turn-credentials', (_req: Request, res: Response) => {
+// ICE Servers for WebRTC Calls
+app.get('/api/webrtc/ice-servers', (_req: Request, res: Response) => {
   const secret = process.env.TURN_SECRET || 'silenx_turn_secret_2026';
   const username = `${Math.floor(Date.now() / 1000) + 3600}:silenx_user`;
   const hmac = crypto.createHmac('sha1', secret);
   hmac.update(username);
   const password = hmac.digest('base64');
 
-  res.status(200).json({
-    username,
-    credential: password,
-    ttl: 3600,
-    uris: [
-      'turn:stun.l.google.com:19302',
-      process.env.TURN_SERVER_URL || 'turn:global.turn.twilio.com:3478',
-    ],
-  });
+  const turnServerUrl = process.env.TURN_SERVER_URL || 'global.turn.twilio.com:3478';
+
+  // Build TURN URLs with UDP, TCP, and TLS/TTCP transports
+  const turnUrls = [
+    `turn:${turnServerUrl}?transport=udp`,
+    `turn:${turnServerUrl}?transport=tcp`,
+    `turns:${turnServerUrl}?transport=tcp`,
+  ];
+
+  const iceServers = [
+    // STUN servers
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:stun1.l.google.com:19302' },
+    { urls: 'stun:stun2.l.google.com:19302' },
+    { urls: 'stun:stun3.l.google.com:19302' },
+    { urls: 'stun:stun4.l.google.com:19302' },
+    // TURN server with credentials
+    { urls: turnUrls, username, credential: password },
+  ];
+
+  res.status(200).json(iceServers);
 });
 
 app.use('/api/auth', authLimiter, authRoutes);

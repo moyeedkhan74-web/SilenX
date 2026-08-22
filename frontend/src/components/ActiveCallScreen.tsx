@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Mic, MicOff, Video, VideoOff, Volume2, VolumeX, PhoneOff, Maximize2, Minimize2, RefreshCw } from 'lucide-react';
 import { Avatar } from './Avatar';
-import { webrtcService } from '../services/webrtc';
+import { livekitService } from '../services/livekit';
 
 import './ActiveCallScreen.css';
 
@@ -58,11 +58,11 @@ export default function ActiveCallScreen({
   const isVideo = callType === 'video';
   const showRemoteVideo = isVideo && remoteStream;
 
-  // Register video elements directly to WebRTC Service for seamless switching
+  // Register video elements directly to the LiveKit service for seamless switching
   useEffect(() => {
-    webrtcService.setVideoElements(localVideoRef.current, remoteVideoRef.current);
+    livekitService.setVideoElements(localVideoRef.current, remoteVideoRef.current);
     return () => {
-      webrtcService.setVideoElements(null, null);
+      livekitService.setVideoElements(null, null);
     };
   }, [localStream, remoteStream, isCameraOff, showRemoteVideo]);
 
@@ -261,7 +261,7 @@ export default function ActiveCallScreen({
               <button
                 type="button"
                 className="ctrl-btn ctrl-btn--on ctrl-btn--flip"
-                onClick={() => webrtcService.switchCamera()}
+                onClick={() => livekitService.switchCamera()}
                 aria-label="Flip camera angle"
                 title="Flip Camera Angle (Front/Back)"
               >
