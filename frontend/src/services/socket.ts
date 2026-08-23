@@ -51,6 +51,13 @@ export const clearPublicKeyCache = (userId: string): void => {
   }
 };
 
+// Negative cache: IDs that definitively have no public key. Cleared each time
+// the socket reconnects so new key uploads are picked up automatically.
+const noKeyCache = new Set<string>();
+
+// Known non-user virtual sender IDs that will never have a public key
+const VIRTUAL_SENDER_IDS = new Set(['system', 'bot', 'server', 'admin', '']);
+
 const fetchPublicKeyFromApi = async (userId: string): Promise<string | null> => {
   const token = useAuthStore.getState().token;
   if (!token) return null;
@@ -65,16 +72,26 @@ const fetchPublicKeyFromApi = async (userId: string): Promise<string | null> => 
   return data.publicKey || null;
 };
 
+export const clearNegativeKeyCache = (): void => {
+  noKeyCache.clear();
+};
+
 export const getPublicKey = async (userId: string): Promise<string | null> => {
-  // Check caches first
+  // Immediately bail on virtual / system senders — they never have public keys
+  if (!userId || VIRTUAL_SENDER_IDS.has(userId)) return null;
+
+  // Check positive caches first
   const cached = readCachedPublicKey(userId);
   if (cached) return cached;
 
+  // Check negative cache — don't hammer the server for IDs we know are keyless
+  if (noKeyCache.has(userId)) return null;
+
   try {
     let publicKey = await fetchPublicKeyFromApi(userId);
-    // Auto-heal: If this is the current user or local storage has a key, sync to server immediately
+    // Auto-heal: If this is the current user and local storage has a key, sync to server
     const currentUserId = useAuthStore.getState().user?.id;
-    if (!publicKey && (userId === currentUserId || !currentUserId)) {
+    if (!publicKey && userId === currentUserId) {
       const localKey = localStorage.getItem('slienx_public_key');
       if (localKey) {
         console.info(`[Socket] Syncing local public key to server for ${userId}`);
@@ -102,12 +119,15 @@ export const getPublicKey = async (userId: string): Promise<string | null> => {
       writeCachedPublicKey(userId, publicKey);
       return publicKey;
     }
+    // Add to negative cache so we don't keep spamming the server
+    noKeyCache.add(userId);
     console.warn(`[Socket] No public key available for ${userId} after retry`);
   } catch (error) {
     console.error('[Socket] Failed to fetch public key:', error);
   }
   return null;
 };
+
 
 let socket: Socket | null = null;
 let heartbeatInterval: ReturnType<typeof setInterval> | null = null;
@@ -195,6 +215,9 @@ export const connectSocket = (idToken?: string): Socket => {
 
   socket.on('connect', () => {
     console.log(`[Socket] Connected: ${socket?.id}`);
+    // Clear the negative key cache on every (re)connect so keys uploaded while
+    // offline or after a server restart are picked up immediately.
+    clearNegativeKeyCache();
     // Drain any messages queued while offline, then resume heartbeats
     void processOutbox();
     // Start heartbeat pings to keep the server aware we are active

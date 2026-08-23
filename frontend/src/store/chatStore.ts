@@ -206,11 +206,23 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
         const decrypted = await Promise.all(
           data.map(async (msg: ChatMessage) => {
+            // Skip: deleted, system messages, or messages with no text
             if (msg.isDeleted) return msg;
+            if ((msg as any).isSystem || msg.contentType === 'system') return msg;
+            if (!msg.senderId || msg.senderId === 'system') return msg;
+
+            const rawText = msg.text ?? '';
+            // Skip plaintext — only attempt decrypt on actual ciphertext
+            const isCiphertext = rawText.startsWith('SLX2.') || (
+              rawText.length >= 20 &&
+              /^[A-Za-z0-9+/=_-]+$/.test(rawText)
+            );
+            if (!isCiphertext) return msg;
+
             try {
               const plain = await decryptIncoming(
                 conversationId,
-                msg.text ?? '',
+                rawText,
                 msg.senderId,
                 otherMemberId
               );
@@ -219,9 +231,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
               console.warn('[ChatStore] History decryption failed for', msg.id, error);
               return {
                 ...msg,
-                text: typeof msg.text === 'string' && !msg.text.startsWith('SLX2.')
-                  ? msg.text
-                  : '[Encrypted Message]',
+                text: rawText.startsWith('SLX2.') ? '[Encrypted Message]' : rawText,
               };
             }
           })
