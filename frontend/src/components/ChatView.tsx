@@ -174,7 +174,6 @@ export const ChatView: React.FC = () => {
     addMessage(activeConversationId, msg);
     void dispatchMessage(activeConversationId, msg, {
       conversationId: activeConversationId,
-      encryptedContent: value,
       tempId: msg.id,
       recipientId,
       replyTo: payload?.replyTo,
@@ -219,7 +218,6 @@ export const ChatView: React.FC = () => {
     addMessage(activeConversationId, msg);
     void dispatchMessage(activeConversationId, msg, {
       conversationId: activeConversationId,
-      encryptedContent: msg.text,
       tempId: msg.id,
       recipientId,
       contentType: msg.contentType,

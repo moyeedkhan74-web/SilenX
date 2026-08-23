@@ -1,7 +1,6 @@
 import type { Socket } from 'socket.io-client';
-import { getSocket, getPublicKey, clearPublicKeyCache } from './socket';
+import { getSocket } from './socket';
 import { useChatStore } from '../store/chatStore';
-import { encryptMessage } from '../utils/crypto';
 import {
   queueOutgoing,
   listPendingOutgoing,
@@ -11,13 +10,16 @@ import {
   requeueAllSending,
   saveOfflineMessage,
 } from '../utils/offlineDb';
+import { encryptOutgoingText, noteMessageSent } from './e2ee';
 import type { OutgoingEntry } from '../utils/offlineDb';
 import type { ChatMessage } from '../types';
 
 /** Shape mirrored from the ChatView 'send-message' emits. */
 export interface OutgoingPayload {
   conversationId: string;
-  encryptedContent: string;
+  /** Optional: pre-encrypted content. When omitted, the dispatcher encrypts
+   * message.text under the conversation's current E2EE epoch key. */
+  encryptedContent?: string;
   tempId: string;
   recipientId?: string;
   replyTo?: { sender: string; text: string };
@@ -37,8 +39,9 @@ const ACK_TIMEOUT_MS = 8_000;
 
 /**
  * Entry point used by the UI. If we are online the message is emitted right
- * away (and cached in IndexedDB); if not, it is queued durably with status
- * 'pending_sync' until the sync manager drains it on reconnect.
+ * away (encrypted under the current E2EE epoch key); if not, the PLAINTEXT is
+ * queued durably so the sync manager can RE-ENCRYPT it with fresh keys at
+ * send time.
  */
 export async function dispatchMessage(
   conversationId: string,
@@ -48,7 +51,10 @@ export async function dispatchMessage(
   const socket = getSocket();
 
   if (socket?.connected) {
-    socket.emit('send-message', payload);
+    const encryptedContent =
+      payload.encryptedContent ?? (await encryptOutgoingText(conversationId, message.text, payload.recipientId));
+    socket.emit('send-message', { ...payload, encryptedContent });
+    noteMessageSent(conversationId, payload.recipientId);
     void saveOfflineMessage(message);
     return;
   }
@@ -62,7 +68,7 @@ export async function dispatchMessage(
     tempId: message.id,
     conversationId,
     status: 'pending_sync',
-    text: payload.encryptedContent,
+    text: message.text,
     recipientId: payload.recipientId,
     replyTo: payload.replyTo,
     contentType: payload.contentType,
@@ -145,10 +151,6 @@ function waitForAck(tempId: string): Promise<AckResult> {
 
 let isSyncing = false;
 
-function isGroupConversation(conversationId: string): boolean {
-  return conversationId.startsWith('conv_group_');
-}
-
 /**
  * Re-encrypts the queued plaintext with the recipient's CURRENT public key
  * (keys may have rotated while the device was offline), then emits and waits
@@ -160,24 +162,10 @@ async function sendQueuedEntry(entry: OutgoingEntry): Promise<boolean> {
 
   await markOutgoingSending(entry.tempId);
 
-  // Re-encrypt with fresh keys for direct conversations. Group crypto is
-  // handled separately (not yet implemented app-wide), so those payloads are
-  // passed through unchanged.
-  let encryptedContent = entry.text;
-  if (!isGroupConversation(entry.conversationId) && entry.recipientId) {
-    try {
-      clearPublicKeyCache(entry.recipientId);
-      const publicKey = await getPublicKey(entry.recipientId);
-      if (publicKey) {
-        const ciphertext = encryptMessage(entry.text, publicKey);
-        if (ciphertext) {
-          encryptedContent = ciphertext;
-        }
-      }
-    } catch (error) {
-      console.warn('[Outbox] Re-encryption failed, sending as-is:', error);
-    }
-  }
+  // Re-encrypt under the CURRENT epoch key. If keys rotated (or were rotated
+  // by the peer) while this device was offline, the fresh epoch key is used
+  // here — old keys are never reused for new sends.
+  let encryptedContent = await encryptOutgoingText(entry.conversationId, entry.text, entry.recipientId);
 
   const payload = {
     conversationId: entry.conversationId,

@@ -4,6 +4,7 @@ import naclUtil from 'tweetnacl-util';
 const PRIVATE_KEY_STORAGE = 'slienx_private_key';
 const PUBLIC_KEY_STORAGE = 'slienx_public_key';
 const SESSION_KEYS_PREFIX = 'slienx_session_keys_';
+const E2EE_META_PREFIX = 'slienx_e2ee_meta_';
 
 export interface KeyPair {
   publicKey: string;
@@ -333,6 +334,99 @@ export function removeSessionKey(conversationId: string): void {
  */
 export function hasKeys(): boolean {
   return !!getPrivateKey() && !!getPublicKey();
+}
+
+// ─── Key rotation (epoch) support ─────────────────────────────────────────────
+
+/**
+ * SHA-256 fingerprint of a public key (hex, first 32 chars). Lets peers
+ * verify which key version encrypted a message without transmitting secrets.
+ */
+export async function fingerprintPublicKey(publicKeyBase64: string): Promise<string> {
+  const raw = naclUtil.decodeBase64(publicKeyBase64);
+  const bytes = new Uint8Array(raw.byteLength);
+  bytes.set(raw);
+  const digest = await crypto.subtle.digest('SHA-256', bytes);
+  return Array.from(new Uint8Array(digest))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('')
+    .slice(0, 32);
+}
+
+/**
+ * Derives a new epoch shared secret from an ephemeral-ephemeral ECDH secret
+ * and the long-lived identity-authenticated ECDH secret:
+ *   K_new = SHA-512(ee || auth)[0..32]
+ *
+ * Mixing in the identity secret authenticates the handshake (defeats MITM),
+ * while the ephemeral component provides forward secrecy across epochs.
+ * Old secrets are never transmitted or derivable from the new one.
+ */
+export function deriveRotatedSecret(ephemeralSecret: Uint8Array, authSecret: Uint8Array): Uint8Array | null {
+  try {
+    const combined = new Uint8Array(ephemeralSecret.length + authSecret.length);
+    combined.set(ephemeralSecret, 0);
+    combined.set(authSecret, ephemeralSecret.length);
+    const hash = nacl.hash(combined);
+    return hash.slice(0, nacl.secretbox.keyLength);
+  } catch (error) {
+    console.error('[Crypto] Failed to derive rotated secret:', error);
+    return null;
+  }
+}
+
+/** Storage key for a specific conversation epoch's session key. */
+function epochKeyStorageId(conversationId: string, epoch: number): string {
+  return `${SESSION_KEYS_PREFIX}${conversationId}#v${epoch}`;
+}
+
+export function storeEpochSessionKey(conversationId: string, epoch: number, secret: Uint8Array): void {
+  localStorage.setItem(epochKeyStorageId(conversationId, epoch), naclUtil.encodeBase64(secret));
+}
+
+export function getEpochSessionKey(conversationId: string, epoch: number): Uint8Array | null {
+  const raw = localStorage.getItem(epochKeyStorageId(conversationId, epoch));
+  return raw ? safeDecodeBase64(raw) : null;
+}
+
+/** All cached epoch numbers for a conversation, newest first. */
+export function listConversationEpochs(conversationId: string): number[] {
+  const prefix = `${SESSION_KEYS_PREFIX}${conversationId}#v`;
+  const epochs: number[] = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key && key.startsWith(prefix)) {
+      const epoch = parseInt(key.slice(prefix.length), 10);
+      if (!Number.isNaN(epoch)) epochs.push(epoch);
+    }
+  }
+  return epochs.sort((a, b) => b - a);
+}
+
+/** Per-conversation rotation bookkeeping persisted locally. */
+export interface ConversationE2eeMeta {
+  epoch: number;
+  /** Epoch start timestamp (ms). */
+  createdAt: number;
+  /** Messages sent within this epoch. */
+  messagesSent: number;
+  /** Pending outgoing ephemeral keypair (base64) awaiting a rotate-ack. */
+  pendingRatchetPublicKey?: string;
+  pendingRatchetPrivateKey?: string;
+  pendingEpoch?: number;
+}
+
+export function loadConversationMeta(conversationId: string): ConversationE2eeMeta | null {
+  try {
+    const raw = localStorage.getItem(E2EE_META_PREFIX + conversationId);
+    return raw ? (JSON.parse(raw) as ConversationE2eeMeta) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function saveConversationMeta(conversationId: string, meta: ConversationE2eeMeta): void {
+  localStorage.setItem(E2EE_META_PREFIX + conversationId, JSON.stringify(meta));
 }
 
 /**

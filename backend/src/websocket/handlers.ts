@@ -15,6 +15,7 @@ import type {
   EditMessagePayload,
   DeleteMessagePayload,
   UserStatusPayload,
+  KeyRotatePayload,
 } from '../types';
 
 /** Extend socket.data with our authenticated userId (set once, never overwritten by client events) */
@@ -624,6 +625,37 @@ export function registerSocketHandlers(io: any): void {
 
       io.to(recipientSocketId).emit('ice-candidate-received', {
         candidate: data.candidate,
+        senderId: userId,
+      });
+    });
+
+    // ─── E2EE Key Rotation Handshake ────────────────────────────────────────
+    // Pure relay: only PUBLIC ephemeral keys transit the server. Shared
+    // secrets are derived independently on each device and never transmitted,
+    // so old (or new) session keys are never exposed to the backend.
+
+    socket.on('key:rotate-request', (data: KeyRotatePayload) => {
+      const recipientSocketId = getSocketIdForUser(data.targetUserId);
+      if (!recipientSocketId || data.targetUserId === userId) {
+        return;
+      }
+      io.to(recipientSocketId).emit('key:rotate-request-received', {
+        conversationId: data.conversationId,
+        epoch: data.epoch,
+        ephemeralPublicKey: data.ephemeralPublicKey,
+        senderId: userId,
+      });
+    });
+
+    socket.on('key:rotate-ack', (data: KeyRotatePayload) => {
+      const recipientSocketId = getSocketIdForUser(data.targetUserId);
+      if (!recipientSocketId || data.targetUserId === userId) {
+        return;
+      }
+      io.to(recipientSocketId).emit('key:rotate-ack-received', {
+        conversationId: data.conversationId,
+        epoch: data.epoch,
+        ephemeralPublicKey: data.ephemeralPublicKey,
         senderId: userId,
       });
     });

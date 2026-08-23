@@ -1,12 +1,21 @@
 import { Router, Response } from 'express';
+import { createHash, randomUUID } from 'crypto';
 import QRCode from 'qrcode';
 import { users, conversations, conversationMembers, messages, saveDb } from '../store/db';
 import { requireAuth, AuthenticatedRequest } from '../middleware/auth';
+import type { UserEncryptionKey } from '../types';
 
 const router = Router();
 
 // All routes require a verified Firebase ID token
 router.use(requireAuth as any);
+
+/** SHA-256 fingerprint of a public key — lets peers verify key versions. */
+function fingerprintPublicKey(publicKey: string): string {
+  return createHash('sha256').update(publicKey).digest('hex').slice(0, 32);
+}
+
+const MAX_KEY_HISTORY = 10;
 
 // GET /api/users/debug — disabled in production; returns minimal safe info in dev
 router.get('/debug', (req: AuthenticatedRequest, res: Response) => {
@@ -201,7 +210,7 @@ router.get('/search', (req: AuthenticatedRequest, res: Response) => {
   }
 });
 
-// PUT /api/users/public-key — Upload current user's public encryption key
+// PUT /api/users/public-key — Upload current public encryption key (versioned)
 router.put('/public-key', (req: AuthenticatedRequest, res: Response) => {
   const currentUserId = req.currentUser!.dbId;
   const { publicKey } = req.body;
@@ -217,23 +226,109 @@ router.put('/public-key', (req: AuthenticatedRequest, res: Response) => {
     return;
   }
 
+  const fingerprint = fingerprintPublicKey(publicKey);
+
+  // Initialize the versioned history, migrating any legacy single key first.
+  if (!selfUser.publicKeys || selfUser.publicKeys.length === 0) {
+    selfUser.publicKeys = [];
+    if (selfUser.publicKey) {
+      selfUser.publicKeys.push({
+        id: randomUUID(),
+        userId: currentUserId,
+        publicKey: selfUser.publicKey,
+        createdAt: new Date(),
+        expiresAt: null,
+        version: 1,
+        fingerprint: fingerprintPublicKey(selfUser.publicKey),
+      });
+    }
+  }
+
+  // Idempotent: re-uploading an identical key just refreshes updatedAt.
+  const existing = selfUser.publicKeys.find(k => k.fingerprint === fingerprint);
+  let version: number;
+  if (existing) {
+    existing.createdAt = new Date();
+    version = existing.version ?? selfUser.publicKeys.length;
+  } else {
+    const latestVersion = Math.max(0, ...selfUser.publicKeys.map(k => k.version ?? 0));
+    version = latestVersion + 1;
+    selfUser.publicKeys.push({
+      id: randomUUID(),
+      userId: currentUserId,
+      publicKey,
+      createdAt: new Date(),
+      expiresAt: null,
+      version,
+      fingerprint,
+    });
+    // Bound the history — oldest versions are pruned first.
+    while (selfUser.publicKeys.length > MAX_KEY_HISTORY) {
+      selfUser.publicKeys.shift();
+    }
+  }
+
+  // Keep legacy top-level field in sync (= latest key).
   selfUser.publicKey = publicKey;
   selfUser.updatedAt = new Date();
   saveDb();
 
-  res.status(200).json({ message: 'Public key updated successfully', publicKey });
+  res.status(200).json({
+    message: 'Public key updated successfully',
+    publicKey,
+    version,
+    fingerprint,
+    historySize: selfUser.publicKeys.length,
+  });
 });
 
-// GET /api/users/:id/public-key — Get user's public encryption key
+// GET /api/users/:id/public-key — Get user's current public encryption key
 router.get('/:id/public-key', (req: AuthenticatedRequest, res: Response) => {
   const targetUser = users.find(u => u.id === req.params.id);
   if (!targetUser) {
     res.status(404).json({ message: 'User not found' });
     return;
   }
+  const latest = targetUser.publicKeys?.[targetUser.publicKeys.length - 1];
   res.status(200).json({
     userId: req.params.id,
     publicKey: targetUser.publicKey || null,
+    version: latest?.version ?? 1,
+    fingerprint: latest?.fingerprint ?? (targetUser.publicKey ? fingerprintPublicKey(targetUser.publicKey) : null),
+  });
+});
+
+// GET /api/users/:id/public-keys — Full versioned public-key history so peers
+// can decrypt historical messages after a rotation. Public keys are safe to
+// serve; fingerprints allow integrity verification.
+router.get('/:id/public-keys', (req: AuthenticatedRequest, res: Response) => {
+  const targetUser = users.find(u => u.id === req.params.id);
+  if (!targetUser) {
+    res.status(404).json({ message: 'User not found' });
+    return;
+  }
+
+  let history: UserEncryptionKey[] = targetUser.publicKeys || [];
+  if (history.length === 0 && targetUser.publicKey) {
+    history = [{
+      id: randomUUID(),
+      userId: targetUser.id,
+      publicKey: targetUser.publicKey,
+      createdAt: new Date(),
+      expiresAt: null,
+      version: 1,
+      fingerprint: fingerprintPublicKey(targetUser.publicKey),
+    }];
+  }
+
+  res.status(200).json({
+    userId: req.params.id,
+    keys: history.map(k => ({
+      version: k.version ?? 1,
+      publicKey: k.publicKey,
+      fingerprint: k.fingerprint ?? fingerprintPublicKey(k.publicKey),
+      createdAt: k.createdAt instanceof Date ? k.createdAt.toISOString() : String(k.createdAt),
+    })),
   });
 });
 

@@ -16,6 +16,12 @@ export interface User {
   lastSeen: Date;
   bio: string;
   publicKey?: string | null;
+  /**
+   * Versioned public key history (newest last). Historical versions let
+   * peers decrypt messages that were encrypted under an older key after a
+   * rotation. Only public key material is stored here — safe to serve.
+   */
+  publicKeys?: UserEncryptionKey[];
   createdAt: Date;
   updatedAt: Date;
   deletedAt: Date | null;
@@ -28,6 +34,10 @@ export interface UserEncryptionKey {
   publicKey: string;
   createdAt: Date;
   expiresAt: Date | null;
+  /** Monotonic version number (1, 2, 3…) assigned on each rotation. */
+  version?: number;
+  /** SHA-256 fingerprint of the public key (hex, truncated) for verification. */
+  fingerprint?: string;
 }
 
 export interface Conversation {
@@ -273,6 +283,17 @@ export interface DeleteMessagePayload {
 export interface UserStatusPayload {
   userId: string;
   status: UserStatus;
+}
+
+/**
+ * E2EE key-rotation handshake. The relay only ever sees PUBLIC ephemeral
+ * keys — the negotiated shared secrets are derived locally on each device.
+ */
+export interface KeyRotatePayload {
+  conversationId: string;
+  targetUserId: string;
+  epoch: number;
+  ephemeralPublicKey?: string;
 }
 
 export interface ContactRequest {

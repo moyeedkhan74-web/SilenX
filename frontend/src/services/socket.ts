@@ -3,10 +3,14 @@ import { SOCKET_URL } from '../config/webrtc-config';
 import { useChatStore } from '../store/chatStore';
 import { useAuthStore } from '../store/authStore';
 import { auth } from '../config/firebase';
-import { decryptMessage } from '../utils/crypto';
 import type { ChatMessage } from '../types';
 import { API_URL } from '../config/webrtc-config';
 import { processOutbox, attachOutboxListeners } from './outbox';
+import {
+  decryptIncoming,
+  handleRotateRequest,
+  handleRotateAck,
+} from './e2ee';
 
 // Public key cache to avoid fetching on every message
 const publicKeyCache: Record<string, string> = {};
@@ -185,44 +189,21 @@ socket.on('receive-message', async (payload: any) => {
 
     const messageDate = payload?.createdAt ? new Date(payload.createdAt) : new Date();
 
-    // Decrypt message content if it's encrypted
+    // Decrypt message content through the unified E2EE pipeline (epoch keys,
+    // then identity keys, then historical key versions). Plaintext-looking
+    // content passes through unchanged; total failure shows '[Encrypted Message]'.
     let decryptedText = encryptedContent;
-    
-    // Check if content appears to be plaintext (not Base64 encrypted)
-    const isLikelyPlaintext = !encryptedContent || 
-      /^[^\s\S]*$/.test(encryptedContent) || // Empty or whitespace only
+
+    const isLikelyPlaintext = !encryptedContent ||
       encryptedContent.length < 20 || // Very short, likely not encrypted
       /^[a-zA-Z0-9\s]+$/.test(encryptedContent); // Only alphanumeric, likely plaintext
 
     if (senderId && encryptedContent && !isLikelyPlaintext) {
-      // Try to get public key from cache first
-      const cachedPublicKey = publicKeyCache[senderId];
-      let senderPublicKey = cachedPublicKey;
-      
-      if (!cachedPublicKey) {
-        // Fetch public key and cache it
-        const cached = await getPublicKey(senderId);
-        senderPublicKey = cached || '';
-      }
-      
-      if (senderPublicKey) {
-        try {
-          const token = useAuthStore.getState().token;
-          if (token) {
-            const plaintext = decryptMessage(encryptedContent, senderPublicKey);
-            if (plaintext) {
-              decryptedText = plaintext;
-            } else {
-              decryptedText = '[Encrypted Message]';
-            }
-          } else {
-            decryptedText = '[Encrypted Message]';
-          }
-        } catch (error) {
-          console.error('[Socket] Failed to decrypt message:', error);
-          decryptedText = '[Encrypted Message]';
-        }
-      } else {
+      try {
+        const plaintext = await decryptIncoming(conversationId, encryptedContent, senderId);
+        decryptedText = plaintext !== null ? plaintext : '[Encrypted Message]';
+      } catch (error) {
+        console.error('[Socket] Failed to decrypt message:', error);
         decryptedText = '[Encrypted Message]';
       }
     }
@@ -256,6 +237,15 @@ socket.on('receive-message', async (payload: any) => {
 
     useChatStore.getState().addMessage(conversationId, incomingMessage);
 });
+
+  // E2EE key-rotation handshake events
+  socket.on('key:rotate-request-received', (payload: any) => {
+    void handleRotateRequest(payload);
+  });
+
+  socket.on('key:rotate-ack-received', (payload: any) => {
+    void handleRotateAck(payload);
+  });
 
 socket.on('receive-message-reaction', (payload: any) => {
     const { conversationId, messageId, userId, emoji } = payload || {};
