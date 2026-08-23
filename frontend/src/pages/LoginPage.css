@@ -268,6 +268,99 @@
   box-sizing: border-box;
 }
 
+/* ── Ambient hero mesh: 10s continuous shifting radial-gradient blur ── */
+.hero-mesh {
+  position: absolute;
+  inset: -18%;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+  filter: blur(64px);
+  opacity: 0.55;
+}
+
+.hero-mesh-blob {
+  position: absolute;
+  border-radius: 50%;
+  will-change: transform;
+  animation: heroMeshDrift 10s ease-in-out infinite alternate;
+}
+
+.hero-mesh-blob-1 {
+  width: 46vw;
+  height: 46vw;
+  min-width: 380px;
+  min-height: 380px;
+  top: -8%;
+  left: -6%;
+  background: radial-gradient(circle, rgba(15, 23, 42, 0.95) 0%, transparent 68%);
+}
+
+.hero-mesh-blob-2 {
+  width: 40vw;
+  height: 40vw;
+  min-width: 340px;
+  min-height: 340px;
+  top: 12%;
+  right: -10%;
+  background: radial-gradient(circle, rgba(6, 78, 59, 0.85) 0%, transparent 68%);
+  animation-delay: -3.3s;
+}
+
+.hero-mesh-blob-3 {
+  width: 44vw;
+  height: 44vw;
+  min-width: 360px;
+  min-height: 360px;
+  bottom: -14%;
+  left: 28%;
+  background: radial-gradient(circle, rgba(30, 27, 75, 0.9) 0%, transparent 68%);
+  animation-delay: -6.6s;
+}
+
+@keyframes heroMeshDrift {
+  0% { transform: translate3d(0, 0, 0) scale(1); }
+  33% { transform: translate3d(6%, -8%, 0) scale(1.12); }
+  66% { transform: translate3d(-7%, 5%, 0) scale(0.94); }
+  100% { transform: translate3d(4%, -4%, 0) scale(1.08); }
+}
+
+/* Floating cryptographic hero badges — 4s GPU float loop */
+.hero-badges {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 24px;
+}
+
+.hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--teal-1);
+  background: rgba(31, 209, 168, 0.08);
+  border: 1px solid rgba(31, 209, 168, 0.22);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  will-change: transform;
+  animation: heroBadgeFloat 4s ease-in-out infinite;
+}
+
+.hero-badge:nth-child(2) { animation-delay: 0.65s; }
+.hero-badge:nth-child(3) { animation-delay: 1.3s; }
+
+@keyframes heroBadgeFloat {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  50% { transform: translate3d(0, -10px, 0); }
+}
+
 .hero-copy {
   flex: 1;
   max-width: 440px;
@@ -315,8 +408,29 @@
   display: flex;
   align-items: flex-start;
   gap: 14px;
-  opacity: 0;
-  animation: fadeRight 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  padding: 12px 14px;
+  margin: 0 -14px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  will-change: transform;
+  transition:
+    transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    box-shadow 220ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    border-color 220ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    background-color 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  /* backwards (not both): frees transform after entry so hover elevation works */
+  animation: fadeRight 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+}
+
+/* Hover elevation with dynamic glowing green border shadow */
+.feature:hover {
+  transform: translateY(-5px);
+  border-color: rgba(31, 209, 168, 0.38);
+  background: rgba(31, 209, 168, 0.05);
+  box-shadow:
+    0 14px 28px rgba(31, 209, 168, 0.16),
+    0 4px 12px rgba(0, 0, 0, 0.25);
 }
 
 .feature:nth-of-type(1) {

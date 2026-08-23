@@ -21,19 +21,24 @@ export const ChatsPage: React.FC = () => {
     fetchConversations();
   }, [hydrateFromStorage, hydrateFromIndexedDB, fetchConversations]);
 
-  // Mobile: show either chat list or chat view, never both
+  // Mobile: show either chat list or chat view, never both.
+  // The chat view slides in natively over the list (240ms GPU transform).
   if (isMobile) {
     return (
-      <div className="dashboard-chat-layout" style={{
+      <div className={`dashboard-chat-layout chats-mobile ${activeConversationId ? 'chat-open' : ''}`} style={{
         display: 'flex',
         flex: 1,
         height: '100%',
-        overflow: 'hidden'
+        overflow: 'hidden',
+        position: 'relative'
       }}>
-        {activeConversationId ? (
-          <ChatView />
-        ) : (
+        <div className="mobile-pane mobile-pane-list" aria-hidden={Boolean(activeConversationId)}>
           <ChatList onNewChatClick={() => navigate('/contacts')} />
+        </div>
+        {activeConversationId && (
+          <div className="mobile-pane mobile-pane-chat">
+            <ChatView />
+          </div>
         )}
       </div>
     );

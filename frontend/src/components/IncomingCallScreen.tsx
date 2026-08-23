@@ -48,12 +48,11 @@ const IncomingCallScreen: React.FC<IncomingCallScreenProps> = ({
       <div className="incoming-call-panel">
         <div className="incoming-call-glow" />
 
-        {/* Pulsing Avatar Frame */}
+        {/* Radar Pulse Avatar Frame — 3 concentric GPU rings */}
         <div className="incoming-ring-group">
-          <div className={`incoming-ring incoming-ring-1 ${isCaller ? 'outgoing' : 'incoming'}`} />
-          <div className={`incoming-ring incoming-ring-2 ${isCaller ? 'outgoing' : 'incoming'}`} />
-          <div className={`incoming-ring incoming-ring-3 ${isCaller ? 'outgoing' : 'incoming'}`} />
-          <div className={`incoming-ring incoming-ring-4 ${isCaller ? 'outgoing' : 'incoming'}`} />
+          <div className={`radar-ring radar-ring-1 ${isCaller ? 'outgoing' : 'incoming'}`} aria-hidden="true" />
+          <div className={`radar-ring radar-ring-2 ${isCaller ? 'outgoing' : 'incoming'}`} aria-hidden="true" />
+          <div className={`radar-ring radar-ring-3 ${isCaller ? 'outgoing' : 'incoming'}`} aria-hidden="true" />
           <div className="incoming-avatar-frame">
             <Avatar name={displayName} size={110} avatarUrl={callerAvatarUrl || undefined} />
             <div className="incoming-call-type-badge" aria-hidden="true" title={title}>

@@ -621,6 +621,10 @@ export const ChatView: React.FC = () => {
             <div className="chatview-header-meta">
               <h3 className="chatview-header-name">
                 {chatName}
+                <span className="e2ee-badge" title="End-to-end encrypted">
+                  <Lock size={10} strokeWidth={2.6} />
+                  E2EE
+                </span>
               </h3>
               <span className={`chatview-status-subtext ${status === 'online' ? 'online' : ''}`}>
                 {statusText}

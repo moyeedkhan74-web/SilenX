@@ -12,30 +12,76 @@ import {
   handleRotateAck,
 } from './e2ee';
 
-// Public key cache to avoid fetching on every message
+// Public key cache to avoid fetching on every message.
+// L1: memory; L2: localStorage (`slx_pubkey_<id>`) so keys survive reloads and
+// history decryption works immediately after app start.
 const publicKeyCache: Record<string, string> = {};
+const PUBKEY_LS_PREFIX = 'slx_pubkey_';
+
+function readCachedPublicKey(userId: string): string | null {
+  if (publicKeyCache[userId]) return publicKeyCache[userId];
+  try {
+    const stored = localStorage.getItem(PUBKEY_LS_PREFIX + userId);
+    if (stored) {
+      publicKeyCache[userId] = stored;
+      return stored;
+    }
+  } catch {
+    // localStorage unavailable
+  }
+  return null;
+}
+
+function writeCachedPublicKey(userId: string, publicKey: string): void {
+  publicKeyCache[userId] = publicKey;
+  try {
+    localStorage.setItem(PUBKEY_LS_PREFIX + userId, publicKey);
+  } catch {
+    // quota / privacy mode — memory cache still applies
+  }
+}
 
 /** Drop a cached recipient key so the next fetch gets a fresh one (key rotation). */
 export const clearPublicKeyCache = (userId: string): void => {
   delete publicKeyCache[userId];
+  try {
+    localStorage.removeItem(PUBKEY_LS_PREFIX + userId);
+  } catch {
+    // ignore
+  }
+};
+
+const fetchPublicKeyFromApi = async (userId: string): Promise<string | null> => {
+  const token = useAuthStore.getState().token;
+  if (!token) return null;
+  const res = await fetch(`${API_URL}/api/users/${userId}/public-key`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) {
+    console.warn(`[Socket] Public key fetch for ${userId} failed — HTTP ${res.status}`);
+    return null;
+  }
+  const data = await res.json();
+  return data.publicKey || null;
 };
 
 export const getPublicKey = async (userId: string): Promise<string | null> => {
-  // Check cache first
-  if (publicKeyCache[userId]) return publicKeyCache[userId];
+  // Check caches first
+  const cached = readCachedPublicKey(userId);
+  if (cached) return cached;
 
   try {
-    const token = useAuthStore.getState().token;
-    if (!token) return null;
-    const res = await fetch(`${API_URL}/api/users/${userId}/public-key`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (res.ok) {
-      const data = await res.json();
-      const publicKey = data.publicKey;
-      publicKeyCache[userId] = publicKey || '';
-      return publicKeyCache[userId];
+    let publicKey = await fetchPublicKeyFromApi(userId);
+    // Retry once on empty responses before giving up.
+    if (!publicKey) {
+      console.warn(`[Socket] Empty public key for ${userId} — retrying once`);
+      publicKey = await fetchPublicKeyFromApi(userId);
     }
+    if (publicKey) {
+      writeCachedPublicKey(userId, publicKey);
+      return publicKey;
+    }
+    console.warn(`[Socket] No public key available for ${userId} after retry`);
   } catch (error) {
     console.error('[Socket] Failed to fetch public key:', error);
   }
@@ -200,7 +246,8 @@ socket.on('receive-message', async (payload: any) => {
 
     if (senderId && encryptedContent && !isLikelyPlaintext) {
       try {
-        const plaintext = await decryptIncoming(conversationId, encryptedContent, senderId);
+        const currentUserId = useAuthStore.getState().user?.id || '';
+        const plaintext = await decryptIncoming(conversationId, encryptedContent, senderId, currentUserId);
         decryptedText = plaintext !== null ? plaintext : '[Encrypted Message]';
       } catch (error) {
         console.error('[Socket] Failed to decrypt message:', error);

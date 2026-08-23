@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Lock, Clock3, Layers3 } from 'lucide-react';
+import { Lock, Clock3, Layers3, ShieldCheck, KeyRound, Fingerprint } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
 import { GoogleAuth } from '@codetrix-studio/capacitor-google-auth';
 import { GoogleAuthProvider, signInWithCredential, signInWithPopup, signInWithRedirect, getRedirectResult } from 'firebase/auth';
@@ -253,8 +253,31 @@ const LoginPage: React.FC = () => {
       </header>
 
       <main className="hero">
+        {/* Ambient hero mesh — 10s shifting radial gradient blur (GPU transform only) */}
+        <div className="hero-mesh" aria-hidden="true">
+          <span className="hero-mesh-blob hero-mesh-blob-1" />
+          <span className="hero-mesh-blob hero-mesh-blob-2" />
+          <span className="hero-mesh-blob hero-mesh-blob-3" />
+        </div>
+
         <section className="hero-copy">
           <span className="eyebrow">Now on web, desktop &amp; mobile</span>
+
+          <div className="hero-badges" aria-label="Cryptographic guarantees">
+            <span className="hero-badge">
+              <ShieldCheck size={13} />
+              X25519 End-to-End
+            </span>
+            <span className="hero-badge">
+              <KeyRound size={13} />
+              Rotating Session Keys
+            </span>
+            <span className="hero-badge">
+              <Fingerprint size={13} />
+              Zero Server Access
+            </span>
+          </div>
+
           <h2>Conversations that stay yours.</h2>
           <p>
             SlienX pairs end-to-end encrypted messaging with crystal-clear calls, so what you say stays between you and the people you're talking to — nobody else.

@@ -132,20 +132,10 @@ export const ChatList: React.FC<ChatListProps> = ({ onNewChatClick }) => {
           }} />
           <input
             type="text"
+            className="convo-search-input"
             placeholder="Search conversations..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            style={{
-              width: '100%',
-              padding: '8px 12px 8px 36px',
-              borderRadius: '8px',
-              border: '1px solid var(--border-color)',
-              backgroundColor: 'var(--bg-secondary)',
-              color: 'var(--text-primary)',
-              fontSize: '13px',
-              outline: 'none',
-              boxSizing: 'border-box'
-            }}
           />
         </div>
       </div>
@@ -187,20 +177,6 @@ export const ChatList: React.FC<ChatListProps> = ({ onNewChatClick }) => {
               onTouchStart={(e) => handleTouchStart(e, convo.id, !!convo.isPinned, !!convo.isMuted)}
               onTouchMove={handleTouchMove}
               onTouchEnd={handleTouchEnd}
-              style={{
-                width: '100%',
-                display: 'flex',
-                alignItems: 'center',
-                padding: '12px',
-                border: 'none',
-                background: isActive ? 'var(--bg-secondary)' : 'transparent',
-                borderRadius: '8px',
-                cursor: 'pointer',
-                textAlign: 'left',
-                transition: 'background 0.2s',
-                marginBottom: '4px',
-                userSelect: 'none'
-              }}
             >
               <div slot="avatar" style={{ marginRight: '12px' }}>
                 <AvatarDisplay name={displayName || ''} avatarUrl={avatarUrl} size={40} status={status} />
@@ -244,15 +220,10 @@ export const ChatList: React.FC<ChatListProps> = ({ onNewChatClick }) => {
                   {convo.lastMessageTime || ''}
                 </span>
                 {convo.unreadCount > 0 && (
-                  <span className="convo-unread" style={{
-                    backgroundColor: 'var(--color-primary)',
-                    color: 'var(--color-on-accent)',
-                    borderRadius: '10px',
-                    padding: '2px 6px',
-                    fontSize: '10px',
-                    fontWeight: 600,
-                    marginTop: '4px'
-                  }}>
+                  <span
+                    key={convo.unreadCount}
+                    className="convo-unread"
+                  >
                     {convo.unreadCount}
                   </span>
                 )}

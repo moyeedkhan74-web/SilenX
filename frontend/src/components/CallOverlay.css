@@ -7,7 +7,8 @@
   flex-direction: column;
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  animation: fadeIn 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  will-change: transform, opacity;
+  animation: callOverlaySpringUp 320ms cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
 }
 
 .incoming-call-panel {
@@ -125,17 +126,19 @@
   display: grid;
   place-items: center;
   cursor: pointer;
-  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+  will-change: transform, opacity;
+  transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease, background 0.2s ease;
   color: white;
   box-shadow: 0 18px 40px rgba(var(--color-overlay-rgb), 0.18);
 }
 
 .incoming-action-btn:hover {
-  transform: translateY(-2px) scale(1.03);
+  transform: scale(1.08) translateY(-2px);
 }
 
 .incoming-action-btn:active {
-  transform: scale(0.96);
+  transform: scale(0.93);
+  transition-duration: 0.08s;
 }
 
 .incoming-action-btn.accept {
@@ -169,6 +172,18 @@
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(12px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+/* Spring slide-up entrance for the full call overlay (overshooting bezier) */
+@keyframes callOverlaySpringUp {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 48px, 0) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
 }
 
 

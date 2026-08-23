@@ -179,7 +179,7 @@ export const Sidebar: React.FC<SidebarProps> = () => {
               <div className="nav-icon-wrapper">
                 {tab.icon}
                 {tab.badge > 0 && (
-                  <span className="nav-badge">{tab.badge > 9 ? '9+' : tab.badge}</span>
+                  <span key={tab.badge} className="nav-badge">{tab.badge > 9 ? '9+' : tab.badge}</span>
                 )}
               </div>
               {isMobile && <span className="nav-label">{tab.label}</span>}

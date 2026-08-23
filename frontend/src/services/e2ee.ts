@@ -27,8 +27,8 @@ const ROTATION_MESSAGE_THRESHOLD = 1_000;
 const CIPHER_HEADER = 'SLX2';
 /** Bound the fallback chain when scanning historical epochs / keys. */
 const MAX_FALLBACK_EPOCHS = 8;
-/** Smallest possible legacy box payload: 24-byte nonce + 16-byte MAC + 32-byte zero padding. */
-const MIN_BOX_BYTES = 72;
+/** Smallest possible legacy box payload: 24-byte nonce + 32-byte zero padding + 0-byte message. */
+const MIN_BOX_BYTES = 56;
 
 interface RotateEventPayload {
   conversationId: string;
@@ -305,6 +305,7 @@ function looksLikeCiphertext(content: string): boolean {
 /** Try to decrypt an epoch-tagged body with every plausible symmetric key. */
 async function decryptEpochPayload(
   conversationId: string,
+  peerId: string,
   senderId: string,
   epoch: number | null,
   ciphertextBody: string
@@ -312,10 +313,12 @@ async function decryptEpochPayload(
   // 1. Exact epoch key first — this is almost always the one.
   let exactKey = epoch !== null ? getEpochSessionKey(conversationId, epoch) : null;
 
-  // Lazy bootstrap: the very first message in a conversation can arrive before
-  // we ever derived Epoch 1 locally (e.g. fresh install / cleared storage).
+  // Lazy bootstrap: the first message in a conversation (or a fresh install /
+  // cleared storage) can arrive before we ever derived Epoch 1 locally.
+  // The shared secret is derived against the crypto PEER — the recipient when
+  // reading our own sent history, the sender for received messages.
   if (!exactKey && !isGroup(conversationId)) {
-    await ensureBootstrapEpoch(conversationId, senderId);
+    await ensureBootstrapEpoch(conversationId, peerId);
     exactKey = epoch !== null ? getEpochSessionKey(conversationId, epoch) : null;
     if (exactKey) {
       console.info(`[E2EE] Lazily bootstrapped session keys for ${conversationId} during decrypt`);
@@ -345,43 +348,59 @@ async function decryptEpochPayload(
 
   // 3. Identity-box decryption with the sender's CURRENT public key — covers
   // senders that have not adopted epoch encryption yet but wrapped the payload
-  // with the SLX2 header anyway.
-  const currentKey = await getPublicKey(senderId);
-  if (currentKey) {
-    const plain = decryptMessage(ciphertextBody, currentKey);
-    if (plain !== null) return plain;
-  }
+  // with the SLX2 header anyway. Only meaningful for genuinely received
+  // messages (our own sent boxes were made to the peer's public key).
+  if (senderId) {
+    const currentKey = await getPublicKey(senderId);
+    if (currentKey) {
+      const plain = decryptMessage(ciphertextBody, currentKey);
+      if (plain !== null) return plain;
+    }
 
-  // 4. Sender's historical public key versions.
-  const history = await fetchPublicKeyHistory(senderId);
-  for (const entry of history.slice(-MAX_FALLBACK_EPOCHS).reverse()) {
-    if (entry.publicKey === currentKey) continue;
-    const plain = decryptMessage(ciphertextBody, entry.publicKey);
-    if (plain !== null) return plain;
+    // 4. Sender's historical public key versions.
+    const history = await fetchPublicKeyHistory(senderId);
+    for (const entry of history.slice(-MAX_FALLBACK_EPOCHS).reverse()) {
+      if (entry.publicKey === currentKey) continue;
+      const plain = decryptMessage(ciphertextBody, entry.publicKey);
+      if (plain !== null) return plain;
+    }
   }
 
   return null;
 }
 
 /**
- * Unified incoming decryption with graceful fallbacks:
+ * Unified incoming decryption with graceful fallbacks. Works for BOTH
+ * received messages and your own sent messages reloaded from history:
+ * the crypto peer is resolved automatically (recipient for self-sent
+ * messages, sender otherwise).
+ *
  *   1. Epoch-tagged payload (`SLX2.<epoch>.<body>`):
- *      a) lazy bootstrap of local session keys if missing, then exact epoch key
+ *      a) lazy bootstrap of local session keys against the PEER if missing
  *      b) all stored epoch keys (newest -> oldest)
  *      c) identity-box decryption with the sender's current public key
  *      d) the sender's historical public key versions
- *   2. Legacy payload:
- *      identity-box decryption, then historical key versions, then bootstrap
+ *   2. Legacy payload: identity-box, then historical versions, then bootstrap
  *   3. Anything that lacks ciphertext structure is returned as plaintext.
- * Returns null only when the payload looks like genuine ciphertext that no key
- * could open (caller shows '[Encrypted Message]').
+ * Returns null only when the payload looks like genuine ciphertext that no
+ * key could open (callers must display '[Encrypted Message]', never raw
+ * ciphertext).
  */
 export async function decryptIncoming(
   conversationId: string,
   encryptedContent: string,
-  senderId: string
+  senderId: string,
+  recipientId?: string
 ): Promise<string | null> {
   if (!encryptedContent) return null;
+
+  // Resolve the crypto peer: when reading OUR OWN sent messages from
+  // history, the shared secret was derived against the RECIPIENT.
+  const currentUserId = useAuthStore.getState().user?.id;
+  const peerId =
+    currentUserId && senderId === currentUserId
+      ? recipientId || ''
+      : senderId;
 
   const isEpochTagged = encryptedContent.startsWith(`${CIPHER_HEADER}.`);
 
@@ -393,33 +412,43 @@ export async function decryptIncoming(
     if (Number.isNaN(epoch)) {
       console.warn('[E2EE] Malformed SLX2 header:', encryptedContent.slice(0, 24));
     } else {
-      const plain = await decryptEpochPayload(conversationId, senderId, epoch, ciphertextBody);
+      const plain = await decryptEpochPayload(
+        conversationId,
+        peerId,
+        peerId === senderId ? senderId : '',
+        epoch,
+        ciphertextBody
+      );
       if (plain !== null) return plain;
     }
     return null; // structured ciphertext we cannot open -> '[Encrypted Message]'
   }
 
   // ── Legacy identity-box payload ──
-  const currentKey = await getPublicKey(senderId);
-  if (currentKey) {
-    const plain = decryptMessage(encryptedContent, currentKey);
-    if (plain !== null) return plain;
-  }
+  // Only receivable messages can be opened here: the box was created with the
+  // sender's private key + our public key.
+  if (peerId && peerId === senderId) {
+    const currentKey = await getPublicKey(senderId);
+    if (currentKey) {
+      const plain = decryptMessage(encryptedContent, currentKey);
+      if (plain !== null) return plain;
+    }
 
-  // Fallback: try every cached HISTORICAL public key version of the sender —
-  // covers messages received just before the sender rotated their identity key.
-  const history = await fetchPublicKeyHistory(senderId);
-  for (const entry of history.slice(-MAX_FALLBACK_EPOCHS).reverse()) {
-    if (entry.publicKey === currentKey) continue;
-    const plain = decryptMessage(encryptedContent, entry.publicKey);
-    if (plain !== null) return plain;
+    // Fallback: try every cached HISTORICAL public key version of the sender —
+    // covers messages received just before the sender rotated their identity key.
+    const history = await fetchPublicKeyHistory(senderId);
+    for (const entry of history.slice(-MAX_FALLBACK_EPOCHS).reverse()) {
+      if (entry.publicKey === currentKey) continue;
+      const plain = decryptMessage(encryptedContent, entry.publicKey);
+      if (plain !== null) return plain;
+    }
   }
 
   // Ensure local session keys exist for future messages even if this one was
-  // not recoverable through the symmetric path.
-  if (!isGroup(conversationId)) {
+  // not recoverable through any path above.
+  if (!isGroup(conversationId) && peerId) {
     try {
-      await ensureBootstrapEpoch(conversationId, senderId);
+      await ensureBootstrapEpoch(conversationId, peerId);
     } catch {
       // best-effort only
     }

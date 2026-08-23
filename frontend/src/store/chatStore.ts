@@ -12,6 +12,7 @@ import {
   getConversationsCache,
   deleteConversationCache,
 } from '../utils/offlineDb';
+import { decryptIncoming } from '../services/e2ee';
 
 interface ChatState {
   conversations: Conversation[];
@@ -157,7 +158,24 @@ export const useChatStore = create<ChatState>((set, get) => ({
         },
       });
       if (res.ok) {
-        const data = await res.json();
+        const data: Conversation[] = await res.json();
+        // Sidebar previews must never show raw ciphertext. Attempt local
+        // decryption of SLX2-tagged previews; mask anything unrecoverable.
+        const currentUserId = useAuthStore.getState().user?.id || '';
+        await Promise.all(
+          data.map(async (convo) => {
+            const preview = convo.lastMessage;
+            if (!preview || !preview.startsWith('SLX2.')) return;
+            const otherMemberId =
+              convo.members?.find((m) => m.id !== currentUserId)?.id || currentUserId;
+            try {
+              const plain = await decryptIncoming(convo.id, preview, '', otherMemberId);
+              convo.lastMessage = plain !== null ? plain : '🔒 Encrypted message';
+            } catch {
+              convo.lastMessage = '🔒 Encrypted message';
+            }
+          })
+        );
         set({ conversations: data });
         persistState({ conversations: data });
         void saveConversationsCache(data);
@@ -178,11 +196,49 @@ export const useChatStore = create<ChatState>((set, get) => ({
       });
       if (res.ok) {
         const data = await res.json();
+        // History arrives as ciphertext (`text` holds encryptedContent on the
+        // wire). Decrypt each entry locally — including our OWN sent messages,
+        // whose shared secret is derived against the conversation peer.
+        const currentUserId = useAuthStore.getState().user?.id || '';
+        const conversation = get().conversations.find((c) => c.id === conversationId);
+        const otherMemberId =
+          conversation?.members?.find((m) => m.id !== currentUserId)?.id || currentUserId;
+
+        const decrypted = await Promise.all(
+          data.map(async (msg: ChatMessage) => {
+            if (msg.isDeleted) return msg;
+            try {
+              const plain = await decryptIncoming(
+                conversationId,
+                msg.text ?? '',
+                msg.senderId,
+                otherMemberId
+              );
+              return { ...msg, text: plain !== null ? plain : '[Encrypted Message]' };
+            } catch (error) {
+              console.warn('[ChatStore] History decryption failed for', msg.id, error);
+              return {
+                ...msg,
+                text: typeof msg.text === 'string' && !msg.text.startsWith('SLX2.')
+                  ? msg.text
+                  : '[Encrypted Message]',
+              };
+            }
+          })
+        );
+
         set((state) => {
           const mergedMessages = [...(state.messages[conversationId] || [])];
-          data.forEach((msg: ChatMessage) => {
-            if (!mergedMessages.some((existing) => existing.id === msg.id)) {
+          decrypted.forEach((msg: ChatMessage) => {
+            const existingIdx = mergedMessages.findIndex((existing) => existing.id === msg.id);
+            if (existingIdx === -1) {
               mergedMessages.push(msg);
+            } else if (
+              mergedMessages[existingIdx].text?.startsWith('SLX2.') ||
+              mergedMessages[existingIdx].text === '[Encrypted Message]'
+            ) {
+              // Upgrade a previously-undecryptable local copy with plaintext.
+              mergedMessages[existingIdx] = msg;
             }
           });
           const sorted = sortMessagesByTime(mergedMessages);

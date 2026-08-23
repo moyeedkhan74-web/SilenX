@@ -476,6 +476,29 @@ body {
     touch-action: manipulation;
   }
 
+  /* ── GPU-accelerated touch feedback on interactive list items & buttons ── */
+  .convo-card:active,
+  .nav-item:active,
+  .btn:active,
+  .icon-btn:active,
+  .input-icon-btn:active,
+  .dropdown-item:active,
+  .new-chat-btn:active,
+  .contact-card-actions button:active,
+  .google-btn:active {
+    transform: scale(0.96);
+    opacity: 0.88;
+    transition: transform 0.08s ease, opacity 0.08s ease;
+  }
+
+  .convo-card,
+  .nav-item,
+  .btn,
+  .icon-btn,
+  .new-chat-btn {
+    will-change: transform, opacity;
+  }
+
   /* Prevent text scaling glitches on orientation change */
   html {
     -webkit-text-size-adjust: 100%;

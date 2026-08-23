@@ -1,11 +1,31 @@
 import { describe, it, expect, vi, beforeAll } from 'vitest';
+import nacl from 'tweetnacl';
+import naclUtil from 'tweetnacl-util';
 import { decryptIncoming } from '../services/e2ee';
 import {
   computeSharedSecret,
   encryptWithSymmetricKey,
-  encryptMessage,
   storeEpochSessionKey,
 } from '../utils/crypto';
+
+/**
+ * Build a legacy incoming payload exactly like a real sender would:
+ * box(plaintext, nonce, recipientPublicKey, senderPrivateKey), prefixed with
+ * the nonce — opening it requires senderPublic + recipientPrivate.
+ */
+function boxFrom(senderPrivateKey: string, recipientPublicKey: string, plaintext: string): string {
+  const nonce = nacl.randomBytes(nacl.box.nonceLength);
+  const boxed = nacl.box(
+    naclUtil.decodeUTF8(plaintext),
+    nonce,
+    naclUtil.decodeBase64(recipientPublicKey),
+    naclUtil.decodeBase64(senderPrivateKey)
+  );
+  const full = new Uint8Array(nonce.length + boxed.length);
+  full.set(nonce);
+  full.set(boxed, nonce.length);
+  return naclUtil.encodeBase64(full);
+}
 
 // ─── Environment shims (must exist before crypto utils are exercised) ─────────
 
@@ -23,6 +43,7 @@ const localStorageStore = new Map<string, string>();
 // ─── Test identities ──────────────────────────────────────────────────────────
 
 const ALICE_ID = 'alice-user';
+const SELF_USER_ID = 'self-user';
 const SELF: { keys?: { privateKey: string; publicKey: string } } = {};
 const ALICE: { keys?: { privateKey: string; publicKey: string } } = {};
 /** Mutable: lets individual tests simulate the sender having rotated keys. */
@@ -44,7 +65,9 @@ vi.mock('../services/socket', () => ({
 }));
 
 vi.mock('../store/authStore', () => ({
-  useAuthStore: { getState: () => ({ token: 'test-token' }) },
+  useAuthStore: {
+    getState: () => ({ token: 'test-token', user: { id: SELF_USER_ID } }),
+  },
 }));
 
 const fetchMock = vi.fn();
@@ -90,6 +113,17 @@ describe('e2ee.decryptIncoming fallback chain', () => {
     expect(second).toBe('second msg');
   });
 
+  it('decrypts our own sent messages reloaded from history (peer = recipient)', async () => {
+    // The shared secret for our sent messages is ECDH(peer pub, our priv) —
+    // identical to received messages, but decryptIncoming must resolve the
+    // PEER as the recipient because senderId === currentUserId here.
+    const sharedSecret = computeSharedSecret(aliceKeys().publicKey)!;
+    const payload = `SLX2.1.${encryptWithSymmetricKey('sent from me', sharedSecret)}`;
+
+    const plain = await decryptIncoming('conv-self-sent', payload, SELF_USER_ID, ALICE_ID);
+    expect(plain).toBe('sent from me');
+  });
+
   it('falls back to other stored epoch keys when the tagged epoch is missing', async () => {
     const conv = 'conv-epoch-scan';
     const rotatedSecret = computeSharedSecret(aliceKeys().publicKey)!;
@@ -102,10 +136,10 @@ describe('e2ee.decryptIncoming fallback chain', () => {
   });
 
   it('decrypts legacy identity-box payloads with the sender current key', async () => {
-    // Box built against OUR public key (what a sender would do); opening it
-    // requires the sender's public key + our private key.
-    const ciphertext = encryptMessage('legacy hello', selfKeys().publicKey);
-    const plain = await decryptIncoming('conv-legacy', ciphertext!, ALICE_ID);
+    // Alice boxes to OUR public key with HER private key; we open it with her
+    // public key + our private key.
+    const ciphertext = boxFrom(aliceKeys().privateKey, selfKeys().publicKey, 'legacy hello');
+    const plain = await decryptIncoming('conv-legacy', ciphertext, ALICE_ID);
     expect(plain).toBe('legacy hello');
   });
 
@@ -115,8 +149,8 @@ describe('e2ee.decryptIncoming fallback chain', () => {
     const rotated = generateKeyPair();
     senderCurrentPublicKey = rotated.publicKey;
 
-    const ciphertext = encryptMessage('old-key message', selfKeys().publicKey);
-    const plain = await decryptIncoming('conv-history', ciphertext!, ALICE_ID);
+    const ciphertext = boxFrom(aliceKeys().privateKey, selfKeys().publicKey, 'old-key message');
+    const plain = await decryptIncoming('conv-history', ciphertext, ALICE_ID);
     expect(plain).toBe('old-key message'); // recovered via /public-keys history
 
     senderCurrentPublicKey = aliceKeys().publicKey; // restore for later tests
