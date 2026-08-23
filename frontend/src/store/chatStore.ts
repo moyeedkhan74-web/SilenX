@@ -3,6 +3,15 @@ import type { Conversation, ChatMessage, UserStatus } from '../types';
 import { API_URL } from '../config/webrtc-config';
 import { useAuthStore } from './authStore';
 import { apiFetch } from '../utils/apiFetch';
+import {
+  saveOfflineMessage,
+  saveOfflineMessages,
+  deleteOfflineMessage,
+  getAllOfflineMessages,
+  saveConversationsCache,
+  getConversationsCache,
+  deleteConversationCache,
+} from '../utils/offlineDb';
 
 interface ChatState {
   conversations: Conversation[];
@@ -18,6 +27,7 @@ interface ChatState {
   createGroup: (payload: { name: string; description?: string; avatarUrl?: string; members: string[] }) => Promise<Conversation | null>;
   updateGroup: (groupId: string, payload: { name?: string; description?: string; avatarUrl?: string | null }) => Promise<boolean>;
   hydrateFromStorage: () => void;
+  hydrateFromIndexedDB: () => Promise<void>;
 
   // Local modifications (optimistic updates)
   setConversations: (convos: Conversation[]) => void;
@@ -25,6 +35,7 @@ interface ChatState {
   setActiveMediaMessage: (message: ChatMessage | null) => void;
   addMessage: (convId: string, msg: ChatMessage) => void;
   setMessages: (convId: string, msgs: ChatMessage[]) => void;
+  updateDeliveryStatus: (convId: string, messageId: string, status: ChatMessage['deliveryStatus'], canonicalId?: string) => void;
   markMessageRead: (convId: string, messageId: string) => void;
   editMessage: (convId: string, messageId: string, newText: string) => void;
   deleteMessage: (convId: string, messageId: string) => void;
@@ -87,6 +98,56 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }
   },
 
+  /**
+   * Offline-first hydration from the durable IndexedDB cache. Runs after the
+   * synchronous localStorage hydrate; merges (never clobbers fresher
+   * in-memory data) so cached chats render instantly, before the network.
+   */
+  hydrateFromIndexedDB: async () => {
+    try {
+      const [cachedConversations, cachedMessages] = await Promise.all([
+        getConversationsCache(),
+        getAllOfflineMessages(),
+      ]);
+
+      set((state) => {
+        const conversationMap = new Map(cachedConversations.map((c) => [c.id, c]));
+        for (const conversation of state.conversations) {
+          conversationMap.set(conversation.id, conversation);
+        }
+
+        const cachedByConversation: Record<string, ChatMessage[]> = {};
+        for (const msg of cachedMessages) {
+          (cachedByConversation[msg.conversationId] ||= []).push(msg);
+        }
+
+        const mergedMessages: Record<string, ChatMessage[]> = {};
+        const conversationIds = new Set([
+          ...Object.keys(state.messages),
+          ...Object.keys(cachedByConversation),
+        ]);
+        for (const convId of conversationIds) {
+          const seen = new Set<string>();
+          const merged: ChatMessage[] = [];
+          for (const m of [...(cachedByConversation[convId] || []), ...(state.messages[convId] || [])]) {
+            if (!seen.has(m.id)) {
+              seen.add(m.id);
+              merged.push(m);
+            }
+          }
+          mergedMessages[convId] = sortMessagesByTime(merged);
+        }
+
+        return {
+          conversations: Array.from(conversationMap.values()),
+          messages: mergedMessages,
+        };
+      });
+    } catch (err) {
+      console.error('Failed to hydrate chat state from IndexedDB:', err);
+    }
+  },
+
   fetchConversations: async () => {
     set({ isLoading: true });
     try {
@@ -99,6 +160,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         const data = await res.json();
         set({ conversations: data });
         persistState({ conversations: data });
+        void saveConversationsCache(data);
       }
     } catch (err) {
       console.error('Failed to fetch conversations from server:', err);
@@ -124,6 +186,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
             }
           });
           const sorted = sortMessagesByTime(mergedMessages);
+          void saveOfflineMessages(sorted);
           const nextState = {
             messages: {
               ...state.messages,
@@ -335,13 +398,51 @@ export const useChatStore = create<ChatState>((set, get) => ({
         conversations: updatedConvos,
       };
       persistState(nextState);
+      void saveOfflineMessage(msg);
       return nextState;
     }),
   setMessages: (convId, msgs) =>
     set((state) => {
       const sorted = sortMessagesByTime(msgs);
+      void saveOfflineMessages(sorted);
       const nextState: Partial<ChatState> = { messages: { ...state.messages, [convId]: sorted } };
       persistState(nextState);
+      return nextState;
+    }),
+  /**
+   * Flip a message's delivery state (pending_sync -> sent -> delivered/read).
+   * When the server assigns a canonical id different from our optimistic one,
+   * pass it as `canonicalId` and the local record is remapped (IndexedDB too).
+   */
+  updateDeliveryStatus: (convId, messageId, status, canonicalId) =>
+    set((state) => {
+      const list = state.messages[convId] || [];
+      const isRemap = !!canonicalId && canonicalId !== messageId;
+
+      let nextList = list;
+      if (isRemap) {
+        const idx = list.findIndex((m) => m.id === messageId);
+        if (idx > -1) {
+          nextList = [...list];
+          nextList[idx] = { ...nextList[idx], id: canonicalId!, deliveryStatus: status };
+        }
+      } else {
+        nextList = list.map((m) => (m.id === messageId ? { ...m, deliveryStatus: status } : m));
+      }
+
+      const nextState: Partial<ChatState> = {
+        messages: { ...state.messages, [convId]: nextList },
+      };
+      persistState(nextState);
+
+      // Keep the IndexedDB mirror in sync.
+      const updatedMessage = nextList.find((m) =>
+        m.id === (isRemap ? canonicalId : messageId)
+      );
+      if (updatedMessage) {
+        if (isRemap) void deleteOfflineMessage(messageId);
+        void saveOfflineMessage(updatedMessage);
+      }
       return nextState;
     }),
   reactToMessage: (convId, messageId, userId, emoji) =>
@@ -468,6 +569,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       });
 
       if (res.ok) {
+        void deleteConversationCache(convId);
         set((state) => {
           const nextConvos = state.conversations.filter((c) => c.id !== convId);
           const nextMessages = { ...state.messages };

@@ -1,9 +1,10 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { ArrowLeft, Phone, Video, MoreVertical, Lock, Search, Bell, UserX, Flag, Trash2, Check, CheckCheck, Star, PlayCircle, MapPin, Image as ImageIcon } from 'lucide-react';
+import { ArrowLeft, Phone, Video, MoreVertical, Lock, Search, Bell, UserX, Flag, Trash2, Check, CheckCheck, Clock, Star, PlayCircle, MapPin, Image as ImageIcon } from 'lucide-react';
 import { useIsMobile } from '../hooks/useIsMobile';
 import { useChatStore } from '../store/chatStore';
 import { connectSocket } from '../services/socket';
 import { livekitService } from '../services/livekit';
+import { dispatchMessage } from '../services/outbox';
 import type { ChatMessage } from '../types';
 import { Avatar } from './Avatar';
 import { MessageInputBar } from './MessageInputBar';
@@ -151,6 +152,7 @@ export const ChatView: React.FC = () => {
 
     const socket = connectSocket();
     const recipientId = activeConvo?.members?.find((member) => member.id !== currentUser?.id)?.id;
+    const isOffline = !socket?.connected;
     const msg: ChatMessage = {
       id: crypto.randomUUID(),
       conversationId: activeConversationId,
@@ -162,7 +164,7 @@ export const ChatView: React.FC = () => {
       isRead: false,
       isEdited: false,
       isDeleted: false,
-      deliveryStatus: 'sent' as const,
+      deliveryStatus: isOffline ? 'pending_sync' : 'sent',
       reactions: [],
       isPinned: false,
       isStarred: false,
@@ -170,7 +172,7 @@ export const ChatView: React.FC = () => {
     };
 
     addMessage(activeConversationId, msg);
-    socket?.emit('send-message', {
+    void dispatchMessage(activeConversationId, msg, {
       conversationId: activeConversationId,
       encryptedContent: value,
       tempId: msg.id,
@@ -186,6 +188,7 @@ export const ChatView: React.FC = () => {
 
     const socket = connectSocket();
     const recipientId = activeConvo?.members?.find((member) => member.id !== currentUser?.id)?.id;
+    const isOffline = !socket?.connected;
     const msg: ChatMessage = {
       id: crypto.randomUUID(),
       conversationId: activeConversationId,
@@ -197,7 +200,7 @@ export const ChatView: React.FC = () => {
       isRead: false,
       isEdited: false,
       isDeleted: false,
-      deliveryStatus: 'sent' as const,
+      deliveryStatus: isOffline ? 'pending_sync' : 'sent',
       reactions: [],
       isPinned: false,
       isStarred: false,
@@ -214,7 +217,7 @@ export const ChatView: React.FC = () => {
     };
 
     addMessage(activeConversationId, msg);
-    socket?.emit('send-message', {
+    void dispatchMessage(activeConversationId, msg, {
       conversationId: activeConversationId,
       encryptedContent: msg.text,
       tempId: msg.id,
@@ -860,10 +863,17 @@ export const ChatView: React.FC = () => {
                     )}
                     {msg.isEdited && <span className="msg-edited">edited</span>}
                     {(() => {
+                      const isPending = msg.deliveryStatus === 'pending_sync';
                       const isRead = msg.deliveryStatus === 'read' || (msg as any).isRead === true || (msg as any).status === 'read';
                       const isDelivered = msg.deliveryStatus === 'delivered' || (msg as any).status === 'delivered';
-                      const statusClass = isRead ? 'read' : isDelivered ? 'delivered' : 'sent';
-                      const titleText = isRead ? 'Read by recipient (Amethyst Purple Circle)' : isDelivered ? 'Delivered to recipient' : 'Sent';
+                      const statusClass = isRead ? 'read' : isDelivered ? 'delivered' : isPending ? 'pending' : 'sent';
+                      const titleText = isRead
+                        ? 'Read by recipient (Amethyst Purple Circle)'
+                        : isDelivered
+                        ? 'Delivered to recipient'
+                        : isPending
+                        ? 'Waiting to sync — will send when you are back online'
+                        : 'Sent';
                       const formattedTime = formatMessageTime(msg.createdAt) || formatMessageTime(msg.time) || msg.time || '';
 
                       return (
@@ -881,7 +891,9 @@ export const ChatView: React.FC = () => {
                           {isOwn && (
                             <span className="msg-receipt" title={titleText}>
                               <span className={`msg-receipt-badge ${statusClass}`} key={isRead ? 'badge-read' : statusClass}>
-                                {isRead ? (
+                                {isPending ? (
+                                  <Clock size={11} strokeWidth={2.4} />
+                                ) : isRead ? (
                                   <CheckCheck size={11} strokeWidth={2.8} />
                                 ) : isDelivered ? (
                                   <CheckCheck size={12} strokeWidth={2.2} />

@@ -6,9 +6,15 @@ import { auth } from '../config/firebase';
 import { decryptMessage } from '../utils/crypto';
 import type { ChatMessage } from '../types';
 import { API_URL } from '../config/webrtc-config';
+import { processOutbox, attachOutboxListeners } from './outbox';
 
 // Public key cache to avoid fetching on every message
 const publicKeyCache: Record<string, string> = {};
+
+/** Drop a cached recipient key so the next fetch gets a fresh one (key rotation). */
+export const clearPublicKeyCache = (userId: string): void => {
+  delete publicKeyCache[userId];
+};
 
 export const getPublicKey = async (userId: string): Promise<string | null> => {
   // Check cache first
@@ -113,8 +119,13 @@ export const connectSocket = (idToken?: string): Socket => {
 
   socket = SOCKET_URL ? io(SOCKET_URL, options) : io(options);
 
+  // Offline-first: listen for server acks and drain the persistent outbox
+  attachOutboxListeners(socket);
+
   socket.on('connect', () => {
     console.log(`[Socket] Connected: ${socket?.id}`);
+    // Drain any messages queued while offline, then resume heartbeats
+    void processOutbox();
     // Start heartbeat pings to keep the server aware we are active
     if (heartbeatInterval) clearInterval(heartbeatInterval);
     heartbeatInterval = setInterval(() => {

@@ -42,7 +42,7 @@ export interface ChatMessage {
   isRead: boolean;
   isEdited: boolean;
   isDeleted: boolean;
-  deliveryStatus?: 'sent' | 'delivered' | 'read' | 'received';
+  deliveryStatus?: 'pending_sync' | 'sent' | 'delivered' | 'read' | 'received';
   reactions?: {
     userId: string;
     emoji: string;

@@ -7,11 +7,12 @@ import {
   ExternalE2EEKeyProvider,
   type E2EEOptions,
 } from 'livekit-client';
-import { API_URL } from '../config/webrtc-config';
+import { API_URL, isCapacitorNative } from '../config/webrtc-config';
 import { connectSocket, getSocket } from './socket';
 import { useAuthStore } from '../store/authStore';
 import { useCallStore } from '../store/callStore';
 import type { CallType } from '../types';
+import { ensureMediaPermissions } from './media-permissions';
 
 interface CallIncomingPayload {
   callerId: string;
@@ -64,6 +65,7 @@ export class LiveKitService {
   private callLogId: string | null = null;
   private callStartTimestamp: number | null = null;
   private callTimeoutTimer: ReturnType<typeof setTimeout> | null = null;
+  private lastMediaError: string | null = null;
   private static CALL_TIMEOUT_MS = 45_000;
 
   public initialize(socket: Socket): void {
@@ -241,7 +243,7 @@ export class LiveKitService {
 
   /**
    * Derive the E2EE media key deterministically on both peers.
-   * The key is a SHA-256 hash of the canonical room name plus an app salt —
+   * The key is a SHA-256 hash of the canonical room name plus an app salt Â—
    * it is NEVER transmitted to the backend or to LiveKit servers, so LiveKit
    * Cloud only ever relays encrypted frame bytes.
    */
@@ -266,7 +268,7 @@ export class LiveKitService {
     }
 
     try {
-      // End-to-end encryption setup — the worker decrypts/encrypts frames
+      // End-to-end encryption setup Â— the worker decrypts/encrypts frames
       // locally so LiveKit servers never see plaintext media. The shared key
       // is derived deterministically on both peers and never transmitted.
       this.keyProvider = new ExternalE2EEKeyProvider();
@@ -299,7 +301,7 @@ export class LiveKitService {
       try {
         await room.setE2EEEnabled(true);
       } catch {
-        // Already enabled via constructor option — safe to ignore.
+        // Already enabled via constructor option Â— safe to ignore.
       }
 
       await this.publishLocalTracks(callType);
@@ -399,7 +401,7 @@ export class LiveKitService {
     // 1-on-1: the remote peer leaving ends the call.
     // Group: the call ends only when every other participant has left.
     if (this.room.remoteParticipants.size === 0) {
-      console.log('[LiveKit] All remote participants left — ending call');
+      console.log('[LiveKit] All remote participants left Â— ending call');
       this.resetCallState();
     }
   };
@@ -407,7 +409,7 @@ export class LiveKitService {
   private handleConnectionStateChanged = (state: ConnectionState): void => {
     console.debug('[LiveKit] connectionState:', state);
     if (state === ConnectionState.Reconnecting) {
-      console.warn('[LiveKit] Connection lost — reconnecting');
+      console.warn('[LiveKit] Connection lost Â— reconnecting');
     }
   };
 
@@ -506,7 +508,7 @@ export class LiveKitService {
     this.clearCallTimeout();
     this.callTimeoutTimer = setTimeout(() => {
       if (useCallStore.getState().callStatus === 'pending' && this.isCaller) {
-        console.warn('[LiveKit] Call timed out — no answer received');
+        console.warn('[LiveKit] Call timed out Â— no answer received');
         this.endCall();
       }
     }, LiveKitService.CALL_TIMEOUT_MS);
@@ -728,45 +730,137 @@ export class LiveKitService {
 
   // ??? Media acquisition ??????????????????????????????????????????????????????
 
+  /**
+   * Human-readable reason for the last media acquisition failure, for UI
+   * surfaces (e.g. the call overlay alert).
+   */
+  public getMediaError(): string | null {
+    return this.lastMediaError;
+  }
+
+  private static errorName(error: unknown): string {
+    return error instanceof DOMException ? error.name : '';
+  }
+
+  /**
+   * Acquire local media with layered fallbacks:
+   *   secure-context check -> runtime permission prompt (native) ->
+   *   full audio+video -> audio-only -> basic audio.
+   *
+   * On failure, populates lastMediaError with an actionable message that
+   * points users to Android App Settings when permissions were denied.
+   */
   private async ensureLocalMedia(callType: CallType): Promise<boolean> {
     if (this.localStream && this.localStream.getAudioTracks().length > 0) {
       return true;
     }
 
-    try {
-      let stream: MediaStream;
-      try {
-        const constraints: MediaStreamConstraints = {
-          audio: {
-            echoCancellation: true,
-            noiseSuppression: true,
-            autoGainControl: true,
-          },
-          video: callType === 'video' ? { facingMode: 'user' } : false,
-        };
-        stream = await navigator.mediaDevices.getUserMedia(constraints);
-      } catch (err) {
-        console.warn('[LiveKit] Advanced constraints failed, retrying with basic ones:', err);
-        const fallbackConstraints: MediaStreamConstraints = {
-          audio: true,
-          video: callType === 'video',
-        };
-        stream = await navigator.mediaDevices.getUserMedia(fallbackConstraints);
-      }
+    this.lastMediaError = null;
 
-      this.localStream = stream;
-      console.debug('[LiveKit] getUserMedia success:', stream.getTracks().map((t) => t.kind));
-
-      if (this.localVideoElement) {
-        this.localVideoElement.srcObject = this.localStream;
-      }
-
-      this.notifyStreamListeners();
-      return true;
-    } catch (error) {
-      console.error('[LiveKit] Error accessing media devices:', error);
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      console.error('[LiveKit] getUserMedia is not supported in this browser context');
+      this.lastMediaError = 'Calling is not supported in this browser or WebView.';
       return false;
     }
+
+    // 1. Secure context â€” getUserMedia is unavailable on insecure origins
+    //    (plain http). Capacitor's capacitor://localhost counts as secure.
+    if (!window.isSecureContext) {
+      console.error('[LiveKit] Insecure context â€” getUserMedia requires HTTPS');
+      this.lastMediaError =
+        'Calls require a secure connection (HTTPS). Open SilenX over https:// or use the mobile app.';
+      return false;
+    }
+
+    // 2. Android runtime permissions must be granted BEFORE the WebView can
+    //    serve getUserMedia, otherwise it fails silently with NotAllowedError.
+    const wantsVideo = callType === 'video';
+    const permissions = await ensureMediaPermissions(wantsVideo ? 'video' : 'audio');
+    if (!permissions.microphone) {
+      console.error('[LiveKit] Microphone permission denied at runtime');
+      this.lastMediaError = isCapacitorNative
+        ? 'Microphone access is blocked. Open Android Settings > Apps > SilenX > Permissions and allow Microphone (and Camera), then try again.'
+        : 'Microphone access is blocked. Click the lock icon in your browser address bar and allow Microphone, then try again.';
+      return false;
+    }
+    if (wantsVideo && !permissions.camera) {
+      console.warn('[LiveKit] Camera permission denied at runtime â€” will fall back to audio-only');
+    }
+
+    // 3. Acquisition attempts with graceful degradation to audio-only.
+    const audioConstraints: MediaTrackConstraints = {
+      echoCancellation: true,
+      noiseSuppression: true,
+      autoGainControl: true,
+    };
+
+    let stream: MediaStream | null = null;
+
+    if (wantsVideo && permissions.camera) {
+      for (const videoConstraint of [{ facingMode: 'user' }, true] as MediaTrackConstraints[]) {
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({
+            audio: audioConstraints,
+            video: videoConstraint,
+          });
+          break;
+        } catch (error) {
+          const name = LiveKitService.errorName(error);
+          console.warn(`[LiveKit] Audio+video getUserMedia failed (${name || 'unknown'}):`, error);
+          if (name === 'NotAllowedError' || name === 'SecurityError') {
+            console.warn(
+              '[LiveKit] If camera stays blocked, allow it under Android Settings > Apps > SilenX > Permissions.'
+            );
+          }
+          // Device missing, busy, unsupported constraint, or denied â€” degrade to audio-only.
+        }
+      }
+    }
+
+    if (!stream) {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints });
+      } catch (advancedError) {
+        console.warn('[LiveKit] Advanced audio constraints failed, retrying basic:', advancedError);
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        } catch (basicError) {
+          console.error('[LiveKit] All media acquisition attempts failed:', basicError);
+          const name = LiveKitService.errorName(basicError);
+          if (name === 'NotFoundError' || name === 'OverconstrainedError') {
+            this.lastMediaError = 'No microphone was found on this device.';
+          } else if (name === 'NotReadableError') {
+            this.lastMediaError =
+              'Your microphone is busy in another app. Close it and try again.';
+          } else {
+            this.lastMediaError = isCapacitorNative
+              ? 'Unable to access your microphone. Open Android Settings > Apps > SilenX > Permissions and allow Microphone, then try again.'
+              : 'Unable to access your microphone. Allow Microphone in your browser site settings and try again.';
+          }
+          return false;
+        }
+      }
+    }
+
+    const gotVideo = stream.getVideoTracks().length > 0;
+    if (wantsVideo && !gotVideo) {
+      // Graceful downgrade: keep the call alive as audio-only.
+      console.warn('[LiveKit] Video unavailable â€” continuing as audio-only call');
+      if (useCallStore.getState().callType === 'video') {
+        useCallStore.setState({ callType: 'audio', isVideoOff: true });
+      }
+      this.currentCallType = 'audio';
+    }
+
+    this.localStream = stream;
+    console.debug('[LiveKit] getUserMedia success:', stream.getTracks().map((t) => t.kind));
+
+    if (this.localVideoElement) {
+      this.localVideoElement.srcObject = this.localStream;
+    }
+
+    this.notifyStreamListeners();
+    return true;
   }
 
   // ??? Socket event handlers ??????????????????????????????????????????????????

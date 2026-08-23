@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import './CallOverlay.css';
 import ActiveCallScreen from './ActiveCallScreen';
 import IncomingCallScreen from './IncomingCallScreen';
@@ -39,7 +39,18 @@ const CallOverlay: React.FC = () => {
     console.debug('[CallOverlay] accept button clicked');
     const success = await livekitService.acceptIncomingCall();
     if (!success) {
-      window.alert('Unable to access your camera or microphone. Please allow permissions and try again.');
+      const mediaError = livekitService.getMediaError();
+      if (mediaError) {
+        window.alert(mediaError);
+      } else if (!window.isSecureContext) {
+        window.alert('Media access requires a secure connection (HTTPS or localhost). Please check your URL.');
+      } else {
+        window.alert(
+          'Unable to access your camera or microphone.\n\n' +
+          'Please grant Camera and Microphone permissions for SilenX in your device settings:\n' +
+          'Settings > Apps > SilenX > Permissions > Allow Camera & Microphone'
+        );
+      }
     }
   };
 

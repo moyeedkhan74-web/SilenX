@@ -163,8 +163,16 @@ export function registerSocketHandlers(io: any): void {
         pollData: data.pollData,
         eventData: data.eventData,
       };
-      messages.push(newMsg);
-      saveDb();
+      // Idempotent persist: offline clients re-emit the same tempId on
+      // reconnect, so never store the same message id twice.
+      if (!messages.some(m => m.id === newMsg.id)) {
+        messages.push(newMsg);
+        saveDb();
+      }
+
+      // Ack to the sender — the offline sync manager waits for this before
+      // dequeuing, guaranteeing exactly-once sends.
+      socket.emit('message-sent-ack', { tempId: data.tempId, id: newMsg.id });
 
       const outgoing = {
         ...data,
