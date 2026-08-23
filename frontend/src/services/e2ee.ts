@@ -13,7 +13,7 @@ import {
   saveConversationMeta,
 } from '../utils/crypto';
 import { API_URL } from '../config/webrtc-config';
-import { getSocket, getPublicKey } from './socket';
+import { getSocket, getPublicKey, clearPublicKeyCache } from './socket';
 import { useAuthStore } from '../store/authStore';
 import nacl from 'tweetnacl';
 
@@ -315,9 +315,7 @@ async function decryptEpochPayload(
 
   // Lazy bootstrap: the first message in a conversation (or a fresh install /
   // cleared storage) can arrive before we ever derived Epoch 1 locally.
-  // The shared secret is derived against the crypto PEER — the recipient when
-  // reading our own sent history, the sender for received messages.
-  if (!exactKey && !isGroup(conversationId)) {
+  if (!exactKey && !isGroup(conversationId) && peerId) {
     await ensureBootstrapEpoch(conversationId, peerId);
     exactKey = epoch !== null ? getEpochSessionKey(conversationId, epoch) : null;
     if (exactKey) {
@@ -330,9 +328,29 @@ async function decryptEpochPayload(
     if (plain !== null) return plain;
   }
 
-  // 2. Fallback: scan cached historical epoch keys, newest -> oldest.
-  // Covers messages sent by the peer before our own rotation completed,
-  // or while this device was offline across a rotation boundary.
+  // 2. Fresh key re-derivation fallback: if key was derived against a stale public key,
+  // clear cache, fetch fresh peer public key, re-compute secret and retry.
+  if (peerId && !isGroup(conversationId)) {
+    try {
+      clearPublicKeyCache(peerId);
+      const freshPeerKey = await getPublicKey(peerId);
+      if (freshPeerKey) {
+        const freshSecret = computeSharedSecret(freshPeerKey);
+        if (freshSecret) {
+          const freshPlain = decryptWithSymmetricKey(ciphertextBody, freshSecret);
+          if (freshPlain !== null) {
+            storeEpochSessionKey(conversationId, epoch || 1, freshSecret);
+            console.info(`[E2EE] Decrypted using freshly derived shared secret for peer ${peerId}`);
+            return freshPlain;
+          }
+        }
+      }
+    } catch (err) {
+      console.debug('[E2EE] Fresh key re-derivation attempt failed:', err);
+    }
+  }
+
+  // 3. Fallback: scan cached historical epoch keys, newest -> oldest.
   const cachedEpochs = listConversationEpochs(conversationId)
     .slice(0, MAX_FALLBACK_EPOCHS)
     .filter((candidate) => epoch === null || candidate !== epoch);
@@ -346,19 +364,16 @@ async function decryptEpochPayload(
     }
   }
 
-  // 3. Identity-box decryption with the sender's CURRENT public key — covers
-  // senders that have not adopted epoch encryption yet but wrapped the payload
-  // with the SLX2 header anyway. Only meaningful for genuinely received
-  // messages (our own sent boxes were made to the peer's public key).
-  if (senderId) {
-    const currentKey = await getPublicKey(senderId);
+  // 4. Identity-box decryption with the peer's CURRENT and HISTORICAL public keys.
+  const effectivePeerId = peerId || senderId;
+  if (effectivePeerId) {
+    const currentKey = await getPublicKey(effectivePeerId);
     if (currentKey) {
       const plain = decryptMessage(ciphertextBody, currentKey);
       if (plain !== null) return plain;
     }
 
-    // 4. Sender's historical public key versions.
-    const history = await fetchPublicKeyHistory(senderId);
+    const history = await fetchPublicKeyHistory(effectivePeerId);
     for (const entry of history.slice(-MAX_FALLBACK_EPOCHS).reverse()) {
       if (entry.publicKey === currentKey) continue;
       const plain = decryptMessage(ciphertextBody, entry.publicKey);
