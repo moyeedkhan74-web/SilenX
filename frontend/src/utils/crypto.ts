@@ -298,7 +298,8 @@ export function decryptWithSymmetricKey(encryptedMessageBase64: string, symmetri
 
     return naclUtil.encodeUTF8(decrypted);
   } catch (error) {
-    console.error('[Crypto] Failed to decrypt with symmetric key:', error);
+    // Debug log instead of error so candidate-key scanning fallback doesn't clutter devtools
+    console.debug('[Crypto] Decryption candidate attempt skipped:', error);
     return null;
   }
 }

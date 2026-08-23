@@ -72,6 +72,27 @@ export const getPublicKey = async (userId: string): Promise<string | null> => {
 
   try {
     let publicKey = await fetchPublicKeyFromApi(userId);
+    // Auto-heal: If this is the current user or local storage has a key, sync to server immediately
+    const currentUserId = useAuthStore.getState().user?.id;
+    if (!publicKey && (userId === currentUserId || !currentUserId)) {
+      const localKey = localStorage.getItem('slienx_public_key');
+      if (localKey) {
+        console.info(`[Socket] Syncing local public key to server for ${userId}`);
+        const token = useAuthStore.getState().token;
+        if (token) {
+          await fetch(`${API_URL}/api/users/public-key`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ publicKey: localKey }),
+          });
+          publicKey = localKey;
+        }
+      }
+    }
+
     // Retry once on empty responses before giving up.
     if (!publicKey) {
       console.warn(`[Socket] Empty public key for ${userId} — retrying once`);
