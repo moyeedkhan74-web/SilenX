@@ -27,6 +27,8 @@ const ROTATION_MESSAGE_THRESHOLD = 1_000;
 const CIPHER_HEADER = 'SLX2';
 /** Bound the fallback chain when scanning historical epochs / keys. */
 const MAX_FALLBACK_EPOCHS = 8;
+/** Smallest possible legacy box payload: 24-byte nonce + 16-byte MAC + 32-byte zero padding. */
+const MIN_BOX_BYTES = 72;
 
 interface RotateEventPayload {
   conversationId: string;
@@ -282,12 +284,97 @@ export async function encryptOutgoingText(
 }
 
 /**
+ * Heuristic: does this string have the structure of ciphertext?
+ * - `SLX2.`-prefixed payloads are always ciphertext.
+ * - Legacy payloads must be base64 (no whitespace/punctuation) and decode to
+ *   at least a nonce + MAC + padding — anything shorter or containing spaces,
+ *   emoji, punctuation etc. is ordinary plaintext and is returned as-is.
+ */
+function looksLikeCiphertext(content: string): boolean {
+  if (!content) return false;
+  if (content.startsWith(`${CIPHER_HEADER}.`)) return true;
+  if (!/^[A-Za-z0-9+/=_-]+$/.test(content)) return false;
+  try {
+    const decoded = safeDecodeBase64(content);
+    return decoded.length >= MIN_BOX_BYTES;
+  } catch {
+    return false;
+  }
+}
+
+/** Try to decrypt an epoch-tagged body with every plausible symmetric key. */
+async function decryptEpochPayload(
+  conversationId: string,
+  senderId: string,
+  epoch: number | null,
+  ciphertextBody: string
+): Promise<string | null> {
+  // 1. Exact epoch key first — this is almost always the one.
+  let exactKey = epoch !== null ? getEpochSessionKey(conversationId, epoch) : null;
+
+  // Lazy bootstrap: the very first message in a conversation can arrive before
+  // we ever derived Epoch 1 locally (e.g. fresh install / cleared storage).
+  if (!exactKey && !isGroup(conversationId)) {
+    await ensureBootstrapEpoch(conversationId, senderId);
+    exactKey = epoch !== null ? getEpochSessionKey(conversationId, epoch) : null;
+    if (exactKey) {
+      console.info(`[E2EE] Lazily bootstrapped session keys for ${conversationId} during decrypt`);
+    }
+  }
+
+  if (exactKey) {
+    const plain = decryptWithSymmetricKey(ciphertextBody, exactKey);
+    if (plain !== null) return plain;
+  }
+
+  // 2. Fallback: scan cached historical epoch keys, newest -> oldest.
+  // Covers messages sent by the peer before our own rotation completed,
+  // or while this device was offline across a rotation boundary.
+  const cachedEpochs = listConversationEpochs(conversationId)
+    .slice(0, MAX_FALLBACK_EPOCHS)
+    .filter((candidate) => epoch === null || candidate !== epoch);
+  for (const candidate of cachedEpochs) {
+    const key = getEpochSessionKey(conversationId, candidate);
+    if (!key) continue;
+    const plain = decryptWithSymmetricKey(ciphertextBody, key);
+    if (plain !== null) {
+      console.info(`[E2EE] Decrypted via fallback epoch ${candidate}`);
+      return plain;
+    }
+  }
+
+  // 3. Identity-box decryption with the sender's CURRENT public key — covers
+  // senders that have not adopted epoch encryption yet but wrapped the payload
+  // with the SLX2 header anyway.
+  const currentKey = await getPublicKey(senderId);
+  if (currentKey) {
+    const plain = decryptMessage(ciphertextBody, currentKey);
+    if (plain !== null) return plain;
+  }
+
+  // 4. Sender's historical public key versions.
+  const history = await fetchPublicKeyHistory(senderId);
+  for (const entry of history.slice(-MAX_FALLBACK_EPOCHS).reverse()) {
+    if (entry.publicKey === currentKey) continue;
+    const plain = decryptMessage(ciphertextBody, entry.publicKey);
+    if (plain !== null) return plain;
+  }
+
+  return null;
+}
+
+/**
  * Unified incoming decryption with graceful fallbacks:
- *   1. Epoch-tagged payload -> exact epoch key, then newest->oldest cached epochs
- *   2. Legacy payload       -> sender's current identity key, then every cached
- *                              HISTORICAL public key version (fetched once)
- * Returns the plaintext, or null when nothing succeeds (caller shows
- * '[Encrypted Message]').
+ *   1. Epoch-tagged payload (`SLX2.<epoch>.<body>`):
+ *      a) lazy bootstrap of local session keys if missing, then exact epoch key
+ *      b) all stored epoch keys (newest -> oldest)
+ *      c) identity-box decryption with the sender's current public key
+ *      d) the sender's historical public key versions
+ *   2. Legacy payload:
+ *      identity-box decryption, then historical key versions, then bootstrap
+ *   3. Anything that lacks ciphertext structure is returned as plaintext.
+ * Returns null only when the payload looks like genuine ciphertext that no key
+ * could open (caller shows '[Encrypted Message]').
  */
 export async function decryptIncoming(
   conversationId: string,
@@ -296,34 +383,20 @@ export async function decryptIncoming(
 ): Promise<string | null> {
   if (!encryptedContent) return null;
 
-  // ── Epoch-tagged (v2) payload ──
-  if (encryptedContent.startsWith(`${CIPHER_HEADER}.`)) {
+  const isEpochTagged = encryptedContent.startsWith(`${CIPHER_HEADER}.`);
+
+  if (isEpochTagged) {
     const parts = encryptedContent.split('.');
     const epoch = Number.parseInt(parts[1], 10);
     const ciphertextBody = parts.slice(2).join('.');
 
-    if (!Number.isNaN(epoch)) {
-      // Exact epoch first — this is almost always the one.
-      const exactKey = getEpochSessionKey(conversationId, epoch);
-      if (exactKey) {
-        const plain = decryptWithSymmetricKey(ciphertextBody, exactKey);
-        if (plain !== null) return plain;
-      }
-
-      // Fallback: scan cached historical epoch keys, newest -> oldest.
-      // Covers messages sent by the peer before our own rotation completed,
-      // or while this device was offline across a rotation boundary.
-      const cachedEpochs = listConversationEpochs(conversationId)
-        .slice(0, MAX_FALLBACK_EPOCHS)
-        .filter((candidate) => candidate !== epoch);
-      for (const candidate of cachedEpochs) {
-        const key = getEpochSessionKey(conversationId, candidate);
-        if (!key) continue;
-        const plain = decryptWithSymmetricKey(ciphertextBody, key);
-        if (plain !== null) return plain;
-      }
+    if (Number.isNaN(epoch)) {
+      console.warn('[E2EE] Malformed SLX2 header:', encryptedContent.slice(0, 24));
+    } else {
+      const plain = await decryptEpochPayload(conversationId, senderId, epoch, ciphertextBody);
+      if (plain !== null) return plain;
     }
-    return null;
+    return null; // structured ciphertext we cannot open -> '[Encrypted Message]'
   }
 
   // ── Legacy identity-box payload ──
@@ -340,6 +413,23 @@ export async function decryptIncoming(
     if (entry.publicKey === currentKey) continue;
     const plain = decryptMessage(encryptedContent, entry.publicKey);
     if (plain !== null) return plain;
+  }
+
+  // Ensure local session keys exist for future messages even if this one was
+  // not recoverable through the symmetric path.
+  if (!isGroup(conversationId)) {
+    try {
+      await ensureBootstrapEpoch(conversationId, senderId);
+    } catch {
+      // best-effort only
+    }
+  }
+
+  // Not structurally ciphertext? Treat as plaintext passthrough — matches the
+  // pre-E2EE behavior where some peers sent unencrypted content.
+  if (!looksLikeCiphertext(encryptedContent)) {
+    console.warn('[E2EE] Payload has no ciphertext structure — treating as plaintext');
+    return encryptedContent;
   }
 
   return null;
