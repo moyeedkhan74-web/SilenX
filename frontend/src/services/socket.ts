@@ -76,6 +76,44 @@ export const clearNegativeKeyCache = (): void => {
   noKeyCache.clear();
 };
 
+// ─── Peer public-key recovery handshake ──────────────────────────────────────
+// When a peer's key is missing server-side (Render restart before Mongo sync),
+// we ask the PEER over the socket to re-upload theirs. CryptoContext registers
+// a handler that performs the actual upload when the server relays the ask.
+type PublicKeyUploadHandler = () => boolean | Promise<boolean> | void | Promise<void>;
+let publicKeyUploadHandler: PublicKeyUploadHandler | null = null;
+
+export const setPublicKeyUploadHandler = (handler: PublicKeyUploadHandler | null): void => {
+  publicKeyUploadHandler = handler;
+};
+
+// Debounce per-peer so a burst of failed decryptions emits at most one request
+const pendingKeyRequests = new Set<string>();
+
+const requestPeerPublicKeyUpload = (userId: string): void => {
+  if (!socket?.connected || pendingKeyRequests.has(userId)) return;
+  pendingKeyRequests.add(userId);
+  console.info(`[Socket] Asking peer ${userId} to re-upload their public key`);
+  socket.emit('request-public-key', { targetUserId: userId });
+  // Give the peer a moment to re-upload, then silently re-fetch so queued
+  // history decrypts without needing an app restart.
+  setTimeout(() => {
+    void (async () => {
+      try {
+        const retried = await fetchPublicKeyFromApi(userId);
+        if (retried) {
+          console.info(`[Socket] Recovered public key for ${userId} after peer re-upload`);
+          writeCachedPublicKey(userId, retried);
+        }
+      } catch {
+        // next getPublicKey() call will retry through the normal path
+      }
+    })();
+  }, 6_000);
+  // Allow a fresh request after 30s in case the peer was offline this time.
+  setTimeout(() => pendingKeyRequests.delete(userId), 30_000);
+};
+
 export const getPublicKey = async (userId: string): Promise<string | null> => {
   // Immediately bail on virtual / system senders — they never have public keys
   if (!userId || VIRTUAL_SENDER_IDS.has(userId)) return null;
@@ -122,6 +160,9 @@ export const getPublicKey = async (userId: string): Promise<string | null> => {
     // Add to negative cache so we don't keep spamming the server
     noKeyCache.add(userId);
     console.warn(`[Socket] No public key available for ${userId} after retry`);
+    // Last resort: ask the peer (over the live socket) to re-upload their key —
+    // covers Render cold-starts where the in-memory store died before MongoDB sync.
+    requestPeerPublicKeyUpload(userId);
   } catch (error) {
     console.error('[Socket] Failed to fetch public key:', error);
   }
@@ -336,6 +377,34 @@ socket.on('receive-message', async (payload: any) => {
 
   socket.on('key:rotate-ack-received', (payload: any) => {
     void handleRotateAck(payload);
+  });
+
+  // A peer could not find our public key on the server (server restarted /
+  // key lost) — re-upload ours immediately via the CryptoContext handler.
+  socket.on('upload-your-public-key', async () => {
+    console.info('[Socket] Peer requested our public key re-upload');
+    // Our key may exist locally but be missing server-side; clear the server
+    // fetch path is irrelevant here — just push the local key up again.
+    try {
+      if (publicKeyUploadHandler) {
+        await publicKeyUploadHandler();
+      } else {
+        const localKey = localStorage.getItem('slienx_public_key');
+        const token = useAuthStore.getState().token;
+        if (localKey && token) {
+          await fetch(`${API_URL}/api/users/public-key`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ publicKey: localKey }),
+          });
+        }
+      }
+    } catch (err) {
+      console.warn('[Socket] Public key re-upload failed:', err);
+    }
   });
 
 socket.on('receive-message-reaction', (payload: any) => {

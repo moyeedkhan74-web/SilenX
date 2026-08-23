@@ -3,6 +3,7 @@ import naclUtil from 'tweetnacl-util';
 import { generateKeyPair, storePrivateKey, storePublicKey, getPrivateKey, getPublicKey, clearKeys, hasKeys, encryptMessage, decryptMessage, computeSharedSecret, storeSessionKey, getSessionKey, encryptWithSharedSecret, decryptWithSharedSecret, encryptSymmetricKeyForUser, generateSymmetricKey, type KeyPair, type EncryptedPayload } from '../utils/crypto';
 import { useAuthStore } from '../store/authStore';
 import { API_URL } from '../config/webrtc-config';
+import { setPublicKeyUploadHandler } from '../services/socket';
 
 interface CryptoContextType {
   keyPair: KeyPair | null;
@@ -73,6 +74,15 @@ export const CryptoProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     setIsLoading(true);
     setError(null);
 
+    // Upload with short exponential backoff — survives Render cold-start 5xx/429s
+    const uploadWithRetry = async (): Promise<boolean> => {
+      for (let attempt = 0; attempt < 3; attempt++) {
+        if (await uploadPublicKey()) return true;
+        await new Promise((r) => setTimeout(r, 1000 * Math.pow(2, attempt)));
+      }
+      return false;
+    };
+
     try {
       // Check if we already have keys in storage
       if (hasKeys()) {
@@ -85,7 +95,7 @@ export const CryptoProvider: React.FC<{ children: ReactNode }> = ({ children }) 
           };
           setKeyPair(loadedKeyPair);
           // Upload public key to server if not already there
-          await uploadPublicKey();
+          await uploadWithRetry();
           setIsLoading(false);
           return;
         }
@@ -98,7 +108,7 @@ export const CryptoProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       setKeyPair(newKeyPair);
 
       // Upload to backend
-      await uploadPublicKey();
+      await uploadWithRetry();
     } catch (err) {
       console.error('[CryptoContext] Failed to initialize keys:', err);
       setError('Failed to initialize encryption keys');
@@ -107,9 +117,27 @@ export const CryptoProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     }
   }, [user]);
 
-  // Upload public key to backend
+  // Upload public key to backend.
+  // IMPORTANT: resolves the key from React state OR local storage — during
+  // initializeKeys() the state update has not propagated yet, and reading only
+  // `keyPair` made the first upload silently no-op (peer keys never uploaded).
   const uploadPublicKey = useCallback(async (): Promise<boolean> => {
-    if (!keyPair || !token) return false;
+    if (!token) return false;
+
+    const publicKey =
+      keyPair?.publicKey ||
+      (() => {
+        try {
+          return localStorage.getItem('slienx_public_key');
+        } catch {
+          return null;
+        }
+      })();
+
+    if (!publicKey) {
+      console.error('[CryptoContext] No public key available to upload');
+      return false;
+    }
 
     try {
       const res = await fetch(`${API_URL}/api/users/public-key`, {
@@ -118,7 +146,7 @@ export const CryptoProvider: React.FC<{ children: ReactNode }> = ({ children }) 
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ publicKey: keyPair.publicKey }),
+        body: JSON.stringify({ publicKey }),
       });
 
       if (!res.ok) {
@@ -131,6 +159,13 @@ export const CryptoProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       return false;
     }
   }, [keyPair, token]);
+
+  // Register the socket-level "re-upload your key" handler so a peer's
+  // request-public-key event triggers our upload even outside login flow.
+  useEffect(() => {
+    setPublicKeyUploadHandler(() => uploadPublicKey());
+    return () => setPublicKeyUploadHandler(null);
+  }, [uploadPublicKey]);
 
   // Fetch a user's public key from backend
   const fetchPublicKey = useCallback(async (userId: string): Promise<string | null> => {
@@ -146,7 +181,13 @@ export const CryptoProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       if (!res.ok) return null;
 
       const data = await res.json();
-      return data.publicKey;
+      const publicKey: string | null = data?.publicKey || null;
+      if (!publicKey) {
+        // 200 but empty key → backend knows the user but has no key on file
+        // (e.g. wiped by a server restart). Surface it instead of failing silently.
+        console.warn(`[CryptoContext] Backend returned no public key for ${userId} — peer must re-upload`);
+      }
+      return publicKey;
     } catch (err) {
       console.error('[CryptoContext] Error fetching public key:', err);
       return null;

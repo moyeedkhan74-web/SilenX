@@ -20,7 +20,7 @@ export async function authenticateWithGoogleBackend(
   onStatusUpdate?: (msg: string) => void
 ): Promise<GoogleAuthResponse> {
   const maxRetries = 8;
-  const retryDelayMs = 4000;
+  const baseDelayMs = 1000;
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
@@ -50,30 +50,47 @@ export async function authenticateWithGoogleBackend(
         throw new Error(body.message);
       }
 
-      // If status is 503/502/504 and body was HTML (Render proxy cold start page), retry
-      if (resp.status === 503 || resp.status === 502 || resp.status === 504) {
-        if (attempt < maxRetries) {
-          if (onStatusUpdate) {
-            onStatusUpdate('Connecting securely...');
-          }
-          await new Promise((r) => setTimeout(r, retryDelayMs));
-          continue;
+      // Rate limited (429), Render cold start (503/502/504) or other transient
+      // gateway failures → retry with EXPONENTIAL backoff, honoring Retry-After.
+      const retryable =
+        resp.status === 429 ||
+        resp.status === 503 ||
+        resp.status === 502 ||
+        resp.status === 504;
+
+      if (retryable && attempt < maxRetries) {
+        const retryAfterHeader = resp.headers.get('retry-after');
+        const retryAfterMs = retryAfterHeader ? Number(retryAfterHeader) * 1000 : NaN;
+        const backoffMs = Number.isFinite(retryAfterMs)
+          ? Math.min(retryAfterMs, 30_000)
+          : baseDelayMs * Math.pow(2, attempt - 1);
+        console.warn(`[AuthAPI] HTTP ${resp.status} — backing off ${Math.round(backoffMs)}ms (attempt ${attempt}/${maxRetries})`);
+        if (onStatusUpdate) {
+          onStatusUpdate(resp.status === 429 ? 'Server busy, retrying securely...' : 'Connecting securely...');
         }
+        await new Promise((r) => setTimeout(r, backoffMs));
+        continue;
       }
 
       throw new Error(`Backend authentication failed (HTTP ${resp.status})`);
     } catch (err: any) {
-      // If it's a known error message from JSON response, rethrow immediately
-      if (err.message && !err.message.includes('fetch') && !err.message.includes('HTTP 503')) {
+      const msg: string = err?.message || '';
+      // Known non-transient errors from the backend JSON body — rethrow immediately.
+      const isTransient =
+        msg.includes('fetch') ||
+        /^Backend authentication failed \(HTTP (429|502|503|504)\)$/.test(msg);
+
+      if (msg && !isTransient) {
         throw err;
       }
 
       console.warn(`[AuthAPI] Attempt ${attempt} failed:`, err?.message || err);
       if (attempt < maxRetries) {
+        const backoffMs = baseDelayMs * Math.pow(2, attempt - 1);
         if (onStatusUpdate) {
           onStatusUpdate('Connecting securely...');
         }
-        await new Promise((r) => setTimeout(r, retryDelayMs));
+        await new Promise((r) => setTimeout(r, backoffMs));
         continue;
       }
       throw err;

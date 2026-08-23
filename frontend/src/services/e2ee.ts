@@ -81,9 +81,13 @@ function isGroup(conversationId: string): boolean {
  * from the authenticated identity-key ECDH with the recipient.
  */
 async function ensureBootstrapEpoch(conversationId: string, peerId: string): Promise<void> {
+  // Guard: an empty/undefined peer (e.g. self-sent history without a recorded
+  // recipient, or group conversations) can never yield a peer public key.
+  if (!peerId || typeof peerId !== 'string') return;
+  if (isGroup(conversationId)) return;
+
   const meta = loadConversationMeta(conversationId);
   if (meta && getEpochSessionKey(conversationId, meta.epoch)) return;
-  if (!peerId || isGroup(conversationId)) return;
 
   const peerPublicKey = await getPublicKey(peerId);
   if (!peerPublicKey) return;

@@ -87,7 +87,7 @@ app.set('trust proxy', 1);
 // Rate Limiters
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 500, // Increased max limit for multi-tab / mobile sync
+  max: 2000, // Generous budget: multi-tab/mobile sync + Render cold-start reconnect storms
   message: { error: 'Too many authentication attempts, please try again later.' },
   standardHeaders: true,
   legacyHeaders: false,

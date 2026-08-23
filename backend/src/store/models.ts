@@ -14,6 +14,22 @@ const UserSchema = new Schema({
   showOnlineStatus: { type: Boolean, default: true },
   bio: { type: String, default: '' },
   publicKey: { type: String, default: null },
+  // Versioned public-key history — MUST be declared here or Mongoose strict
+  // mode strips it on every Mongo sync and it is lost on server restart.
+  publicKeys: [
+    new Schema(
+      {
+        id: { type: String, required: true },
+        userId: { type: String, required: true },
+        publicKey: { type: String, required: true },
+        createdAt: { type: Date, default: Date.now },
+        expiresAt: { type: Date, default: null },
+        version: { type: Number, default: 1 },
+        fingerprint: { type: String, default: null },
+      },
+      { _id: false }
+    ),
+  ],
   createdAt: { type: Date, required: true, default: Date.now },
   updatedAt: { type: Date, required: true, default: Date.now },
   deletedAt: { type: Date, default: null },

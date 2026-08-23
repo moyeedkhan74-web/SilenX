@@ -668,6 +668,32 @@ export function registerSocketHandlers(io: any): void {
       });
     });
 
+    // ─── E2EE Public Key Recovery Relay ─────────────────────────────────────
+    // When a peer's public key is missing server-side (e.g. wiped by a Render
+    // restart before MongoDB sync), the requester asks the PEER to re-upload.
+    // Pure relay: the server never sees private material, only this signal.
+    socket.on('request-public-key', (data: { targetUserId?: string }) => {
+      const targetUserId = data?.targetUserId;
+      if (!targetUserId || targetUserId === userId) return;
+
+      // Verify the requester actually shares a conversation with the target —
+      // prevents using this as a presence oracle for arbitrary users.
+      const myConvoIds = new Set(
+        conversationMembers.filter((m) => m.userId === userId).map((m) => m.conversationId)
+      );
+      const sharesConversation = conversationMembers.some(
+        (m) => m.userId === targetUserId && myConvoIds.has(m.conversationId)
+      );
+      if (!sharesConversation) return;
+
+      const recipientSocketId = getSocketIdForUser(targetUserId);
+      if (recipientSocketId) {
+        io.to(recipientSocketId).emit('upload-your-public-key', {
+          requestedBy: userId,
+        });
+      }
+    });
+
     // ─── E2EE Key Rotation Handshake ────────────────────────────────────────
     // Pure relay: only PUBLIC ephemeral keys transit the server. Shared
     // secrets are derived independently on each device and never transmitted,
