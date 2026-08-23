@@ -51,31 +51,50 @@ export async function requireAuth(
     const decodedToken = await adminAuth.verifyIdToken(idToken);
     const firebaseUid = decodedToken.uid;
 
-    // Look up the user record by their Firebase UID (which was set when they first logged in)
-    const dbUser = users.find(
+    // Look up the user record by their Firebase UID
+    let dbUser = users.find(
       (u: any) => u.id === firebaseUid || (u as any).firebaseUid === firebaseUid
     );
 
     if (!dbUser) {
-      res.status(401).json({ message: 'User record not found. Please log in again.' });
-      return;
+      // Auto-upsert: If Firebase token is valid, auto-create the DB user record so APIs/Sockets never fail with 401
+      const generatedUid = `SEC_${firebaseUid}`;
+      const newUser = {
+        id: firebaseUid,
+        uid: generatedUid,
+        email: decodedToken.email || `${firebaseUid}@slienx.app`,
+        displayName: (decodedToken as any).name || decodedToken.email?.split('@')[0] || 'SilenX User',
+        avatarUrl: (decodedToken as any).picture || undefined,
+        status: 'online' as const,
+        lastSeen: new Date(),
+        showOnlineStatus: true,
+        bio: '',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        deletedAt: null,
+      };
+      users.push(newUser as any);
+      dbUser = newUser as any;
+      saveDb();
+      console.log(`[Auth] Auto-registered missing DB user record for Firebase UID ${firebaseUid}`);
     }
 
-    req.currentUser = { firebaseUid, dbId: dbUser.id };
+    const activeUser = dbUser!;
+    req.currentUser = { firebaseUid, dbId: activeUser.id };
 
     // Touch lastSeen on every authenticated request (activity-based presence tracking)
-    const wasOffline = dbUser.status === 'offline';
-    dbUser.lastSeen = new Date();
+    const wasOffline = activeUser.status === 'offline';
+    activeUser.lastSeen = new Date();
     if (wasOffline) {
-      dbUser.status = 'online';
+      activeUser.status = 'online';
       saveDb();
       // Broadcast presence change to all connected sockets
       const ioInstance = (req.app as any).get('io');
       if (ioInstance) {
         ioInstance.emit('user-status-changed', {
-          userId: dbUser.id,
+          userId: activeUser.id,
           status: 'online',
-          lastSeen: dbUser.lastSeen.toISOString(),
+          lastSeen: activeUser.lastSeen.toISOString(),
         });
       }
     }
