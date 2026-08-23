@@ -11,7 +11,7 @@ interface CryptoContextType {
   isLoading: boolean;
   error: string | null;
   initializeKeys: () => Promise<void>;
-  uploadPublicKey: () => Promise<boolean>;
+  uploadPublicKey: (explicitPublicKey?: string) => Promise<boolean>;
   fetchPublicKey: (userId: string) => Promise<string | null>;
   encryptForUser: (plaintext: string, recipientUserId: string, recipientPublicKey?: string) => Promise<EncryptedPayload | null>;
   decryptFromUser: (encryptedPayload: EncryptedPayload, senderPublicKey: string) => Promise<string | null>;
@@ -75,9 +75,9 @@ export const CryptoProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     setError(null);
 
     // Upload with short exponential backoff — survives Render cold-start 5xx/429s
-    const uploadWithRetry = async (): Promise<boolean> => {
+    const uploadWithRetry = async (pubKey?: string): Promise<boolean> => {
       for (let attempt = 0; attempt < 3; attempt++) {
-        if (await uploadPublicKey()) return true;
+        if (await uploadPublicKey(pubKey)) return true;
         await new Promise((r) => setTimeout(r, 1000 * Math.pow(2, attempt)));
       }
       return false;
@@ -95,7 +95,7 @@ export const CryptoProvider: React.FC<{ children: ReactNode }> = ({ children }) 
           };
           setKeyPair(loadedKeyPair);
           // Upload public key to server if not already there
-          await uploadWithRetry();
+          await uploadWithRetry(publicKey);
           setIsLoading(false);
           return;
         }
@@ -108,7 +108,7 @@ export const CryptoProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       setKeyPair(newKeyPair);
 
       // Upload to backend
-      await uploadWithRetry();
+      await uploadWithRetry(newKeyPair.publicKey);
     } catch (err) {
       console.error('[CryptoContext] Failed to initialize keys:', err);
       setError('Failed to initialize encryption keys');
@@ -118,13 +118,12 @@ export const CryptoProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   }, [user]);
 
   // Upload public key to backend.
-  // IMPORTANT: resolves the key from React state OR local storage — during
-  // initializeKeys() the state update has not propagated yet, and reading only
-  // `keyPair` made the first upload silently no-op (peer keys never uploaded).
-  const uploadPublicKey = useCallback(async (): Promise<boolean> => {
+  // IMPORTANT: resolves the key from explicit parameter, React state OR local storage
+  const uploadPublicKey = useCallback(async (explicitPublicKey?: string): Promise<boolean> => {
     if (!token) return false;
 
     const publicKey =
+      explicitPublicKey ||
       keyPair?.publicKey ||
       (() => {
         try {
@@ -185,7 +184,8 @@ export const CryptoProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       if (!publicKey) {
         // 200 but empty key → backend knows the user but has no key on file
         // (e.g. wiped by a server restart). Surface it instead of failing silently.
-        console.warn(`[CryptoContext] Backend returned no public key for ${userId} — peer must re-upload`);
+        console.warn(`[CryptoContext] Backend returned 200 but empty public key for ${userId} — peer key missing on server`);
+        return null;
       }
       return publicKey;
     } catch (err) {

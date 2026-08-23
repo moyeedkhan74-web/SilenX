@@ -83,7 +83,7 @@ function isGroup(conversationId: string): boolean {
 async function ensureBootstrapEpoch(conversationId: string, peerId: string): Promise<void> {
   // Guard: an empty/undefined peer (e.g. self-sent history without a recorded
   // recipient, or group conversations) can never yield a peer public key.
-  if (!peerId || typeof peerId !== 'string') return;
+  if (!peerId || typeof peerId !== 'string' || peerId.trim() === '') return;
   if (isGroup(conversationId)) return;
 
   const meta = loadConversationMeta(conversationId);

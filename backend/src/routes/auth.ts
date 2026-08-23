@@ -1,10 +1,19 @@
 import { Router, Request, Response } from 'express';
+import rateLimit from 'express-rate-limit';
 import { getAdminAuth } from '../config/firebaseAdmin';
 import { users, saveDb } from '../store/db';
 
 import { DecodedIdToken } from 'firebase-admin/auth';
 
 const router = Router();
+
+const googleAuthLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5000, // Generous limit for multi-tab/mobile sync & Render cold-start reconnect storms
+  message: { error: 'Too many authentication attempts, please try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 /**
  * POST /api/auth/google
@@ -15,7 +24,7 @@ const router = Router();
  *
  * Security: never trusts googleId / email / firebaseUid supplied in the body.
  */
-router.post('/google', async (req: Request, res: Response) => {
+router.post('/google', googleAuthLimiter, async (req: Request, res: Response) => {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     res.status(401).json({ message: 'Missing Authorization: Bearer <idToken> header' });

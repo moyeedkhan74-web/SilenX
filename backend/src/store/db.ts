@@ -201,6 +201,8 @@ export async function connectDb() {
   users.length = 0;
   users.push(...dbUsers.map((u: any) => ({
     ...u,
+    publicKey: u.publicKey || null,
+    publicKeys: u.publicKeys || [],
     status: 'offline',
     lastSeen: u.lastSeen ? new Date(u.lastSeen) : new Date(),
     createdAt: u.createdAt ? new Date(u.createdAt) : new Date(),
@@ -299,6 +301,8 @@ export function loadDb() {
         users.length = 0;
         users.push(...data.users.map((u: any) => ({
           ...u,
+          publicKey: u.publicKey || null,
+          publicKeys: u.publicKeys || [],
           status: 'offline',
           lastSeen: u.lastSeen ? new Date(u.lastSeen) : new Date(),
           createdAt: u.createdAt ? new Date(u.createdAt) : new Date(),

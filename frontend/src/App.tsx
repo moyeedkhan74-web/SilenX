@@ -1,4 +1,4 @@
-﻿import React, { useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { onAuthStateChanged, onIdTokenChanged } from 'firebase/auth';
 import LoginPage from './pages/LoginPage';
@@ -73,6 +73,8 @@ function App() {
   );
 }
 
+let activeAuthPromise: Promise<any> | null = null;
+
 function AppInner({
   login,
   logout,
@@ -114,8 +116,14 @@ useEffect(() => {
                 }),
               ]);
 
+              if (!activeAuthPromise) {
+                activeAuthPromise = authenticateWithGoogleBackend(idToken).finally(() => {
+                  activeAuthPromise = null;
+                });
+              }
+
               const body = await Promise.race([
-                authenticateWithGoogleBackend(idToken),
+                activeAuthPromise,
                 new Promise<never>((_, reject) => {
                   setTimeout(() => reject(new Error('Backend startup timed out')), 30000);
                 }),

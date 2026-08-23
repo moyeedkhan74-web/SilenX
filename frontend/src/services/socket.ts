@@ -103,6 +103,7 @@ const requestPeerPublicKeyUpload = (userId: string): void => {
         const retried = await fetchPublicKeyFromApi(userId);
         if (retried) {
           console.info(`[Socket] Recovered public key for ${userId} after peer re-upload`);
+          noKeyCache.delete(userId);
           writeCachedPublicKey(userId, retried);
         }
       } catch {
