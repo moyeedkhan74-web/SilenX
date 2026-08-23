@@ -82,7 +82,18 @@ router.post('/livekit/token', async (req: AuthenticatedRequest, res: Response) =
   }
 
   if (!config.livekitUrl || !config.livekitApiKey || !config.livekitApiSecret) {
-    res.status(500).json({ message: 'LiveKit is not configured on the server' });
+    // Not a crash: tell the client explicitly so 1-on-1 calls can degrade to
+    // direct P2P WebRTC over Socket.io signaling.
+    console.warn(
+      '[groupCalls] LIVEKIT_URL / LIVEKIT_API_KEY / LIVEKIT_API_SECRET are not set on this host — ' +
+        'responding with fallbackToP2p so direct calls use P2P WebRTC. Group calls are unavailable.'
+    );
+    res.status(200).json({
+      success: false,
+      fallbackToP2p: true,
+      reason: 'LIVEKIT_UNCONFIGURED',
+      message: 'LiveKit is not configured on the server',
+    });
     return;
   }
 
@@ -118,31 +129,42 @@ router.post('/livekit/token', async (req: AuthenticatedRequest, res: Response) =
   const identity = user.id;
   const name = user.displayName || 'Guest';
 
-  const at = new AccessToken(config.livekitApiKey, config.livekitApiSecret, {
-    identity,
-    name,
-    ttl: 3600, // 1 hour
-  });
+  try {
+    const at = new AccessToken(config.livekitApiKey, config.livekitApiSecret, {
+      identity,
+      name,
+      ttl: 3600, // 1 hour
+    });
 
-  const grant: VideoGrant = {
-    room: roomName,
-    roomJoin: true,
-    canPublish: true,
-    canSubscribe: true,
-    canPublishData: true,
-  };
-  at.addGrant(grant);
+    const grant: VideoGrant = {
+      room: roomName,
+      roomJoin: true,
+      canPublish: true,
+      canSubscribe: true,
+      canPublishData: true,
+    };
+    at.addGrant(grant);
 
-  const token = await at.toJwt();
+    const token = await at.toJwt();
 
-  res.status(200).json({
-    token,
-    url: config.livekitUrl,
-    roomName,
-    identity,
-    name,
-    e2ee: true,
-  });
+    res.status(200).json({
+      success: true,
+      token,
+      url: config.livekitUrl,
+      roomName,
+      identity,
+      name,
+      e2ee: true,
+    });
+  } catch (error) {
+    console.error('[groupCalls] LiveKit token generation failed:', error);
+    res.status(502).json({
+      success: false,
+      fallbackToP2p: mode === 'direct',
+      reason: 'LIVEKIT_TOKEN_ERROR',
+      message: `LiveKit token generation failed: ${error instanceof Error ? error.message : String(error)}`,
+    });
+  }
 });
 
 router.post('/group/:groupId/end', (req: AuthenticatedRequest, res: Response) => {

@@ -37,6 +37,7 @@ interface CallEndedPayload {
 }
 
 interface LiveKitTokenResponse {
+  success?: boolean;
   token: string;
   url: string;
   roomName: string;
@@ -44,7 +45,22 @@ interface LiveKitTokenResponse {
   name?: string;
 }
 
+/** Structured backend signal telling the client to degrade to P2P WebRTC. */
+interface LiveKitFallbackBody {
+  success: false;
+  fallbackToP2p: boolean;
+  reason: 'LIVEKIT_UNCONFIGURED' | 'LIVEKIT_TOKEN_ERROR';
+  message: string;
+}
+
 const E2EE_KEY_SALT = 'silenx-e2ee-v1';
+
+/** STUN-only configuration for the direct P2P fallback (1-on-1 calls). */
+const P2P_ICE_SERVERS: RTCIceServer[] = [
+  { urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] },
+];
+const P2P_ANSWER_TIMEOUT_MS = 20_000;
+const P2P_CONNECT_TIMEOUT_MS = 15_000;
 
 export class LiveKitService {
   private currentSocket: Socket | null = null;
@@ -67,6 +83,14 @@ export class LiveKitService {
   private callTimeoutTimer: ReturnType<typeof setTimeout> | null = null;
   private lastMediaError: string | null = null;
   private lastCallError: string | null = null;
+  // ─── Direct P2P WebRTC fallback state ───
+  private transportMode: 'livekit' | 'p2p' | null = null;
+  private p2pConnection: RTCPeerConnection | null = null;
+  private pendingRemoteCandidates: RTCIceCandidateInit[] = [];
+  private p2pOfferResolver: ((sdp: RTCSessionDescriptionInit) => void) | null = null;
+  private p2pOfferQueue: RTCSessionDescriptionInit[] = [];
+  private p2pAnswerResolver: ((sdp: RTCSessionDescriptionInit) => void) | null = null;
+  private lastTokenFailure: { fallbackToP2p: boolean; reason?: string; message?: string } | null = null;
   private static CALL_TIMEOUT_MS = 45_000;
 
   public initialize(socket: Socket): void {
@@ -89,6 +113,10 @@ export class LiveKitService {
     socket.on('call-rejected', this.handleCallRejected);
     socket.on('call-ended', this.handleRemoteCallEnded);
     socket.on('call-log-id', this.handleCallLogId);
+    // Direct P2P WebRTC fallback signaling (relayed by the backend)
+    socket.on('sdp-offer-received', this.handleP2pOffer);
+    socket.on('sdp-answer-received', this.handleP2pAnswer);
+    socket.on('ice-candidate-received', this.handleP2pRemoteCandidate);
   }
 
   private detachSocketListeners(socket: Socket): void {
@@ -98,6 +126,9 @@ export class LiveKitService {
     socket.off('call-rejected', this.handleCallRejected);
     socket.off('call-ended', this.handleRemoteCallEnded);
     socket.off('call-log-id', this.handleCallLogId);
+    socket.off('sdp-offer-received', this.handleP2pOffer);
+    socket.off('sdp-answer-received', this.handleP2pAnswer);
+    socket.off('ice-candidate-received', this.handleP2pRemoteCandidate);
   }
 
   public setVideoElements(
@@ -216,6 +247,7 @@ export class LiveKitService {
     const authToken = useAuthStore.getState().token;
     if (!authToken) {
       console.warn('[LiveKit] No auth token available for LiveKit token request');
+      this.lastTokenFailure = { fallbackToP2p: false, reason: 'NO_AUTH_TOKEN', message: 'Not signed in' };
       return null;
     }
 
@@ -231,13 +263,55 @@ export class LiveKitService {
 
       if (!response.ok) {
         const detail = await response.text().catch(() => '');
-        console.error('[LiveKit] Token request failed:', response.status, detail);
+        console.error(
+          `[LiveKit] Token request failed — HTTP ${response.status} ${response.statusText}. Server said: ${detail || '(no body)'}`
+        );
+        // Structured fallback bodies may also arrive with non-2xx statuses.
+        let parsed: LiveKitFallbackBody | null = null;
+        try {
+          const json = JSON.parse(detail) as LiveKitFallbackBody;
+          if (json && json.reason) parsed = json;
+        } catch {
+          // not a structured body
+        }
+        this.lastTokenFailure = parsed
+          ? { fallbackToP2p: parsed.fallbackToP2p, reason: parsed.reason, message: parsed.message }
+          : { fallbackToP2p: false, reason: `HTTP_${response.status}`, message: detail.slice(0, 200) };
         return null;
       }
 
-      return (await response.json()) as LiveKitTokenResponse;
+      const body = (await response.json()) as LiveKitTokenResponse | LiveKitFallbackBody;
+
+      if ('success' in body && body.success === false) {
+        const failure = body as LiveKitFallbackBody;
+        console.warn(
+          `[LiveKit] Server cannot provide SFU access — reason=${failure.reason}: ${failure.message}` +
+            (failure.fallbackToP2p ? ' Client will fall back to direct P2P WebRTC.' : '')
+        );
+        this.lastTokenFailure = {
+          fallbackToP2p: failure.fallbackToP2p,
+          reason: failure.reason,
+          message: failure.message,
+        };
+        return null;
+      }
+
+      const tokenResponse = body as LiveKitTokenResponse;
+      if (!tokenResponse.token || !tokenResponse.url) {
+        console.error('[LiveKit] Token response missing token or url fields:', tokenResponse);
+        this.lastTokenFailure = { fallbackToP2p: false, reason: 'MALFORMED_RESPONSE', message: 'Token response missing fields' };
+        return null;
+      }
+
+      this.lastTokenFailure = null;
+      return tokenResponse;
     } catch (error) {
-      console.error('[LiveKit] Error fetching LiveKit token:', error);
+      console.error('[LiveKit] Network error fetching LiveKit token:', error);
+      this.lastTokenFailure = {
+        fallbackToP2p: false,
+        reason: 'NETWORK_ERROR',
+        message: error instanceof Error ? error.message : String(error),
+      };
       return null;
     }
   }
@@ -258,13 +332,34 @@ export class LiveKitService {
     if (this.room && this.room.state === ConnectionState.Connected) {
       return true;
     }
+    if (this.transportMode === 'p2p' && this.p2pConnection) {
+      return true; // already connected via direct P2P fallback
+    }
 
     const tokenResponse = mode === 'group'
       ? await this.fetchLiveKitToken({ mode: 'group', groupId: this.targetGroupId ?? undefined })
       : await this.fetchLiveKitToken({ mode: 'direct', targetUserId: this.targetUserId ?? undefined });
 
     if (!tokenResponse?.token || !tokenResponse.url) {
-      console.error('[LiveKit] Could not obtain room credentials');
+      const failure = this.lastTokenFailure;
+
+      // 1-on-1 calls degrade to direct P2P WebRTC over Socket.io signaling.
+      // Group calls genuinely require the SFU.
+      if (mode === 'direct') {
+        console.warn(
+          `[LiveKit] SFU unavailable (reason=${failure?.reason || 'unknown'}) — using direct P2P WebRTC fallback`
+        );
+        if (this.isCaller) {
+          return this.startP2pAsInitiator();
+        }
+        // Callee: build the connection now; the offer arrives after we emit
+        // call-accept, and completeP2pResponderHandshake() finishes then.
+        return this.prepareP2pResponder();
+      }
+
+      this.lastCallError =
+        'Group calls require the LiveKit call server, which is not configured on the backend.' +
+        (failure?.message ? ` Server said: ${failure.message}` : '');
       return false;
     }
 
@@ -312,6 +407,17 @@ export class LiveKitService {
     } catch (error) {
       console.error('[LiveKit] Error connecting to room:', error);
       this.teardownRoom();
+      // Room join failed even with a valid token — degrade to P2P for direct
+      // calls before giving up entirely. teardownRoom() stopped our tracks,
+      // so re-acquire media first (permissions are already granted).
+      if (mode === 'direct') {
+        console.warn('[LiveKit] Room join failed — attempting direct P2P WebRTC fallback');
+        await this.ensureLocalMedia(callType);
+        if (this.isCaller) {
+          return this.startP2pAsInitiator();
+        }
+        return this.prepareP2pResponder();
+      }
       return false;
     }
   }
@@ -579,7 +685,9 @@ export class LiveKitService {
 
     const connected = await this.connectToRoom(this.currentCallType, 'direct');
     if (!connected) {
-      this.lastCallError = 'Could not connect to the call server. Please check your internet connection and try again.';
+      this.lastCallError =
+        this.lastCallError ||
+        'Could not connect to the call server. Please check your internet connection and try again.';
       useCallStore.getState().rejectCall();
       return false;
     }
@@ -588,6 +696,13 @@ export class LiveKitService {
       targetUserId: this.targetUserId,
       callLogId: this.callLogId,
     });
+
+    // In P2P fallback mode the caller sends its offer only after receiving
+    // this accept — finish the negotiation without blocking the UI.
+    if (this.transportMode === 'p2p') {
+      void this.completeP2pResponderHandshake();
+    }
+
     this.callStartTimestamp = Date.now();
     useCallStore.getState().acceptCall();
     return true;
@@ -618,6 +733,260 @@ export class LiveKitService {
     }
     this.stopRingTone();
     this.resetCallState();
+  }
+
+  // ─── Direct P2P WebRTC fallback (1-on-1 calls) ──────────────────────────────
+  // Used when the LiveKit SFU is unconfigured or unreachable. Media flows
+  // peer-to-peer over the existing Socket.io relay events (sdp-offer /
+  // sdp-answer / ice-candidate). Group calls cannot use this mode.
+
+  private createP2pConnection(): void {
+    const pc = new RTCPeerConnection({ iceServers: P2P_ICE_SERVERS });
+    this.p2pConnection = pc;
+    this.transportMode = 'p2p';
+    this.pendingRemoteCandidates = [];
+
+    // Publish our local tracks into the connection.
+    if (this.localStream) {
+      for (const track of this.localStream.getTracks()) {
+        pc.addTrack(track, this.localStream);
+      }
+    }
+
+    pc.ontrack = (event: RTCTrackEvent) => {
+      const [remoteStream] = event.streams;
+      if (remoteStream && this.remoteStream !== remoteStream) {
+        console.log('[P2P] Remote track received:', event.track.kind);
+        this.remoteStream = remoteStream;
+        if (this.remoteVideoElement) {
+          this.remoteVideoElement.srcObject = this.remoteStream;
+        }
+        this.notifyStreamListeners();
+      }
+    };
+
+    pc.onicecandidate = (event: RTCPeerConnectionIceEvent) => {
+      if (event.candidate && this.targetUserId) {
+        getSocket()?.emit('ice-candidate', {
+          targetUserId: this.targetUserId,
+          candidate: event.candidate.toJSON(),
+        });
+      }
+    };
+
+    pc.onconnectionstatechange = () => {
+      const state = pc.connectionState;
+      console.debug('[P2P] connectionState:', state);
+      if (state === 'failed') {
+        this.lastCallError =
+          'Direct peer-to-peer connection failed (ICE negotiation did not converge). ' +
+          'A TURN server would be required for this network.';
+      } else if (state === 'disconnected') {
+        console.warn('[P2P] Peer connection disconnected — may recover automatically');
+      }
+    };
+
+    pc.oniceconnectionstatechange = () => {
+      console.debug('[P2P] iceConnectionState:', pc.iceConnectionState);
+    };
+  }
+
+  /** Caller side: create offer, send, await answer, await connectivity. */
+  private async startP2pAsInitiator(): Promise<boolean> {
+    console.warn('[LiveKit] Falling back to direct P2P WebRTC (initiator)');
+    this.lastCallError = null;
+
+    this.createP2pConnection();
+    const pc = this.p2pConnection!;
+    const socket = getSocket();
+    if (!socket || !this.targetUserId) {
+      this.lastCallError = 'Direct connection failed: signaling socket unavailable.';
+      return false;
+    }
+
+    try {
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      socket.emit('sdp-offer', {
+        targetUserId: this.targetUserId,
+        sdp: pc.localDescription!.toJSON(),
+      });
+
+      const answer = await this.waitForP2pAnswer(P2P_ANSWER_TIMEOUT_MS);
+      if (!answer || !this.p2pConnection) {
+        this.lastCallError =
+          'Direct connection timed out waiting for the other device to respond.';
+        return false;
+      }
+
+      if (pc.signalingState !== 'have-local-offer') {
+        console.warn('[P2P] Unexpected signaling state on answer:', pc.signalingState);
+      }
+      await pc.setRemoteDescription(answer);
+      await this.flushPendingRemoteCandidates();
+
+      const connected = await this.waitUntilP2pConnected(pc, P2P_CONNECT_TIMEOUT_MS);
+      if (!connected) {
+        this.lastCallError =
+          'LiveKit call server unavailable and direct P2P ICE negotiation timed out. ' +
+          'Both devices may be behind restrictive networks.';
+        return false;
+      }
+
+      console.log('[P2P] Direct WebRTC connection established');
+      return true;
+    } catch (error) {
+      console.error('[P2P] Initiator negotiation failed:', error);
+      this.lastCallError = `Direct connection failed: ${error instanceof Error ? error.message : String(error)}`;
+      return false;
+    }
+  }
+
+  /**
+   * Callee side step 1: build the connection so media is ready the moment the
+   * user accepts. The actual offer/answer exchange happens asynchronously in
+   * completeP2pResponderHandshake() after call-accept is emitted.
+   */
+  private prepareP2pResponder(): boolean {
+    console.warn('[LiveKit] Falling back to direct P2P WebRTC (responder)');
+    this.lastCallError = null;
+    this.createP2pConnection();
+    return true;
+  }
+
+  /** Callee side step 2: consume the caller's offer, answer, connect. */
+  private async completeP2pResponderHandshake(): Promise<void> {
+    try {
+      const offer = await this.waitForP2pOffer(P2P_ANSWER_TIMEOUT_MS);
+      const pc = this.p2pConnection;
+      if (!offer || !pc) {
+        this.lastCallError = 'Direct connection timed out waiting for the caller.';
+        this.endCall();
+        return;
+      }
+
+      await pc.setRemoteDescription(offer);
+      await this.flushPendingRemoteCandidates();
+
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+      getSocket()?.emit('sdp-answer', {
+        targetUserId: this.targetUserId,
+        sdp: pc.localDescription!.toJSON(),
+      });
+
+      const connected = await this.waitUntilP2pConnected(pc, P2P_CONNECT_TIMEOUT_MS);
+      if (!connected) {
+        this.lastCallError =
+          'LiveKit call server unavailable and direct P2P ICE negotiation timed out.';
+        this.endCall();
+        return;
+      }
+      console.log('[P2P] Direct WebRTC connection established');
+    } catch (error) {
+      console.error('[P2P] Responder handshake failed:', error);
+      this.lastCallError = `Direct connection failed: ${error instanceof Error ? error.message : String(error)}`;
+      this.endCall();
+    }
+  }
+
+  private waitForP2pOffer(timeoutMs: number): Promise<RTCSessionDescriptionInit | null> {
+    if (this.p2pOfferQueue.length > 0) {
+      return Promise.resolve(this.p2pOfferQueue.shift()!);
+    }
+    return new Promise((resolve) => {
+      const timer = setTimeout(() => {
+        this.p2pOfferResolver = null;
+        resolve(null);
+      }, timeoutMs);
+      this.p2pOfferResolver = (sdp) => {
+        clearTimeout(timer);
+        resolve(sdp);
+      };
+    });
+  }
+
+  private waitForP2pAnswer(timeoutMs: number): Promise<RTCSessionDescriptionInit | null> {
+    return new Promise((resolve) => {
+      const timer = setTimeout(() => {
+        this.p2pAnswerResolver = null;
+        resolve(null);
+      }, timeoutMs);
+      this.p2pAnswerResolver = (sdp) => {
+        clearTimeout(timer);
+        resolve(sdp);
+      };
+    });
+  }
+
+  private handleP2pOffer = (payload: { sdp?: RTCSessionDescriptionInit; senderId?: string }): void => {
+    if (!payload?.sdp || payload.senderId !== this.targetUserId || this.isCaller) return;
+    if (this.p2pOfferResolver) {
+      this.p2pOfferResolver(payload.sdp);
+      this.p2pOfferResolver = null;
+    } else {
+      this.p2pOfferQueue.push(payload.sdp);
+    }
+  };
+
+  private handleP2pAnswer = (payload: { sdp?: RTCSessionDescriptionInit; senderId?: string }): void => {
+    if (!payload?.sdp || payload.senderId !== this.targetUserId || !this.isCaller) return;
+    this.p2pAnswerResolver?.(payload.sdp);
+    this.p2pAnswerResolver = null;
+  };
+
+  private handleP2pRemoteCandidate = (payload: {
+    candidate?: RTCIceCandidateInit;
+    senderId?: string;
+  }): void => {
+    if (!payload?.candidate || payload.senderId !== this.targetUserId) return;
+    const pc = this.p2pConnection;
+    if (pc && pc.remoteDescription) {
+      pc.addIceCandidate(payload.candidate).catch((error) =>
+        console.warn('[P2P] addIceCandidate failed:', error)
+      );
+    } else {
+      // Remote description not set yet — buffer until it is.
+      this.pendingRemoteCandidates.push(payload.candidate);
+    }
+  };
+
+  private async flushPendingRemoteCandidates(): Promise<void> {
+    const pc = this.p2pConnection;
+    if (!pc) return;
+    const queued = [...this.pendingRemoteCandidates];
+    this.pendingRemoteCandidates = [];
+    for (const candidate of queued) {
+      try {
+        await pc.addIceCandidate(candidate);
+      } catch (error) {
+        console.warn('[P2P] Queued addIceCandidate failed:', error);
+      }
+    }
+  }
+
+  private waitUntilP2pConnected(pc: RTCPeerConnection, timeoutMs: number): Promise<boolean> {
+    if (pc.connectionState === 'connected') return Promise.resolve(true);
+    return new Promise((resolve) => {
+      const timer = setTimeout(() => {
+        cleanup();
+        resolve(false);
+      }, timeoutMs);
+      const onChange = () => {
+        if (pc.connectionState === 'connected') {
+          cleanup();
+          resolve(true);
+        } else if (pc.connectionState === 'failed' || pc.connectionState === 'closed') {
+          cleanup();
+          resolve(false);
+        }
+      };
+      const cleanup = () => {
+        clearTimeout(timer);
+        pc.removeEventListener('connectionstatechange', onChange);
+      };
+      pc.addEventListener('connectionstatechange', onChange);
+    });
   }
 
   // ??? Call controls (LiveKit-native) ?????????????????????????????????????????
@@ -664,7 +1033,57 @@ export class LiveKitService {
   }
 
   public async switchCamera(): Promise<boolean> {
-    if (!this.room?.localParticipant || this.currentCallType !== 'video') {
+    if (this.currentCallType !== 'video') {
+      return false;
+    }
+
+    // P2P mode: acquire the other camera and hot-swap it on the active sender.
+    if (this.transportMode === 'p2p') {
+      const pc = this.p2pConnection;
+      if (!pc) return false;
+      const nextFacingMode = this.currentFacingMode === 'user' ? 'environment' : 'user';
+      try {
+        this.localStream?.getVideoTracks().forEach((t) => t.stop());
+        await new Promise((resolve) => setTimeout(resolve, 150));
+
+        let stream: MediaStream;
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: { exact: nextFacingMode } },
+          });
+        } catch {
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: { ideal: nextFacingMode } },
+          });
+        }
+
+        const newTrack = stream.getVideoTracks()[0];
+        if (!newTrack) return false;
+
+        const sender = pc.getSenders().find((s) => s.track?.kind === 'video');
+        if (sender) {
+          await sender.replaceTrack(newTrack);
+        } else {
+          pc.addTrack(newTrack, stream);
+        }
+
+        // Keep the local preview MediaStream coherent.
+        const oldTracks = this.localStream?.getVideoTracks() ?? [];
+        oldTracks.forEach((t) => this.localStream?.removeTrack(t));
+        this.localStream?.addTrack(newTrack);
+        this.currentFacingMode = nextFacingMode;
+        if (this.localVideoElement) {
+          this.localVideoElement.srcObject = this.localStream;
+        }
+        this.notifyStreamListeners();
+        return true;
+      } catch (error) {
+        console.error('[P2P] Failed to switch camera:', error);
+        return false;
+      }
+    }
+
+    if (!this.room?.localParticipant) {
       return false;
     }
 
@@ -1003,6 +1422,21 @@ export class LiveKitService {
   }
 
   private teardownRoom(): void {
+    // Direct P2P connection teardown.
+    if (this.p2pConnection) {
+      try {
+        this.p2pConnection.close();
+      } catch {
+        // already closed
+      }
+      this.p2pConnection = null;
+    }
+    this.transportMode = null;
+    this.pendingRemoteCandidates = [];
+    this.p2pOfferQueue = [];
+    this.p2pOfferResolver = null;
+    this.p2pAnswerResolver = null;
+
     if (this.room) {
       this.room.removeAllListeners();
       try {
