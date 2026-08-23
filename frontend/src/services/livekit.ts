@@ -66,6 +66,7 @@ export class LiveKitService {
   private callStartTimestamp: number | null = null;
   private callTimeoutTimer: ReturnType<typeof setTimeout> | null = null;
   private lastMediaError: string | null = null;
+  private lastCallError: string | null = null;
   private static CALL_TIMEOUT_MS = 45_000;
 
   public initialize(socket: Socket): void {
@@ -567,6 +568,7 @@ export class LiveKitService {
     }
 
     this.stopRingTone();
+    this.lastCallError = null;
 
     const gotMedia = await this.ensureLocalMedia(this.currentCallType);
     if (!gotMedia) {
@@ -577,6 +579,7 @@ export class LiveKitService {
 
     const connected = await this.connectToRoom(this.currentCallType, 'direct');
     if (!connected) {
+      this.lastCallError = 'Could not connect to the call server. Please check your internet connection and try again.';
       useCallStore.getState().rejectCall();
       return false;
     }
@@ -738,6 +741,10 @@ export class LiveKitService {
     return this.lastMediaError;
   }
 
+  public getCallError(): string | null {
+    return this.lastCallError;
+  }
+
   private static errorName(error: unknown): string {
     return error instanceof DOMException ? error.name : '';
   }
@@ -772,19 +779,40 @@ export class LiveKitService {
       return false;
     }
 
-    // 2. Android runtime permissions must be granted BEFORE the WebView can
-    //    serve getUserMedia, otherwise it fails silently with NotAllowedError.
     const wantsVideo = callType === 'video';
-    const permissions = await ensureMediaPermissions(wantsVideo ? 'video' : 'audio');
-    if (!permissions.microphone) {
-      console.error('[LiveKit] Microphone permission denied at runtime');
-      this.lastMediaError = isCapacitorNative
-        ? 'Microphone access is blocked. Open Android Settings > Apps > SilenX > Permissions and allow Microphone (and Camera), then try again.'
-        : 'Microphone access is blocked. Click the lock icon in your browser address bar and allow Microphone, then try again.';
-      return false;
-    }
-    if (wantsVideo && !permissions.camera) {
-      console.warn('[LiveKit] Camera permission denied at runtime — will fall back to audio-only');
+
+    // 2. Request/check permissions before getUserMedia.
+    //    On native Android: must request via the Capacitor plugin first or the
+    //    WebView silently denies getUserMedia with NotAllowedError.
+    //    On web: use Permissions API to detect already-denied state early so we
+    //    can show the right browser-specific guidance immediately.
+    let cameraAvailable = true;
+    if (isCapacitorNative) {
+      const permissions = await ensureMediaPermissions(wantsVideo ? 'video' : 'audio');
+      if (!permissions.microphone) {
+        console.error('[LiveKit] Microphone permission denied (native)');
+        this.lastMediaError =
+          'Microphone access is blocked. Open Android Settings > Apps > SilenX > Permissions and allow Microphone (and Camera), then try again.';
+        return false;
+      }
+      cameraAvailable = permissions.camera;
+      if (wantsVideo && !cameraAvailable) {
+        console.warn('[LiveKit] Camera permission denied — will fall back to audio-only');
+      }
+    } else {
+      // Web: query current permission state without prompting.
+      try {
+        const micState = await (navigator.permissions as any).query({ name: 'microphone' });
+        if (micState.state === 'denied') {
+          console.error('[LiveKit] Browser microphone permission is denied');
+          this.lastMediaError =
+            'Microphone access is blocked in your browser.\n\n' +
+            'Fix: click the 🔒 lock icon next to the URL → Site settings → Microphone → Allow, then refresh and try again.';
+          return false;
+        }
+      } catch {
+        // Permissions API unsupported — proceed, getUserMedia will prompt.
+      }
     }
 
     // 3. Acquisition attempts with graceful degradation to audio-only.
@@ -796,7 +824,7 @@ export class LiveKitService {
 
     let stream: MediaStream | null = null;
 
-    if (wantsVideo && permissions.camera) {
+    if (wantsVideo && cameraAvailable) {
       for (const videoConstraint of [{ facingMode: 'user' }, true] as MediaTrackConstraints[]) {
         try {
           stream = await navigator.mediaDevices.getUserMedia({
@@ -832,10 +860,12 @@ export class LiveKitService {
           } else if (name === 'NotReadableError') {
             this.lastMediaError =
               'Your microphone is busy in another app. Close it and try again.';
-          } else {
+          } else if (name === 'NotAllowedError' || name === 'SecurityError') {
             this.lastMediaError = isCapacitorNative
-              ? 'Unable to access your microphone. Open Android Settings > Apps > SilenX > Permissions and allow Microphone, then try again.'
-              : 'Unable to access your microphone. Allow Microphone in your browser site settings and try again.';
+              ? 'Microphone access is blocked. Open Android Settings > Apps > SilenX > Permissions and allow Microphone, then try again.'
+              : 'Microphone access is blocked.\n\nFix: click the 🔒 lock icon next to the URL → Site settings → Microphone → Allow, then refresh.';
+          } else {
+            this.lastMediaError = 'Unable to access your microphone. Please check your browser or device settings.';
           }
           return false;
         }

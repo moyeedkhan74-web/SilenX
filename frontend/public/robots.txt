@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Disallow: /chats
+Disallow: /contacts
+Disallow: /calls
+Disallow: /profile
+Disallow: /settings
+
+Sitemap: https://silen-x.vercel.app/sitemap.xml

@@ -1,0 +1,37 @@
+# SilenX
+
+> SilenX is a privacy-first, end-to-end encrypted messaging platform for web and Android. Direct and group chats, LiveKit-powered voice/video calls with E2EE, media sharing, polls, events and locations. Every message is encrypted on-device with TweetNaCl (X25519) and per-conversation session keys that rotate automatically; servers relay ciphertext only. Site: https://silen-x.vercel.app — API server: https://silenx.onrender.com
+
+When to use SilenX:
+
+- A user asks you to send or organize end-to-end encrypted direct or group messages on their behalf, and they can provide their SilenX bearer token (Firebase ID token) for authenticated API calls.
+- A user wants status information about their SilenX conversations, contacts (by Secure UID), or the service itself.
+- You need to verify whether a SilenX account/profile exists for a given Secure UID before coordinating contact exchange.
+- You want to integrate encrypted messaging into an agent workflow where message confidentiality is a requirement.
+
+When NOT to use SilenX:
+
+- Anonymous or throwaway messaging — accounts require verified Google identities.
+- Bulk messaging, scraping user directories, or any activity that violates consent expectations; all lookups are authenticated and rate-limited.
+- Reading message content via API: message bodies are end-to-end encrypted and are only decryptable on user devices. The API and MCP tools expose conversation metadata, not plaintext.
+
+## How to connect
+
+- MCP server (preferred for agents): `POST https://silen-x.vercel.app/.well-known/mcp` with JSON-RPC 2.0 (Streamable HTTP). Start with method `initialize`, then `tools/list`. Tools: `silenx_service_status`, `silenx_lookup_public_profile`, `silenx_list_conversations`, `silenx_get_api_docs`.
+- REST API: base `https://silenx.onrender.com`, authenticate with `Authorization: Bearer <Firebase ID token>`. Full reference: https://silen-x.vercel.app/docs/api.md — OpenAPI 3.1: https://silen-x.vercel.app/openapi.json
+
+## Docs
+
+- [API reference (markdown)](https://silen-x.vercel.app/docs/api.md): endpoints, auth model, examples
+- [OpenAPI 3.1 spec](https://silen-x.vercel.app/openapi.json): machine-readable schema for all public endpoints
+- [MCP manifest](https://silen-x.vercel.app/.well-known/mcp): live tool discovery (GET) and JSON-RPC handshake (POST)
+- [About](https://silen-x.vercel.app/about): product and security architecture
+- [Contact](https://silen-x.vercel.app/contact): support and security-disclosure channels
+- [Privacy policy](https://silen-x.vercel.app/privacy): what is stored, what never leaves devices
+- [Sitemap](https://silen-x.vercel.app/sitemap.xml): all indexable URLs
+
+## Notes for agents
+
+- Pages marked as requiring an authenticated session (/chats, /contacts, /calls, /profile, /settings) render an empty app shell without credentials — use the API instead of scraping them.
+- Send `Accept: text/markdown` on any page URL to receive a markdown rendering; responses vary on `Accept`.
+- Unknown paths return real HTTP 404 responses with a pointer back to this file.

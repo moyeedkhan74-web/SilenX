@@ -10,11 +10,98 @@
     <link rel="manifest" href="/manifest.webmanifest" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <meta name="theme-color" content="#08B5A5" />
-    <meta name="description" content="SlienX – Secure, end-to-end encrypted messaging platform" />
-    <title>SlienX – Secure Messaging</title>
+
+    <title>SilenX — Secure End-to-End Encrypted Messaging &amp; Calls</title>
+    <meta name="description" content="SilenX is a privacy-first messaging platform with end-to-end encrypted direct and group chats, encrypted voice/video calls, media sharing and offline-first delivery for web and Android." />
+
+    <!-- Entity resolution & attribution -->
+    <link rel="canonical" href="https://silen-x.vercel.app/" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="SilenX" />
+    <meta property="og:title" content="SilenX — Secure End-to-End Encrypted Messaging &amp; Calls" />
+    <meta property="og:description" content="End-to-end encrypted chats, calls and media for web and Android. Servers relay ciphertext only." />
+    <meta property="og:url" content="https://silen-x.vercel.app/" />
+    <meta property="og:image" content="https://silen-x.vercel.app/silenX-logo.png" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="SilenX — Secure End-to-End Encrypted Messaging &amp; Calls" />
+    <meta name="twitter:description" content="End-to-end encrypted chats, calls and media for web and Android. Servers relay ciphertext only." />
+    <meta name="twitter:image" content="https://silen-x.vercel.app/silenX-logo.png" />
+
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "SilenX",
+      "url": "https://silen-x.vercel.app/",
+      "description": "Privacy-first messaging platform with end-to-end encrypted direct and group chats, LiveKit-powered encrypted voice/video calls, media sharing, polls, events and offline-first delivery on web and Android.",
+      "applicationCategory": "CommunicationApplication",
+      "operatingSystem": "Web, Android",
+      "browserRequirements": "Requires JavaScript for the app UI; page content is also available as markdown via Accept negotiation.",
+      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+      "featureList": [
+        "End-to-end encrypted direct messages",
+        "Encrypted group conversations",
+        "E2EE voice and video calls over LiveKit",
+        "Offline-first message queueing and sync",
+        "Automatic session-key rotation (7 days / 1000 messages)"
+      ],
+      "author": { "@type": "Organization", "name": "SilenX", "url": "https://silen-x.vercel.app/" }
+    }
+    </script>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      "name": "SilenX",
+      "url": "https://silen-x.vercel.app/",
+      "logo": "https://silen-x.vercel.app/silenX-logo.png",
+      "description": "Developer of SilenX, a privacy-first end-to-end encrypted messaging platform.",
+      "contactPoint": [
+        {
+          "@type": "ContactPoint",
+          "email": "support@silenx.app",
+          "contactType": "customer support",
+          "availableLanguage": ["English"]
+        },
+        {
+          "@type": "ContactPoint",
+          "email": "security@silenx.app",
+          "contactType": "technical support",
+          "availableLanguage": ["English"]
+        }
+      ],
+      "address": {
+        "@type": "PostalAddress",
+        "addressCountry": "IN"
+      },
+      "sameAs": ["https://silen-x.vercel.app/about"]
+    }
+    </script>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <!--
+        Server-rendered landing content: visible to AI crawlers and users
+        before JavaScript loads. The React app replaces this node on mount.
+        Do not remove without preserving an equivalent no-JS summary.
+      -->
+      <section style="min-height:100vh;margin:0;display:flex;align-items:center;justify-content:center;background:#0b1220;color:#e7ecf3;font-family:system-ui,-apple-system,'Segoe UI',sans-serif;">
+        <div style="max-width:44rem;padding:2.5rem 1.5rem;">
+          <h1 style="font-size:2rem;line-height:1.25;color:#ffffff;">SilenX — Secure, <span style="color:#08B5A5;">End-to-End Encrypted</span> Messaging &amp; Calls</h1>
+          <p>SilenX is a privacy-first messaging platform for web and Android. Every message — text, images, video, files, voice notes, locations, contacts, polls and events — is encrypted on your device using TweetNaCl X25519 key exchange before it is sent, and decrypted only on the recipient's device. Our servers relay ciphertext and never hold the keys to your conversations.</p>
+          <p>Voice and video calls run over LiveKit infrastructure with end-to-end encryption enabled, so call media crosses Wi-Fi and mobile networks exclusively as encrypted frames. Conversation session keys rotate automatically every 7 days or 1,000 messages through a double-ephemeral handshake, and versioned public-key fingerprints let your contacts verify your identity across rotations.</p>
+          <p>SilenX works offline: messages you send without connectivity are stored in an encrypted local queue on your device and delivered exactly once when you reconnect.</p>
+          <ul>
+            <li>Direct and group chats with typing indicators, read receipts, replies, reactions, edits and deletions</li>
+            <li>Encrypted one-on-one and group voice/video calls across networks</li>
+            <li>Rich sharing: photos, video, files, voice notes, locations, contacts, polls and events</li>
+            <li>Available in any modern browser at this address and as an Android app</li>
+          </ul>
+          <p style="color:#8a94a6;">Sign in requires an existing account via Google. Agents: see <a href="/llms.txt" style="color:#08B5A5;">llms.txt</a>, the <a href="/docs/api.md" style="color:#08B5A5;">API reference</a> and the <a href="/.well-known/mcp" style="color:#08B5A5;">MCP server</a>.</p>
+        </div>
+      </section>
+    </div>
+    <noscript><p style="text-align:center;color:#e7ecf3;background:#0b1220;margin:0;padding:1rem;">The SilenX app interface requires JavaScript. The content above summarizes the product; machine-readable docs are linked within.</p></noscript>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

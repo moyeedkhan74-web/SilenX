@@ -39,16 +39,18 @@ const CallOverlay: React.FC = () => {
     console.debug('[CallOverlay] accept button clicked');
     const success = await livekitService.acceptIncomingCall();
     if (!success) {
+      // Show the most specific error available, in priority order.
       const mediaError = livekitService.getMediaError();
+      const callError = livekitService.getCallError();
       if (mediaError) {
         window.alert(mediaError);
+      } else if (callError) {
+        window.alert(callError);
       } else if (!window.isSecureContext) {
-        window.alert('Media access requires a secure connection (HTTPS or localhost). Please check your URL.');
+        window.alert('Calls require a secure connection (HTTPS). Please open SilenX over https://.');
       } else {
         window.alert(
-          'Unable to access your camera or microphone.\n\n' +
-          'Please grant Camera and Microphone permissions for SilenX in your device settings:\n' +
-          'Settings > Apps > SilenX > Permissions > Allow Camera & Microphone'
+          'Unable to start the call. Please check your internet connection and ensure your browser has microphone access, then try again.'
         );
       }
     }
@@ -56,7 +58,6 @@ const CallOverlay: React.FC = () => {
 
   const handleReject = () => {
     console.debug('[CallOverlay] reject button clicked');
-    // livekitService.rejectCall() already calls resetCallState() â†’ endCall()
     livekitService.rejectCall();
   };
 
@@ -117,4 +118,3 @@ const CallOverlay: React.FC = () => {
 };
 
 export default CallOverlay;
-

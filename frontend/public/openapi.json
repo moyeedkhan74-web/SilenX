@@ -1,0 +1,173 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "SilenX API",
+    "summary": "Encrypted messaging platform API",
+    "description": "REST API for SilenX, a privacy-first end-to-end encrypted messaging platform. All user-scoped endpoints require a Firebase ID token issued after Google sign-in in the SilenX apps, passed as 'Authorization: Bearer <token>'. Message bodies are end-to-end encrypted (TweetNaCl); the API exposes only ciphertext and metadata.",
+    "version": "1.0.0",
+    "contact": {
+      "name": "SilenX",
+      "url": "https://silen-x.vercel.app/contact"
+    }
+  },
+  "servers": [
+    { "url": "https://silenx.onrender.com", "description": "Production API server" }
+  ],
+  "security": [{ "bearerAuth": [] }],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "Firebase ID token (JWT)",
+        "description": "Firebase-verified token obtained by signing in through the SilenX app. Tokens cannot be minted outside the app flow."
+      }
+    },
+    "schemas": {
+      "UserPublicProfile": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "uid": { "type": "string", "description": "Secure UID, prefixed sec_" },
+          "displayName": { "type": "string" },
+          "avatarUrl": { "type": ["string", "null"] },
+          "status": { "type": "string", "enum": ["online", "away", "offline"] },
+          "bio": { "type": "string" }
+        }
+      },
+      "ConversationSummary": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "type": { "type": "string", "enum": ["direct", "group"] },
+          "name": { "type": ["string", "null"] },
+          "lastMessage": { "type": ["string", "null"], "description": "Preview text; message bodies themselves are E2EE ciphertext" },
+          "unreadCount": { "type": "integer" },
+          "members": { "type": "array", "items": { "$ref": "#/components/schemas/UserPublicProfile" } }
+        }
+      },
+      "EncryptedMessage": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "conversationId": { "type": "string" },
+          "senderId": { "type": "string" },
+          "encryptedContent": { "type": "string", "description": "Base64 ciphertext; plaintext exists only on participant devices" },
+          "contentType": { "type": "string", "enum": ["text", "image", "video", "file", "location", "contact", "poll", "event", "voice-note"] },
+          "createdAt": { "type": "string", "format": "date-time" }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "security": [],
+        "summary": "Service health check",
+        "responses": { "200": { "description": "Backend is up" } }
+      }
+    },
+    "/api/users/me": {
+      "get": {
+        "summary": "Get current user profile",
+        "responses": {
+          "200": { "description": "Profile", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/UserPublicProfile" } } } },
+          "401": { "description": "Missing or invalid bearer token" }
+        }
+      },
+      "put": {
+        "summary": "Update profile fields (displayName, bio, avatarUrl, showOnlineStatus)",
+        "responses": { "200": { "description": "Updated profile" }, "401": { "description": "Unauthorized" } }
+      }
+    },
+    "/api/users/public-key": {
+      "put": {
+        "summary": "Publish or rotate the caller's public encryption key (versioned history maintained server-side with SHA-256 fingerprints)",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "type": "object", "properties": { "publicKey": { "type": "string" } }, "required": ["publicKey"] } } }
+        },
+        "responses": {
+          "200": { "description": "Key stored; returns version and fingerprint" },
+          "401": { "description": "Unauthorized" }
+        }
+      }
+    },
+    "/api/users/{id}/public-key": {
+      "get": {
+        "summary": "Get a user's current public encryption key, version and fingerprint",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Public key material" }, "404": { "description": "User not found" } }
+      }
+    },
+    "/api/users/{id}/public-keys": {
+      "get": {
+        "summary": "Full versioned public-key history for a user (enables decryption of historical messages across rotations)",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Ordered key versions with fingerprints" }, "404": { "description": "User not found" } }
+      }
+    },
+    "/api/users/search": {
+      "get": {
+        "summary": "Find a user by Secure UID",
+        "parameters": [{ "name": "uid", "in": "query", "required": true, "schema": { "type": "string" } }],
+        "responses": {
+          "200": { "description": "Matched public profile", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/UserPublicProfile" } } } },
+          "404": { "description": "No account for this Secure UID" }
+        }
+      }
+    },
+    "/api/conversations": {
+      "get": {
+        "summary": "List the authenticated user's conversations",
+        "responses": {
+          "200": { "description": "Conversations with member profiles and last-message previews", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/ConversationSummary" } } } } },
+          "401": { "description": "Unauthorized" }
+        }
+      },
+      "post": {
+        "summary": "Create (or fetch existing) direct conversation with a recipient UID",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "type": "object", "properties": { "type": { "const": "direct" }, "recipientUid": { "type": "string" } }, "required": ["type", "recipientUid"] } } }
+        },
+        "responses": { "200": { "description": "Conversation" }, "401": { "description": "Unauthorized" } }
+      }
+    },
+    "/api/conversations/{id}/messages": {
+      "get": {
+        "summary": "List messages in a conversation (ciphertext; decryption requires member device keys)",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": {
+          "200": { "description": "Messages", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/EncryptedMessage" } } } } },
+          "401": { "description": "Unauthorized" }
+        }
+      }
+    },
+    "/api/group-calls/livekit/token": {
+      "post": {
+        "summary": "Issue a LiveKit room access token for voice/video calls (1-on-1 rooms: direct_<sorted ids>; group rooms: group_<groupId>)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "mode": { "type": "string", "enum": ["direct", "group"] },
+                  "targetUserId": { "type": "string", "description": "Required when mode=direct" },
+                  "groupId": { "type": "string", "description": "Required when mode=group" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "{ token, url, roomName, identity, e2ee: true }; tokens expire after 1 hour" },
+          "401": { "description": "Unauthorized" },
+          "403": { "description": "Not a member of the target conversation" }
+        }
+      }
+    }
+  }
+}
