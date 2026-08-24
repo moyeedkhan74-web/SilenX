@@ -228,9 +228,17 @@ registerSocketHandlers(io);
 
 const port = Number(process.env.PORT) || 5000;
 
+process.on('uncaughtException', (err) => {
+  console.error('[Server] Uncaught Exception:', err);
+});
+
+process.on('unhandledRejection', (reason) => {
+  console.error('[Server] Unhandled Rejection:', reason);
+});
+
 const startServer = async () => {
-  server.listen(port, () => {
-    console.log(`[Server] SilenX backend listening on port ${port}`);
+  server.listen(port, '0.0.0.0', () => {
+    console.log(`[Server] SilenX backend listening on 0.0.0.0:${port}`);
   });
 
   try {
@@ -239,6 +247,7 @@ const startServer = async () => {
     console.error('[Server] MongoDB connection failed:', err);
   }
 };
+
 
 startServer();
 
