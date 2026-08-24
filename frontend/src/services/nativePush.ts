@@ -6,6 +6,30 @@ import { API_URL } from '../config/webrtc-config';
 
 let isNativePushInitialized = false;
 
+/** Android notification channel id — must match the backend FCM payload. */
+export const MESSAGE_CHANNEL_ID = 'silenx_messages_channel';
+
+/**
+ * Create the high-importance Android notification channel BEFORE registering.
+ * Importance 4 (High) triggers native heads-up banners over other apps;
+ * Visibility 1 (Public) shows content on the lock screen.
+ */
+async function ensureNotificationChannel(): Promise<void> {
+  try {
+    await PushNotifications.createChannel({
+      id: MESSAGE_CHANNEL_ID,
+      name: 'Messages',
+      description: 'New message notifications for SilenX chats',
+      importance: 4, // Importance.HIGH
+      visibility: 1, // Visibility.PUBLIC
+      sound: 'default',
+    });
+    console.log('[NativePush] Notification channel created:', MESSAGE_CHANNEL_ID);
+  } catch (error) {
+    console.warn('[NativePush] Could not create notification channel:', error);
+  }
+}
+
 /**
  * Initialize native Capacitor push notifications for Android/iOS
  */
@@ -21,6 +45,9 @@ export async function initializeNativePush(): Promise<boolean> {
   }
 
   try {
+    // Android: channel must exist before notifications are posted to it.
+    await ensureNotificationChannel();
+
     // Request permissions
     const permResult = await PushNotifications.requestPermissions();
     console.log('[NativePush] Permission result:', permResult);
@@ -109,19 +136,30 @@ async function syncNativeTokenToBackend(token: string): Promise<boolean> {
 }
 
 /**
- * Handle incoming push notification
+ * Handle incoming push notification (foreground)
  */
 function handlePushNotification(notification: PushNotificationSchema): void {
   const data = notification.data || {};
   const conversationId = data.conversationId;
-  
-  // If app is in foreground, we might want to show an in-app notification
-  // or update the chat store directly
-  if (conversationId) {
-    // Update chat store to show new message indicator
-    // This is handled by the socket connection typically
-    console.log('[NativePush] New message for conversation:', conversationId);
-  }
+
+  if (!conversationId) return;
+
+  // Foreground: surface a WhatsApp-style in-app banner + chime. The OS-level
+  // heads-up notification is suppressed by Android when the app is focused.
+  const senderName = data.senderDisplayName || 'New message';
+  const preview = typeof data.body === 'string' && data.body ? data.body : '🔒 Encrypted message';
+
+  window.dispatchEvent(
+    new CustomEvent('silenx:inapp-notification', {
+      detail: {
+        conversationId,
+        senderName,
+        senderAvatarUrl: null,
+        preview,
+        timestamp: new Date().toISOString(),
+      },
+    })
+  );
 }
 
 /**
@@ -145,11 +183,11 @@ function handleNotificationAction(action: ActionPerformed): void {
         navigateToChatList();
       }
       break;
-      
+
     case 'dismiss':
       // User dismissed - do nothing
       break;
-      
+
     default:
       // Custom actions if any
       if (conversationId) {
@@ -160,17 +198,16 @@ function handleNotificationAction(action: ActionPerformed): void {
 }
 
 /**
- * Navigate to specific conversation
+ * Navigate to specific conversation.
+ * Sets the active chat and signals the SPA router through DeepLinkHandler —
+ * never a full page reload (there is no /chat/:id route; a reload would land
+ * on a 404).
  */
 function navigateToConversation(conversationId: string): void {
-  // Use the chat store to set active conversation
   useChatStore.getState().setActiveConversation(conversationId);
-  
-  // Navigate using window.location for SPA
-  // In a real app with React Router, you'd use the router navigate function
-  if (typeof window !== 'undefined') {
-    window.location.href = `/chat/${conversationId}`;
-  }
+  window.dispatchEvent(
+    new CustomEvent('silenx:open-conversation', { detail: { conversationId } })
+  );
 }
 
 /**

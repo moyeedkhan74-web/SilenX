@@ -27,58 +27,82 @@ try {
 if (messaging) {
   messaging.onBackgroundMessage((payload) => {
     console.log('[ServiceWorker] Received background message:', payload);
-    
-    const notificationTitle = payload.notification?.title || 'New Message';
-    const notificationBody = payload.notification?.body || '🔒 Encrypted Message';
-    const notificationIcon = '/icon-192.png';
-    const notificationBadge = '/icon-192.png';
-    
-    const notificationOptions = {
-      body: notificationBody,
-      icon: notificationIcon,
-      badge: notificationBadge,
-      vibrate: [200, 100, 200],
-      data: payload.data || {},
-      actions: [
-        { action: 'open', title: 'Open' },
-        { action: 'dismiss', title: 'Dismiss' },
-      ],
-      requireInteraction: true,
-      tag: payload.data?.conversationId || 'silenx-message',
-      renotify: true,
-    };
 
-    self.registration.showNotification(notificationTitle, notificationOptions);
+    const data = payload.data || {};
+    const senderName = payload.notification?.title || data.senderDisplayName || 'SilenX';
+    const notificationBody = payload.notification?.body || '🔒 Encrypted Message';
+
+    showChatNotification(senderName, notificationBody, data);
   });
+}
+
+/**
+ * Shared notification builder — badge icon + Reply / Mark as Read actions.
+ * Clicking the body or 'Reply' focuses/opens the conversation; 'Mark as Read'
+ * posts a message to the app so it can zero the unread badge.
+ */
+function showChatNotification(title, body, data) {
+  const notificationOptions = {
+    body,
+    icon: '/silenX-logo.png',
+    badge: '/silenX-logo.png',
+    vibrate: [200, 100, 200],
+    data: data || {},
+    actions: [
+      { action: 'reply', title: 'Reply' },
+      { action: 'mark-read', title: 'Mark as Read' },
+    ],
+    requireInteraction: false,
+    tag: (data && data.conversationId) || 'silenx-message',
+    renotify: true,
+  };
+
+  return self.registration.showNotification(title, notificationOptions);
 }
 
 self.addEventListener('notificationclick', (event) => {
   console.log('[ServiceWorker] Notification click received:', event);
-  
+
   event.notification.close();
-  
-  if (event.action === 'dismiss') {
+
+  const data = event.notification.data || {};
+  const conversationId = data.conversationId;
+
+  // 'Mark as Read': tell any open client to clear the unread state.
+  if (event.action === 'mark-read') {
+    event.waitUntil(
+      clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+        clientList.forEach((client) => {
+          client.postMessage({ type: 'mark-read', conversationId });
+        });
+      })
+    );
     return;
   }
-  
-  const data = event.notification.data;
-  const conversationId = data?.conversationId;
-  
+
+  // Default tap and 'Reply' both focus/open the conversation. The app opens
+  // the chat thread and focuses the input for replies.
+
   let targetUrl = '/';
   if (conversationId) {
-    targetUrl = `/chat/${conversationId}`;
+    targetUrl = `/?chat=${encodeURIComponent(conversationId)}`;
   }
-  
+
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-      // Check if there's already a window/tab open with the target URL
+      // Focus an existing window and hand it the deep link directly.
       for (const client of clientList) {
-        if (client.url.includes(targetUrl) && 'focus' in client) {
-          return client.focus();
+        if ('focus' in client) {
+          client.focus();
+          client.postMessage({
+            type: event.action === 'reply' ? 'open-conversation' : 'open-conversation',
+            conversationId,
+          });
+          return;
         }
       }
-      
-      // If no existing window, open a new one
+
+      // No open window: launch a new one at the deep link.
       if (clients.openWindow) {
         return clients.openWindow(targetUrl);
       }
@@ -92,32 +116,16 @@ self.addEventListener('notificationclose', (event) => {
 
 self.addEventListener('push', (event) => {
   console.log('[ServiceWorker] Push event received:', event);
-  
+
   if (event.data) {
     const payload = event.data.json();
     console.log('[ServiceWorker] Push payload:', payload);
-    
-    const notificationTitle = payload.notification?.title || 'New Message';
+
+    const data = payload.data || {};
+    const senderName = payload.notification?.title || data.senderDisplayName || 'SilenX';
     const notificationBody = payload.notification?.body || '🔒 Encrypted Message';
-    
-    const notificationOptions = {
-      body: notificationBody,
-      icon: '/icon-192.png',
-      badge: '/icon-192.png',
-      vibrate: [200, 100, 200],
-      data: payload.data || {},
-      actions: [
-        { action: 'open', title: 'Open' },
-        { action: 'dismiss', title: 'Dismiss' },
-      ],
-      requireInteraction: true,
-      tag: payload.data?.conversationId || 'silenx-message',
-      renotify: true,
-    };
-    
-    event.waitUntil(
-      self.registration.showNotification(notificationTitle, notificationOptions)
-    );
+
+    event.waitUntil(showChatNotification(senderName, notificationBody, data));
   }
 });
 

@@ -13,6 +13,7 @@ import {
   handleRotateRequest,
   handleRotateAck,
 } from './e2ee';
+import { playIncomingChime } from '../utils/soundEffects';
 
 // Public key cache to avoid fetching on every message.
 // L1: memory; L2: localStorage (`slx_pubkey_<id>`) so keys survive reloads and
@@ -367,6 +368,42 @@ socket.on('receive-message', async (payload: any) => {
     };
 
     useChatStore.getState().addMessage(conversationId, incomingMessage);
+
+    // In-app banner + chime for messages landing OUTSIDE the active chat.
+    if (conversationId !== useChatStore.getState().activeConversationId) {
+      const convo = useChatStore.getState().conversations.find((c) => c.id === conversationId);
+      const senderMember = convo?.members?.find((m) => m.id === senderId);
+      const contentType = payload?.contentType || 'text';
+      let preview: string;
+      if (contentType === 'text' || contentType === 'system') {
+        preview = decryptedText;
+      } else if (contentType === 'image') preview = '📷 [Image]';
+      else if (contentType === 'video') preview = '🎥 [Video]';
+      else if (contentType === 'voice-note') preview = '🎤 [Voice Note]';
+      else if (contentType === 'file') preview = `📄 [${payload?.fileName || 'File'}]`;
+      else if (contentType === 'location') preview = '📍 [Location]';
+      else if (contentType === 'contact') preview = '👤 [Contact]';
+      else if (contentType === 'poll') preview = '📊 [Poll]';
+      else if (contentType === 'event') preview = '📅 [Event]';
+      else preview = decryptedText;
+
+      window.dispatchEvent(
+        new CustomEvent('silenx:inapp-notification', {
+          detail: {
+            conversationId,
+            senderName:
+              payload?.senderDisplayName ||
+              senderMember?.displayName ||
+              convo?.name ||
+              'New message',
+            senderAvatarUrl: senderMember?.avatarUrl || null,
+            preview,
+            timestamp: messageDate.toISOString(),
+          },
+        })
+      );
+      void playIncomingChime();
+    }
 });
 
   // E2EE key-rotation handshake events

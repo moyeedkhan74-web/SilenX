@@ -21,10 +21,12 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onDeleteAccountCli
     callNotifications,
     showOnlineStatus,
     readReceipts,
+    soundEffects,
     setMessageNotifications,
     setCallNotifications,
     setShowOnlineStatus,
     setReadReceipts,
+    setSoundEffects,
   } = useSettingsStore();
   const { theme } = useTheme();
   const currentUser = useAuthStore((s) => s.user);
@@ -196,6 +198,17 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onDeleteAccountCli
               type="checkbox"
               checked={callNotifications}
               onChange={(e) => setCallNotifications(e.target.checked)}
+            />
+            <span className="toggle-slider"></span>
+          </label>
+        </div>
+        <div className="settings-row">
+          <span>In-App Sound Effects</span>
+          <label className="toggle">
+            <input
+              type="checkbox"
+              checked={soundEffects}
+              onChange={(e) => setSoundEffects(e.target.checked)}
             />
             <span className="toggle-slider"></span>
           </label>

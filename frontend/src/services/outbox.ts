@@ -11,6 +11,7 @@ import {
   saveOfflineMessage,
 } from '../utils/offlineDb';
 import { encryptOutgoingText, noteMessageSent } from './e2ee';
+import { playOutgoingPop } from '../utils/soundEffects';
 import type { OutgoingEntry } from '../utils/offlineDb';
 import type { ChatMessage } from '../types';
 
@@ -55,6 +56,7 @@ export async function dispatchMessage(
       payload.encryptedContent ?? (await encryptOutgoingText(conversationId, message.text, payload.recipientId));
     socket.emit('send-message', { ...payload, encryptedContent });
     noteMessageSent(conversationId, payload.recipientId);
+    playOutgoingPop();
     void saveOfflineMessage(message);
     return;
   }

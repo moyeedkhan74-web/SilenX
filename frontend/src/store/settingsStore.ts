@@ -7,6 +7,7 @@ interface SettingsState {
   callNotifications: boolean;
   showOnlineStatus: boolean;
   readReceipts: boolean;
+  soundEffects: boolean;
   chatWallpaper: string | null; // null = default (no wallpaper), string = url or css gradient
   chatWallpaperFit: WallpaperFit;
   chatWallpaperDim: number; // 0 to 0.7
@@ -15,6 +16,7 @@ interface SettingsState {
   setCallNotifications: (value: boolean) => void;
   setShowOnlineStatus: (value: boolean) => void;
   setReadReceipts: (value: boolean) => void;
+  setSoundEffects: (value: boolean) => void;
   setChatWallpaper: (value: string | null) => void;
   setChatWallpaperFit: (value: WallpaperFit) => void;
   setChatWallpaperDim: (value: number) => void;
@@ -30,6 +32,7 @@ export const useSettingsStore = create<SettingsState>((set) => ({
   callNotifications: getStoredBool('slienx_call_notif', true),
   showOnlineStatus: getStoredBool('slienx_online_status', true),
   readReceipts: getStoredBool('slienx_read_receipts', true),
+  soundEffects: getStoredBool('silenx_sound_effects', true),
   chatWallpaper: localStorage.getItem('slienx_chat_wallpaper') || null,
   chatWallpaperFit: (localStorage.getItem('slienx_chat_wallpaper_fit') as WallpaperFit) || 'cover',
   chatWallpaperDim: Number(localStorage.getItem('slienx_chat_wallpaper_dim')) || 0,
@@ -49,6 +52,10 @@ export const useSettingsStore = create<SettingsState>((set) => ({
   setReadReceipts: (value) => {
     localStorage.setItem('slienx_read_receipts', String(value));
     set({ readReceipts: value });
+  },
+  setSoundEffects: (value) => {
+    localStorage.setItem('silenx_sound_effects', String(value));
+    set({ soundEffects: value });
   },
   setChatWallpaper: (value) => {
     if (value === null) {

@@ -4,6 +4,9 @@ import { users } from '../store/db';
 
 let messaging: Messaging | null = null;
 
+/** Must match the channel created client-side in nativePush.ts */
+const ANDROID_MESSAGE_CHANNEL_ID = 'silenx_messages_channel';
+
 function getMessagingInstance(): Messaging | null {
   if (messaging) return messaging;
   
@@ -71,6 +74,15 @@ export async function sendPushNotification(payload: PushPayload): Promise<boolea
         conversationId: payload.conversationId,
         senderId: payload.senderId,
         messageId: payload.messageId,
+        senderDisplayName: senderName,
+      },
+      android: {
+        priority: 'high',
+        notification: {
+          channelId: ANDROID_MESSAGE_CHANNEL_ID,
+          sound: 'default',
+          tag: payload.conversationId,
+        },
       },
       tokens: targetUser.fcmTokens,
     };
@@ -138,6 +150,15 @@ export async function sendPushToUser(userId: string, payload: Omit<PushPayload, 
       conversationId: payload.conversationId,
       senderId: payload.senderId,
       messageId: payload.messageId,
+      senderDisplayName: senderName,
+    },
+    android: {
+      priority: 'high',
+      notification: {
+        channelId: ANDROID_MESSAGE_CHANNEL_ID,
+        sound: 'default',
+        tag: payload.conversationId,
+      },
     },
     tokens: targetUser.fcmTokens,
   };
