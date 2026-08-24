@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Pause, Play } from 'lucide-react';
 import './VoiceNote.css';
 
@@ -127,7 +127,25 @@ export const VoiceNotePlayer: React.FC<VoiceNotePlayerProps> = ({ mediaUrl, seed
     [bars]
   );
 
-  // ResizeObserver to cache canvas size & redraw
+  // Measure REAL canvas dimensions synchronously after DOM layout, BEFORE any
+  // paint or observer tick. On mount the canvas may still be laid out at 0x0
+  // when effects run; useLayoutEffect guarantees we cache the true rect so the
+  // very first draw paints full bars instead of a single invisible pixel.
+  useLayoutEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    if (rect.width > 0 && rect.height > 0) {
+      cachedRectRef.current = {
+        width: rect.width,
+        height: rect.height,
+      };
+    }
+    updateColors();
+    drawWaveformDirect(0, durationRef.current);
+  }, [drawWaveformDirect, updateColors]);
+
+  // ResizeObserver to cache canvas size & redraw on subsequent resizes.
   useEffect(() => {
     updateColors();
     const canvas = canvasRef.current;
@@ -135,6 +153,8 @@ export const VoiceNotePlayer: React.FC<VoiceNotePlayerProps> = ({ mediaUrl, seed
     const observer = new ResizeObserver((entries) => {
       for (const entry of entries) {
         if (entry.contentRect) {
+          // Skip zero-width layout ticks (element not yet measured / hidden).
+          if (!entry.contentRect.width || entry.contentRect.width <= 0) return;
           cachedRectRef.current = {
             width: entry.contentRect.width || 220,
             height: entry.contentRect.height || 32,
