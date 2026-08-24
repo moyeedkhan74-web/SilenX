@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Mic, Pause, Play, Send, Trash2 } from 'lucide-react';
+import './VoiceNote.css';
+
 
 type RecorderMode = 'recording' | 'paused' | 'preview';
 

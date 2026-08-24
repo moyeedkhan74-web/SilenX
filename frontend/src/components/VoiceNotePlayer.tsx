@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Pause, Play } from 'lucide-react';
+import './VoiceNote.css';
+
 
 const SPEEDS = [1, 1.5, 2] as const;
 const BAR_COUNT = 44;
