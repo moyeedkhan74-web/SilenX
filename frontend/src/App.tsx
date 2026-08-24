@@ -16,6 +16,8 @@ import { connectSocket } from './services/socket';
 import { updateSocketToken } from './services/socket';
 import { livekitService } from './services/livekit';
 import { authenticateWithGoogleBackend } from './services/authApi';
+import { initializeNativePush, isNativePushSupported } from './services/nativePush';
+import { initializePushNotifications } from './services/pushNotification';
 import InAppNotificationBanner from './components/InAppNotificationBanner';
 import DeepLinkHandler from './components/DeepLinkHandler';
 import type { UserStatus } from './types';
@@ -91,6 +93,21 @@ function AppInner({
 }) {
   const { initializeKeys } = useCrypto();
 
+  /**
+   * Register push notifications once a session exists.
+   * - Native (Android/iOS): creates the high-importance notification channel,
+   *   prompts POST_NOTIFICATIONS, registers with FCM and syncs the native
+   *   token to the backend.
+   * - Web: Firebase Messaging + service worker for desktop push.
+   */
+  const triggerPushInitialization = () => {
+    if (isNativePushSupported()) {
+      initializeNativePush().catch((err) => console.warn('[App] Native push init error:', err));
+    } else {
+      initializePushNotifications().catch((err) => console.warn('[App] Web push init error:', err));
+    }
+  };
+
 useEffect(() => {
     const safetyTimer = setTimeout(() => {
       setInitialized(true);
@@ -157,6 +174,10 @@ useEffect(() => {
               } catch (error) {
                 console.warn('Socket connection failed:', error);
               }
+
+              // Register push notifications (Native Capacitor on Android/iOS,
+              // Firebase Web fallback on Desktop browser).
+              triggerPushInitialization();
             } catch (error) {
               console.warn('[App] Backend startup slow or unavailable, preserving existing session:', error);
               // âš ï¸ DO NOT sign out here â€” backend may be cold-starting (Render free tier).
@@ -171,6 +192,7 @@ useEffect(() => {
                 } catch (socketErr) {
                   console.warn('[App] Socket reconnect failed during fallback:', socketErr);
                 }
+                triggerPushInitialization();
               } else {
                 // No stored session at all â€” only then log out
                 logout();
@@ -190,6 +212,7 @@ useEffect(() => {
               } catch (err) {
                 console.warn('Socket reconnect notice:', err);
               }
+              triggerPushInitialization();
             }
           }
         } finally {
