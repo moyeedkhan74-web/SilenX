@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { ArrowLeft, Phone, Video, MoreVertical, Lock, Search, Bell, UserX, Flag, Trash2, Check, CheckCheck, Clock, Star, PlayCircle, MapPin, Image as ImageIcon } from 'lucide-react';
+import { ArrowLeft, Phone, Video, MoreVertical, Lock, Search, Bell, UserX, Flag, Trash2, Check, CheckCheck, Clock,
+Star, MapPin, Image as ImageIcon } from 'lucide-react';
 import { useIsMobile } from '../hooks/useIsMobile';
 import { useChatStore } from '../store/chatStore';
 import { connectSocket } from '../services/socket';
@@ -15,6 +16,7 @@ import { ContactDetailsModal } from './ContactDetailsModal';
 import { GroupDetailsModal } from './GroupDetailsModal';
 import { MediaMessage } from './MediaMessage';
 import { MediaViewer } from './MediaViewer';
+import VoiceNotePlayer from './VoiceNotePlayer';
 import { useAuthStore } from '../store/authStore';
 import { useSettingsStore } from '../store/settingsStore';
 import WallpaperPicker from './WallpaperPicker';
@@ -387,13 +389,7 @@ export const ChatView: React.FC = () => {
         return <MediaMessage message={msg} />;
       case 'voice-note':
         return msg.mediaUrl ? (
-          <div className="rich-voice-bubble">
-            <div className="rich-voice-icon"><PlayCircle size={18} /></div>
-            <div style={{ width: '100%' }}>
-              <audio controls src={msg.mediaUrl} style={{ width: '100%' }} />
-              <div className="rich-voice-duration">{msg.duration || ''}</div>
-            </div>
-          </div>
+          <VoiceNotePlayer mediaUrl={msg.mediaUrl} seedId={msg.id} durationHint={msg.duration} />
         ) : null;
       case 'location':
         return msg.locationData ? (

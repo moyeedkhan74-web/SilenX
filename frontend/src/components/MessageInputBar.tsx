@@ -1,8 +1,9 @@
 import { useMemo, useRef, useState, useEffect, useCallback } from 'react';
-import { Send, Smile, X, Paperclip, Mic, Square } from 'lucide-react';
+import { Send, Smile, X, Paperclip, Mic } from 'lucide-react';
 import Picker from '@emoji-mart/react';
 import data from '@emoji-mart/data';
 import { AttachmentMenu } from './AttachmentMenu';
+import VoiceRecorderBar from './VoiceRecorderBar';
 import type { ChatMessage } from '../types';
 
 interface ReplyTo {
@@ -33,17 +34,13 @@ export function MessageInputBar({ onSend, onSendRichMessage, replyTo, onCancelRe
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickerTab, setPickerTab] = useState<PickerTab>('emoji');
   const [attachOpen, setAttachOpen] = useState(false);
-  const [isRecording, setIsRecording] = useState(false);
-  const [recordingTime, setRecordingTime] = useState(0);
+  const [voiceMode, setVoiceMode] = useState(false);
   const [gifQuery, setGifQuery] = useState('');
   const [gifResults, setGifResults] = useState<GiphyGifResult[]>([]);
   const [gifLoading, setGifLoading] = useState(false);
   const [gifError, setGifError] = useState('');
   const textRef = useRef<HTMLTextAreaElement>(null);
   const giphyRequestId = useRef(0);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const audioChunksRef = useRef<Blob[]>([]);
-  const timerRef = useRef<number | null>(null);
 
   const isDark = useMemo(() => document.documentElement.getAttribute('data-theme') === 'dark', [pickerOpen]);
 
@@ -123,59 +120,18 @@ export function MessageInputBar({ onSend, onSendRichMessage, replyTo, onCancelRe
     onCancelReply?.();
   };
 
-  // ─── Voice recording ───
-  const startRecording = useCallback(async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream);
-      audioChunksRef.current = [];
-      mediaRecorderRef.current = mediaRecorder;
-
-      mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) audioChunksRef.current.push(event.data);
-      };
-
-      mediaRecorder.onstop = () => {
-        stream.getTracks().forEach((track) => track.stop());
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-        const reader = new FileReader();
-        reader.onload = () => {
-          const dataUrl = reader.result as string;
-          const durationSec = recordingTime;
-          const mm = String(Math.floor(durationSec / 60)).padStart(2, '0');
-          const ss = String(durationSec % 60).padStart(2, '0');
-          onSendRichMessage?.({
-            text: `🎤 Voice note (${mm}:${ss})`,
-            contentType: 'voice-note',
-            mediaUrl: dataUrl,
-            duration: `${mm}:${ss}`,
-          });
-        };
-        reader.readAsDataURL(audioBlob);
-      };
-
-      mediaRecorder.start();
-      setIsRecording(true);
-      setRecordingTime(0);
-    } catch {
-      alert('Microphone access is required for voice notes.');
-    }
-  }, [onSendRichMessage, recordingTime]);
-
-  const stopRecording = useCallback(() => {
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-      mediaRecorderRef.current.stop();
-    }
-    if (timerRef.current) clearInterval(timerRef.current);
-    setIsRecording(false);
-  }, []);
-
-  useEffect(() => {
-    if (isRecording) {
-      timerRef.current = window.setInterval(() => setRecordingTime((t) => t + 1), 1000);
-    }
-    return () => { if (timerRef.current) clearInterval(timerRef.current); };
-  }, [isRecording]);
+  // ─── Voice notes (full recorder UI lives in VoiceRecorderBar) ───
+  const handleSendVoiceNote = useCallback((mediaUrl: string, durationSeconds: number) => {
+    const mm = Math.floor(durationSeconds / 60);
+    const ss = Math.floor(durationSeconds % 60);
+    onSendRichMessage?.({
+      text: `🎤 Voice note (${mm}:${String(ss).padStart(2, '0')})`,
+      contentType: 'voice-note',
+      mediaUrl,
+      duration: `${mm}:${String(ss).padStart(2, '0')}`,
+    });
+    setVoiceMode(false);
+  }, [onSendRichMessage]);
 
   // ─── Attachment callbacks ───
   const handleSendImage = (dataUrl: string) => {
@@ -233,12 +189,6 @@ export function MessageInputBar({ onSend, onSendRichMessage, replyTo, onCancelRe
     });
     setPickerOpen(false);
     setAttachOpen(false);
-  };
-
-  const formatTime = (secs: number) => {
-    const mm = String(Math.floor(secs / 60)).padStart(2, '0');
-    const ss = String(secs % 60).padStart(2, '0');
-    return `${mm}:${ss}`;
   };
 
   return (
@@ -351,60 +301,62 @@ export function MessageInputBar({ onSend, onSendRichMessage, replyTo, onCancelRe
       />
 
       <div className="input-row">
-        <button className="input-icon-btn" onClick={() => { setPickerOpen((open) => !open); setAttachOpen(false); }} type="button">
-          <Smile size={22} />
-        </button>
-
-        {isRecording ? (
-          <div className="voice-recording-bar">
-            <div className="voice-recording-dot" />
-            <span className="voice-recording-time">{formatTime(recordingTime)}</span>
-            <span className="voice-recording-label">Recording...</span>
-          </div>
+        {voiceMode ? (
+          <VoiceRecorderBar
+            onCancel={() => setVoiceMode(false)}
+            onSend={handleSendVoiceNote}
+          />
         ) : (
-          <div className="input-box">
-            <textarea
-              ref={textRef}
-              value={text}
-              onChange={(event) => {
-                setText(event.target.value);
-                onTypingChange?.(event.target.value.trim().length > 0);
-              }}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter' && !event.shiftKey) {
-                  event.preventDefault();
-                  onTypingChange?.(false);
-                  handleSend();
-                }
-              }}
-              placeholder="Type a secure message..."
-              rows={1}
-              className="msg-textarea"
-            />
-          </div>
-        )}
+          <>
+            <button className="input-icon-btn" onClick={() => { setPickerOpen((open) => !open); setAttachOpen(false); }} type="button">
+              <Smile size={22} />
+            </button>
 
-        <button
-          className="input-icon-btn attach-btn"
-          onClick={() => { setAttachOpen((o) => !o); setPickerOpen(false); }}
-          type="button"
-          title="Attach"
-        >
-          <Paperclip size={22} />
-        </button>
+            <div className="input-box">
+              <textarea
+                ref={textRef}
+                value={text}
+                onChange={(event) => {
+                  setText(event.target.value);
+                  onTypingChange?.(event.target.value.trim().length > 0);
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' && !event.shiftKey) {
+                    event.preventDefault();
+                    onTypingChange?.(false);
+                    handleSend();
+                  }
+                }}
+                placeholder="Type a secure message..."
+                rows={1}
+                className="msg-textarea"
+              />
+            </div>
 
-        {text.trim() ? (
-          <button className="send-btn active" onClick={handleSend} type="button">
-            <Send size={18} />
-          </button>
-        ) : isRecording ? (
-          <button className="send-btn active voice-stop-btn" onClick={stopRecording} type="button" title="Stop recording">
-            <Square size={18} />
-          </button>
-        ) : (
-          <button className="send-btn mic-btn active" onClick={startRecording} type="button" title="Record voice note">
-            <Mic size={18} />
-          </button>
+            <button
+              className="input-icon-btn attach-btn"
+              onClick={() => { setAttachOpen((o) => !o); setPickerOpen(false); }}
+              type="button"
+              title="Attach"
+            >
+              <Paperclip size={22} />
+            </button>
+
+            {text.trim() ? (
+              <button className="send-btn active" onClick={handleSend} type="button">
+                <Send size={18} />
+              </button>
+            ) : (
+              <button
+                className="send-btn active mic-btn"
+                onClick={() => setVoiceMode(true)}
+                type="button"
+                title="Record voice note"
+              >
+                <Mic size={18} />
+              </button>
+            )}
+          </>
         )}
       </div>
     </div>

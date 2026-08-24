@@ -2,6 +2,7 @@ import React from 'react';
 import { Download, FileText, PlayCircle } from 'lucide-react';
 import type { ChatMessage } from '../types';
 import { useChatStore } from '../store/chatStore';
+import VoiceNotePlayer from './VoiceNotePlayer';
 
 interface MediaMessageProps {
   message: ChatMessage;
@@ -15,6 +16,14 @@ const isImageMessage = (message: ChatMessage) => {
 const isVideoMessage = (message: ChatMessage) => {
   if (message.contentType === 'video') return true;
   return typeof message.fileType === 'string' && message.fileType.startsWith('video/');
+};
+
+const isVoiceMessage = (message: ChatMessage) => {
+  if (message.contentType === 'voice-note') return true;
+  return (
+    typeof message.fileType === 'string' &&
+    (message.fileType.startsWith('audio/') || message.fileType === 'audio/webm')
+  );
 };
 
 const getAttachmentName = (message: ChatMessage) => message.fileName || message.text || 'Attachment';
@@ -50,6 +59,18 @@ export const MediaMessage: React.FC<MediaMessageProps> = ({ message }) => {
       console.error('Failed to download attachment', error);
     }
   };
+
+  if (isVoiceMessage(message) && message.mediaUrl) {
+    return (
+      <div onClick={(event) => event.stopPropagation()}>
+        <VoiceNotePlayer
+          mediaUrl={message.mediaUrl}
+          seedId={message.id || 'voice'}
+          durationHint={message.duration}
+        />
+      </div>
+    );
+  }
 
   if (isImageMessage(message) && message.mediaUrl) {
     return (
