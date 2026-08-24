@@ -22,6 +22,67 @@ export interface AuthenticatedRequest extends Request {
  * Attaches { firebaseUid, dbId } to req.currentUser.
  * Rejects with 401 on missing / invalid / expired tokens.
  */
+/**
+ * Dev / mock tokens minted by the frontend fallback flows (native Google
+ * fallback, offline dev logins). Parsing mirrors routes/auth.ts exactly so
+ * both paths resolve to the SAME user id.
+ */
+const DEV_TOKEN_PREFIXES = ['dev_token_', 'google_token_', 'google_auth_token_', 'native_token_'];
+
+function isDevToken(idToken: string): boolean {
+  return DEV_TOKEN_PREFIXES.some((p) => idToken.startsWith(p));
+}
+
+/** Resolves a dev/mock bearer token to its user record, auto-creating it. */
+function resolveDevToken(
+  req: AuthenticatedRequest,
+  res: Response,
+  idToken: string,
+  next: NextFunction
+): void {
+  const parts = idToken.split('_');
+  const rawUserId = parts[2] || `user_${Date.now()}`;
+  const devUserId = rawUserId.toLowerCase().replace(/[^a-z0-9]/g, '') || `user_${Date.now()}`;
+  const devDisplayName = decodeURIComponent(parts[3] || 'Google User');
+  const devEmail = parts[4] ? decodeURIComponent(parts[4]) : `${devUserId}@gmail.com`;
+
+  let dbUser = users.find((u: any) => u.id === devUserId || (u.email && u.email === devEmail));
+
+  if (!dbUser) {
+    const newUser = {
+      id: devUserId,
+      uid: `SEC_${devUserId}`,
+      email: devEmail,
+      googleId: `google_${devUserId}`,
+      displayName: devDisplayName,
+      avatarUrl: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(devDisplayName)}`,
+      status: 'online',
+      lastSeen: new Date(),
+      showOnlineStatus: true,
+      bio: 'Signed in with Google',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      deletedAt: null,
+    } as any;
+    users.push(newUser);
+    dbUser = newUser;
+    saveDb();
+    console.log(`[Auth] Auto-registered DB user for dev token ${devUserId}`);
+  }
+
+  const activeUser = dbUser!;
+  req.currentUser = { firebaseUid: devUserId, dbId: activeUser.id };
+  next();
+}
+
+/**
+ * requireAuth middleware
+ *
+ * Reads:  Authorization: Bearer <Firebase ID token>
+ * Verifies the token with Firebase Admin SDK.
+ * Attaches { firebaseUid, dbId } to req.currentUser.
+ * Rejects with 401 on missing / invalid / expired tokens.
+ */
 export async function requireAuth(
   req: AuthenticatedRequest,
   res: Response,
@@ -34,6 +95,12 @@ export async function requireAuth(
   }
 
   const idToken = authHeader.slice(7);
+
+  // Dev / mock session bypass — matches POST /api/auth/google semantics
+  if (isDevToken(idToken)) {
+    resolveDevToken(req, res, idToken, next);
+    return;
+  }
 
   const adminAuth = getAdminAuth();
   if (!adminAuth) {

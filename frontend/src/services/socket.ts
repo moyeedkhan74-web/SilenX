@@ -6,6 +6,8 @@ import { auth } from '../config/firebase';
 import type { ChatMessage } from '../types';
 import { API_URL } from '../config/webrtc-config';
 import { processOutbox, attachOutboxListeners } from './outbox';
+import { apiFetch } from '../utils/apiFetch';
+import { setSocketTokenUpdater } from '../utils/tokenSync';
 import {
   decryptIncoming,
   handleRotateRequest,
@@ -59,17 +61,24 @@ const noKeyCache = new Set<string>();
 const VIRTUAL_SENDER_IDS = new Set(['system', 'bot', 'server', 'admin', '']);
 
 const fetchPublicKeyFromApi = async (userId: string): Promise<string | null> => {
-  const token = useAuthStore.getState().token;
-  if (!token) return null;
-  const res = await fetch(`${API_URL}/api/users/${userId}/public-key`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
+  // apiFetch transparently force-refreshes an expired Firebase token on 401
+  const res = await apiFetch(`${API_URL}/api/users/${userId}/public-key`);
   if (!res.ok) {
     console.warn(`[Socket] Public key fetch for ${userId} failed — HTTP ${res.status}`);
     return null;
   }
   const data = await res.json();
   return data.publicKey || null;
+};
+
+/** Shared PUT /api/users/public-key uploader (token-refresh safe via apiFetch). */
+const uploadPublicKeyToApi = async (publicKey: string): Promise<boolean> => {
+  const res = await apiFetch(`${API_URL}/api/users/public-key`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ publicKey }),
+  });
+  return res.ok;
 };
 
 export const clearNegativeKeyCache = (): void => {
@@ -134,16 +143,7 @@ export const getPublicKey = async (userId: string): Promise<string | null> => {
       const localKey = localStorage.getItem('slienx_public_key');
       if (localKey) {
         console.info(`[Socket] Syncing local public key to server for ${userId}`);
-        const token = useAuthStore.getState().token;
-        if (token) {
-          await fetch(`${API_URL}/api/users/public-key`, {
-            method: 'PUT',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify({ publicKey: localKey }),
-          });
+        if (await uploadPublicKeyToApi(localKey)) {
           publicKey = localKey;
         }
       }
@@ -288,10 +288,8 @@ export const connectSocket = (idToken?: string): Socket => {
           console.info('[Socket] UNAUTHORIZED received — Force-refreshing Firebase token...');
           const freshToken = await currentUser.getIdToken(true);
           useAuthStore.getState().setToken(freshToken);
-          if (socket) {
-            socket.auth = { token: freshToken };
-            socket.connect();
-          }
+          // Update the active socket handshake credential and reconnect
+          updateSocketToken(freshToken);
         }
       } catch (refreshErr) {
         console.warn('[Socket] Token refresh on connect_error failed:', refreshErr);
@@ -391,16 +389,8 @@ socket.on('receive-message', async (payload: any) => {
         await publicKeyUploadHandler();
       } else {
         const localKey = localStorage.getItem('slienx_public_key');
-        const token = useAuthStore.getState().token;
-        if (localKey && token) {
-          await fetch(`${API_URL}/api/users/public-key`, {
-            method: 'PUT',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify({ publicKey: localKey }),
-          });
+        if (localKey) {
+          await uploadPublicKeyToApi(localKey);
         }
       }
     } catch (err) {
@@ -485,6 +475,30 @@ socket.on('receive-message-reaction', (payload: any) => {
 };
 
 export const getSocket = (): Socket | null => socket;
+
+/**
+ * Dynamically refresh the handshake credential of the ACTIVE socket without
+ * dropping the connection. Firebase rotates the ID token hourly; without this
+ * the next reconnect would fail with UNAUTHORIZED until a full re-login.
+ * The new token is applied on the next handshake; if the socket is currently
+ * disconnected we nudge it so recovery starts immediately with fresh auth.
+ */
+export const updateSocketToken = (newToken: string): void => {
+  if (!socket || !newToken) return;
+  const currentToken = socket.auth && typeof socket.auth === 'object'
+    ? (socket.auth as any).token
+    : null;
+  if (currentToken === newToken) return;
+
+  socket.auth = { token: newToken };
+  if (!socket.connected && !socket.active) {
+    // Fully disconnected (attempts exhausted) — kick a reconnect manually.
+    socket.connect();
+  }
+};
+
+// Let apiFetch push refreshed tokens into the live socket without a circular import
+setSocketTokenUpdater(updateSocketToken);
 
 export const disconnectSocket = (): void => {
   if (heartbeatInterval) {

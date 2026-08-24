@@ -4,6 +4,7 @@ import { generateKeyPair, storePrivateKey, storePublicKey, getPrivateKey, getPub
 import { useAuthStore } from '../store/authStore';
 import { API_URL } from '../config/webrtc-config';
 import { setPublicKeyUploadHandler } from '../services/socket';
+import { apiFetch } from '../utils/apiFetch';
 
 interface CryptoContextType {
   keyPair: KeyPair | null;
@@ -139,12 +140,10 @@ export const CryptoProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     }
 
     try {
-      const res = await fetch(`${API_URL}/api/users/public-key`, {
+      // apiFetch transparently force-refreshes an expired Firebase token on 401
+      const res = await apiFetch(`${API_URL}/api/users/public-key`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ publicKey }),
       });
 
@@ -168,14 +167,9 @@ export const CryptoProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
   // Fetch a user's public key from backend
   const fetchPublicKey = useCallback(async (userId: string): Promise<string | null> => {
-    if (!token) return null;
-
     try {
-      const res = await fetch(`${API_URL}/api/users/${userId}/public-key`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      // apiFetch transparently force-refreshes an expired Firebase token on 401
+      const res = await apiFetch(`${API_URL}/api/users/${userId}/public-key`);
 
       if (!res.ok) return null;
 

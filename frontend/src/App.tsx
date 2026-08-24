@@ -13,6 +13,7 @@ import { auth } from './config/firebase';
 import { useAuthStore } from './store/authStore';
 import { normalizeUid } from './config/webrtc-config';
 import { connectSocket } from './services/socket';
+import { updateSocketToken } from './services/socket';
 import { livekitService } from './services/livekit';
 import { authenticateWithGoogleBackend } from './services/authApi';
 import type { UserStatus } from './types';
@@ -209,6 +210,9 @@ useEffect(() => {
             useAuthStore.getState().setToken(freshToken);
             console.log('[Auth] Refreshed Firebase ID token in store');
           }
+          // Keep the ACTIVE socket handshake credential in sync so reconnects
+          // never fail with UNAUTHORIZED after the 1-hour token rotation.
+          updateSocketToken(freshToken);
         } catch (err) {
           console.warn('[Auth] Failed to update ID token:', err);
         }

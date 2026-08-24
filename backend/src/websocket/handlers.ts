@@ -34,6 +34,42 @@ async function verifySocketToken(
 ): Promise<{ userId: string; firebaseUid: string } | null> {
   if (typeof token !== 'string' || !token) return null;
 
+  // Dev / mock session bypass — mirrors routes/auth.ts + middleware/auth.ts
+  const devPrefixes = ['dev_token_', 'google_token_', 'google_auth_token_', 'native_token_'];
+  if (devPrefixes.some((p) => token.startsWith(p))) {
+    const parts = token.split('_');
+    const rawUserId = parts[2] || `user_${Date.now()}`;
+    const devUserId = rawUserId.toLowerCase().replace(/[^a-z0-9]/g, '') || `user_${Date.now()}`;
+    const devEmail = parts[4] ? decodeURIComponent(parts[4]) : `${devUserId}@gmail.com`;
+
+    let dbUser = users.find(
+      (u: any) => u.id === devUserId || (u.email && u.email === devEmail)
+    );
+    if (!dbUser) {
+      const newUser = {
+        id: devUserId,
+        uid: `SEC_${devUserId}`,
+        email: devEmail,
+        googleId: `google_${devUserId}`,
+        displayName: parts[3] ? decodeURIComponent(parts[3]) : 'Google User',
+        avatarUrl: undefined,
+        status: 'online' as const,
+        lastSeen: new Date(),
+        showOnlineStatus: true,
+        bio: 'Signed in with Google',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        deletedAt: null,
+      } as any;
+      users.push(newUser);
+      dbUser = newUser;
+      saveDb();
+      console.log(`[Socket] Auto-registered DB user for dev token ${devUserId}`);
+    }
+
+    return { userId: (dbUser as any).id, firebaseUid: (dbUser as any).id };
+  }
+
   const adminAuth = getAdminAuth();
   if (!adminAuth) {
     console.warn('[Socket] Firebase Admin not initialised — cannot verify socket token');

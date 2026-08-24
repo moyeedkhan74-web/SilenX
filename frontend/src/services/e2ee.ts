@@ -15,6 +15,7 @@ import {
 import { API_URL } from '../config/webrtc-config';
 import { getSocket, getPublicKey, clearPublicKeyCache } from './socket';
 import { useAuthStore } from '../store/authStore';
+import { apiFetch } from '../utils/apiFetch';
 import nacl from 'tweetnacl';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -56,9 +57,8 @@ async function fetchPublicKeyHistory(userId: string): Promise<PublicKeyHistoryEn
   try {
     const token = useAuthStore.getState().token;
     if (!token) return [];
-    const res = await fetch(`${API_URL}/api/users/${userId}/public-keys`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+    // apiFetch transparently force-refreshes an expired Firebase token on 401
+    const res = await apiFetch(`${API_URL}/api/users/${userId}/public-keys`);
     if (!res.ok) return [];
     const data = await res.json();
     const keys: PublicKeyHistoryEntry[] = data.keys || [];
