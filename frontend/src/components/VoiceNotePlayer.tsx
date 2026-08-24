@@ -34,58 +34,10 @@ function seededBars(seed: string, count: number): number[] {
     t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
-  // Voice-like envelope: quieter at the edges, lively in the middle.
   return Array.from({ length: count }, (_, i) => {
     const envelope = Math.sin((i / (count - 1)) * Math.PI) * 0.7 + 0.3;
     return Math.max(0.14, next() * envelope);
   });
-}
-
-interface CanvasMetrics {
-  width: number;
-  height: number;
-}
-
-function drawWaveform(
-  canvas: HTMLCanvasElement,
-  bars: number[],
-  progress: number,
-  metrics: CanvasMetrics,
-  playedColor: string,
-  idleColor: string
-): void {
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return;
-
-  const dpr = window.devicePixelRatio || 1;
-  const targetW = Math.max(1, Math.floor(metrics.width * dpr));
-  const targetH = Math.max(1, Math.floor(metrics.height * dpr));
-  if (canvas.width !== targetW || canvas.height !== targetH) {
-    canvas.width = targetW;
-    canvas.height = targetH;
-  }
-
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  const barCount = bars.length;
-  const gap = 2 * dpr;
-  const barWidth = Math.max(dpr, (canvas.width - gap * (barCount - 1)) / barCount);
-  const midY = canvas.height / 2;
-  const maxBarH = canvas.height - 2 * dpr;
-
-  const clamped = Math.min(1, Math.max(0, progress));
-  const playX = clamped * canvas.width;
-
-  for (let i = 0; i < barCount; i++) {
-    const x = i * (barWidth + gap);
-    const barH = Math.max(3 * dpr, bars[i] * maxBarH);
-    const y = midY - barH / 2;
-    ctx.fillStyle = x + barWidth / 2 <= playX ? playedColor : idleColor;
-    ctx.beginPath();
-    const radius = Math.min(barWidth / 2, 2 * dpr);
-    ctx.roundRect(x, y, barWidth, barH, radius);
-    ctx.fill();
-  }
 }
 
 interface VoiceNotePlayerProps {
@@ -100,66 +52,132 @@ export const VoiceNotePlayer: React.FC<VoiceNotePlayerProps> = ({ mediaUrl, seed
   const audioRef = useRef<HTMLAudioElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rafRef = useRef<number | null>(null);
+
+  const parsedHint = useMemo(() => parseDurationHint(durationHint), [durationHint]);
   const [playing, setPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(() => parseDurationHint(durationHint));
+  const [duration, setDuration] = useState(parsedHint);
   const [speedIdx, setSpeedIdx] = useState(0);
+
+  const durationRef = useRef(duration);
+  durationRef.current = duration;
 
   const bars = useMemo(() => seededBars(seedId || 'voice', BAR_COUNT), [seedId]);
   const speed = SPEEDS[speedIdx];
 
-  const paint = useCallback(() => {
+  const cachedRectRef = useRef<{ width: number; height: number }>({ width: 220, height: 32 });
+  const cachedColorsRef = useRef<{ played: string; idle: string }>({
+    played: '#0D9488',
+    idle: 'rgba(15,23,42,0.22)',
+  });
+
+  const updateColors = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const styles = getComputedStyle(document.documentElement);
-    const playedColor =
-      styles.getPropertyValue('--color-accent').trim() || '#0D9488';
-    const idleColor =
-      getComputedStyle(canvas).color && document.documentElement.getAttribute('data-theme') === 'dark'
-        ? 'rgba(255,255,255,0.28)'
-        : 'rgba(15,23,42,0.22)';
-    const rect = canvas.getBoundingClientRect();
-    const progress = duration > 0 ? currentTime / duration : 0;
-    drawWaveform(canvas, bars, progress, { width: rect.width, height: rect.height }, playedColor, idleColor);
-  }, [bars, currentTime, duration]);
+    const dark = document.documentElement.getAttribute('data-theme') === 'dark';
+    cachedColorsRef.current = {
+      played: styles.getPropertyValue('--color-accent').trim() || '#0D9488',
+      idle: dark ? 'rgba(255,255,255,0.28)' : 'rgba(15,23,42,0.22)',
+    };
+  }, []);
 
-  // Redraw on state changes
-  useEffect(() => {
-    paint();
-  }, [paint]);
+  const drawWaveformDirect = useCallback(
+    (curTime: number, totalDur: number) => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
 
-  // Repaint on theme change / resize without playing
+      const { width: rectW, height: rectH } = cachedRectRef.current;
+      const dpr = window.devicePixelRatio || 1;
+      const targetW = Math.max(1, Math.floor(rectW * dpr));
+      const targetH = Math.max(1, Math.floor(rectH * dpr));
+
+      if (canvas.width !== targetW || canvas.height !== targetH) {
+        canvas.width = targetW;
+        canvas.height = targetH;
+      }
+
+      ctx.clearRect(0, 0, targetW, targetH);
+
+      const barCount = bars.length;
+      const gap = 2 * dpr;
+      const barWidth = Math.max(dpr, (targetW - gap * (barCount - 1)) / barCount);
+      const midY = targetH / 2;
+      const maxBarH = targetH - 2 * dpr;
+
+      const progress = totalDur > 0 ? Math.min(1, Math.max(0, curTime / totalDur)) : 0;
+      const playX = progress * targetW;
+      const { played: playedColor, idle: idleColor } = cachedColorsRef.current;
+
+      for (let i = 0; i < barCount; i++) {
+        const x = i * (barWidth + gap);
+        const barH = Math.max(3 * dpr, bars[i] * maxBarH);
+        const y = midY - barH / 2;
+        ctx.fillStyle = x + barWidth / 2 <= playX ? playedColor : idleColor;
+        ctx.beginPath();
+        const radius = Math.min(barWidth / 2, 2 * dpr);
+        ctx.roundRect(x, y, barWidth, barH, radius);
+        ctx.fill();
+      }
+    },
+    [bars]
+  );
+
+  // ResizeObserver to cache canvas size & redraw
   useEffect(() => {
-    const observer = new ResizeObserver(() => paint());
-    if (canvasRef.current) observer.observe(canvasRef.current);
+    updateColors();
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        if (entry.contentRect) {
+          cachedRectRef.current = {
+            width: entry.contentRect.width || 220,
+            height: entry.contentRect.height || 32,
+          };
+          drawWaveformDirect(audioRef.current?.currentTime || currentTime, durationRef.current);
+        }
+      }
+    });
+    observer.observe(canvas);
     return () => observer.disconnect();
-  }, [paint]);
+  }, [drawWaveformDirect, updateColors, currentTime]);
 
-  // Smooth progress while playing (rAF beats sparse `timeupdate` events)
+  // Sync canvas when state changes
+  useEffect(() => {
+    drawWaveformDirect(currentTime, duration);
+  }, [currentTime, duration, drawWaveformDirect]);
+
+  // Smooth direct-canvas animation while playing without triggering 60fps React re-renders
   useEffect(() => {
     if (!playing) {
       if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
       rafRef.current = null;
       return;
     }
+
     const tick = () => {
       const audio = audioRef.current;
-      if (audio) setCurrentTime(audio.currentTime);
+      if (audio) {
+        drawWaveformDirect(audio.currentTime, durationRef.current);
+      }
       rafRef.current = requestAnimationFrame(tick);
     };
+
     rafRef.current = requestAnimationFrame(tick);
     return () => {
       if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
       rafRef.current = null;
     };
-  }, [playing]);
+  }, [playing, drawWaveformDirect]);
 
   useEffect(() => {
     const audio = audioRef.current;
     if (audio) audio.playbackRate = speed;
   }, [speed]);
 
-  // Stop playback if the component unmounts with audio still running
   useEffect(() => {
     return () => {
       audioRef.current?.pause();
@@ -183,8 +201,10 @@ export const VoiceNotePlayer: React.FC<VoiceNotePlayerProps> = ({ mediaUrl, seed
     if (!audio || !canvas || !(duration > 0)) return;
     const rect = canvas.getBoundingClientRect();
     const ratio = Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width));
-    audio.currentTime = ratio * duration;
-    setCurrentTime(audio.currentTime);
+    const targetTime = ratio * duration;
+    audio.currentTime = targetTime;
+    setCurrentTime(targetTime);
+    drawWaveformDirect(targetTime, duration);
   };
 
   const cycleSpeed = () => setSpeedIdx((i) => (i + 1) % SPEEDS.length);
@@ -205,7 +225,7 @@ export const VoiceNotePlayer: React.FC<VoiceNotePlayerProps> = ({ mediaUrl, seed
         <canvas ref={canvasRef} className="vnp-wave" onClick={handleSeek} aria-label="Voice note waveform — click to seek" />
         <div className="vnp-meta">
           <span className="vnp-timestamps">
-            {formatTime(currentTime)} / {formatTime(duration)}
+            {formatTime(currentTime)} / {formatTime(duration || parsedHint)}
           </span>
           <button type="button" className="vnp-speed" onClick={cycleSpeed} aria-label={`Playback speed ${speed}x`}>
             {speed}x
@@ -220,8 +240,12 @@ export const VoiceNotePlayer: React.FC<VoiceNotePlayerProps> = ({ mediaUrl, seed
           preload="metadata"
           hidden
           onLoadedMetadata={(e) => {
-            const value = e.currentTarget.duration;
-            if (Number.isFinite(value) && value > 0) setDuration(value);
+            const rawDuration = e.currentTarget.duration;
+            if (Number.isFinite(rawDuration) && rawDuration > 0) {
+              setDuration(rawDuration);
+            } else if (parsedHint > 0) {
+              setDuration(parsedHint);
+            }
           }}
           onPlay={() => setPlaying(true)}
           onPause={() => setPlaying(false)}
@@ -229,6 +253,10 @@ export const VoiceNotePlayer: React.FC<VoiceNotePlayerProps> = ({ mediaUrl, seed
             setPlaying(false);
             e.currentTarget.currentTime = 0;
             setCurrentTime(0);
+            drawWaveformDirect(0, durationRef.current);
+          }}
+          onTimeUpdate={(e) => {
+            setCurrentTime(e.currentTarget.currentTime);
           }}
         />
       )}
@@ -237,3 +265,4 @@ export const VoiceNotePlayer: React.FC<VoiceNotePlayerProps> = ({ mediaUrl, seed
 };
 
 export default VoiceNotePlayer;
+

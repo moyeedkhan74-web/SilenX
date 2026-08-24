@@ -3,7 +3,8 @@ import { Mic, Pause, Play, Send, Trash2 } from 'lucide-react';
 
 type RecorderMode = 'recording' | 'paused' | 'preview';
 
-const MAX_LEVEL_SAMPLES = 600;
+const MAX_LEVEL_SAMPLES = 300;
+const MAX_RECORDING_SECONDS = 300; // 5 minutes max to prevent runaway recording & memory crashes
 
 function formatClock(totalSeconds: number): string {
   const safe = Math.max(0, Math.floor(totalSeconds));
@@ -18,10 +19,6 @@ interface VoiceRecorderBarProps {
   onSend: (mediaUrl: string, durationSeconds: number) => void;
 }
 
-/**
- * WhatsApp-style voice recorder bar:
- * live AudioContext waveform → pause/resume → trash → listen → send.
- */
 export const VoiceRecorderBar: React.FC<VoiceRecorderBarProps> = ({ onCancel, onSend }) => {
   const [mode, setMode] = useState<RecorderMode>('recording');
   const [elapsed, setElapsed] = useState(0);
@@ -30,6 +27,7 @@ export const VoiceRecorderBar: React.FC<VoiceRecorderBarProps> = ({ onCancel, on
   const [previewTime, setPreviewTime] = useState(0);
   const [previewDuration, setPreviewDuration] = useState(0);
   const [micError, setMicError] = useState<string | null>(null);
+  const [isPreparingSend, setIsPreparingSend] = useState(false);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -42,20 +40,47 @@ export const VoiceRecorderBar: React.FC<VoiceRecorderBarProps> = ({ onCancel, on
   const levelsRef = useRef<number[]>([]);
   const elapsedRef = useRef(0);
   const previewAudioRef = useRef<HTMLAudioElement>(null);
+  const dataUrlRef = useRef<string | null>(null);
+  const mimeTypeRef = useRef<string>('audio/webm');
 
-  // ── Canvas painting ──────────────────────────────────────────────────────
+  // Cached canvas rect & theme colors to avoid expensive getBoundingClientRect/getComputedStyle inside rAF
+  const cachedRectRef = useRef<{ width: number; height: number }>({ width: 240, height: 32 });
+  const cachedColorsRef = useRef<{ accent: string; idle: string; danger: string }>({
+    accent: '#0D9488',
+    idle: 'rgba(255,255,255,0.26)',
+    danger: '#EF4444',
+  });
 
-  const readThemeColors = useCallback((): { accent: string; idle: string; danger: string } => {
+  const updateCachedColors = useCallback(() => {
     const styles = getComputedStyle(document.documentElement);
     const dark = document.documentElement.getAttribute('data-theme') === 'dark';
-    return {
+    cachedColorsRef.current = {
       accent: styles.getPropertyValue('--color-accent').trim() || '#0D9488',
       idle: dark ? 'rgba(255,255,255,0.26)' : 'rgba(15,23,42,0.2)',
       danger: styles.getPropertyValue('--color-error').trim() || '#EF4444',
     };
   }, []);
 
-  /** Static waveform render used in preview mode (with play-progress). */
+  // Update canvas bounds observer
+  useEffect(() => {
+    updateCachedColors();
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        if (entry.contentRect) {
+          cachedRectRef.current = {
+            width: entry.contentRect.width || 240,
+            height: entry.contentRect.height || 32,
+          };
+        }
+      }
+    });
+    observer.observe(canvas);
+    return () => observer.disconnect();
+  }, [updateCachedColors]);
+
+  /** Static waveform render used in preview mode. */
   const paintStatic = useCallback(
     (progress: number) => {
       const canvas = canvasRef.current;
@@ -63,10 +88,10 @@ export const VoiceRecorderBar: React.FC<VoiceRecorderBarProps> = ({ onCancel, on
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
 
-      const rect = canvas.getBoundingClientRect();
+      const { width: rectW, height: rectH } = cachedRectRef.current;
       const dpr = window.devicePixelRatio || 1;
-      const w = Math.max(1, Math.floor(rect.width * dpr));
-      const h = Math.max(1, Math.floor(rect.height * dpr));
+      const w = Math.max(1, Math.floor(rectW * dpr));
+      const h = Math.max(1, Math.floor(rectH * dpr));
       if (canvas.width !== w || canvas.height !== h) {
         canvas.width = w;
         canvas.height = h;
@@ -74,7 +99,6 @@ export const VoiceRecorderBar: React.FC<VoiceRecorderBarProps> = ({ onCancel, on
       ctx.clearRect(0, 0, w, h);
 
       const levels = levelsRef.current.length > 0 ? levelsRef.current : [0.3];
-      // Downsample recorded levels to fit the visible bar budget (~48 bars).
       const targetBars = Math.min(48, Math.max(12, Math.floor(w / (5 * dpr))));
       const bucketSize = Math.max(1, Math.ceil(levels.length / targetBars));
       const bars: number[] = [];
@@ -86,7 +110,7 @@ export const VoiceRecorderBar: React.FC<VoiceRecorderBarProps> = ({ onCancel, on
         bars.push(Math.max(0.1, peak));
       }
 
-      const colors = readThemeColors();
+      const colors = cachedColorsRef.current;
       const gap = 2 * dpr;
       const barW = Math.max(dpr, (w - gap * (bars.length - 1)) / bars.length);
       const midY = h / 2;
@@ -102,10 +126,10 @@ export const VoiceRecorderBar: React.FC<VoiceRecorderBarProps> = ({ onCancel, on
         ctx.fill();
       }
     },
-    [readThemeColors]
+    []
   );
 
-  /** Live scrolling frequency visualization while recording. */
+  /** Live scrolling frequency visualization while recording (uses cached layout bounds). */
   const startLiveLoop = useCallback(() => {
     const loop = () => {
       const analyser = analyserRef.current;
@@ -117,20 +141,18 @@ export const VoiceRecorderBar: React.FC<VoiceRecorderBarProps> = ({ onCancel, on
       const data = new Uint8Array(analyser.frequencyBinCount);
       analyser.getByteFrequencyData(data);
 
-      // Average energy across the speech band (skip near-zero DC bins)
       let sum = 0;
       const usable = Math.min(data.length, 64);
       for (let i = 2; i < usable; i++) sum += data[i];
-      const level = Math.min(1, sum / ((usable - 2) * 255) * 2.4);
+      const level = Math.min(1, (sum / ((usable - 2) * 255)) * 2.4);
 
       levelsRef.current.push(level);
       if (levelsRef.current.length > MAX_LEVEL_SAMPLES) levelsRef.current.shift();
 
-      // Draw last ~48 samples as scrolling bars
-      const rect = canvas.getBoundingClientRect();
+      const { width: rectW, height: rectH } = cachedRectRef.current;
       const dpr = window.devicePixelRatio || 1;
-      const w = Math.max(1, Math.floor(rect.width * dpr));
-      const h = Math.max(1, Math.floor(rect.height * dpr));
+      const w = Math.max(1, Math.floor(rectW * dpr));
+      const h = Math.max(1, Math.floor(rectH * dpr));
       if (canvas.width !== w || canvas.height !== h) {
         canvas.width = w;
         canvas.height = h;
@@ -143,7 +165,7 @@ export const VoiceRecorderBar: React.FC<VoiceRecorderBarProps> = ({ onCancel, on
       const barW = Math.max(dpr, (w - gap * (recent.length - 1)) / recent.length);
       const midY = h / 2;
       const maxH = h - 2 * dpr;
-      const colors = readThemeColors();
+      const colors = cachedColorsRef.current;
 
       for (let i = 0; i < recent.length; i++) {
         const x = w - (recent.length - i) * (barW + gap);
@@ -156,23 +178,38 @@ export const VoiceRecorderBar: React.FC<VoiceRecorderBarProps> = ({ onCancel, on
 
       rafRef.current = requestAnimationFrame(loop);
     };
+
     if (rafRef.current === null) {
       rafRef.current = requestAnimationFrame(loop);
     }
-  }, [readThemeColors]);
+  }, []);
 
   const stopLiveLoop = useCallback(() => {
     if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
     rafRef.current = null;
   }, []);
 
-  // Repaint the static waveform whenever preview playback advances
   useEffect(() => {
     if (mode !== 'preview') return;
     paintStatic(previewDuration > 0 ? previewTime / previewDuration : 0);
   }, [mode, previewTime, previewDuration, paintStatic]);
 
   // ── Recording lifecycle ─────────────────────────────────────────────────
+
+  const stopCapture = useCallback(() => {
+    stopLiveLoop();
+    if (timerRef.current !== null) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+    if (recorderRef.current && recorderRef.current.state !== 'inactive') {
+      try {
+        recorderRef.current.stop();
+      } catch {
+        // already stopped
+      }
+    }
+  }, [stopLiveLoop]);
 
   useEffect(() => {
     let cancelled = false;
@@ -186,15 +223,27 @@ export const VoiceRecorderBar: React.FC<VoiceRecorderBarProps> = ({ onCancel, on
         }
         streamRef.current = stream;
 
-        const recorder = new MediaRecorder(stream);
+        // Choose lightweight speech-optimized mime & audio bit rate (24kbps speech preset)
+        const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+          ? 'audio/webm;codecs=opus'
+          : MediaRecorder.isTypeSupported('audio/mp4')
+          ? 'audio/mp4'
+          : 'audio/webm';
+        mimeTypeRef.current = mimeType;
+
+        const options: MediaRecorderOptions = {
+          mimeType,
+          audioBitsPerSecond: 24000, // 24 kbps speech optimization -> 90% lighter payloads
+        };
+
+        const recorder = new MediaRecorder(stream, options);
         chunksRef.current = [];
         recorder.ondataavailable = (event) => {
-          if (event.data.size > 0) chunksRef.current.push(event.data);
+          if (event.data && event.data.size > 0) chunksRef.current.push(event.data);
         };
         recorder.start(250);
         recorderRef.current = recorder;
 
-        // Web Audio graph for the live visualizer
         const AudioCtor =
           window.AudioContext ||
           (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
@@ -212,6 +261,9 @@ export const VoiceRecorderBar: React.FC<VoiceRecorderBarProps> = ({ onCancel, on
         timerRef.current = window.setInterval(() => {
           elapsedRef.current += 1;
           setElapsed(elapsedRef.current);
+          if (elapsedRef.current >= MAX_RECORDING_SECONDS) {
+            handleStopToPreview();
+          }
         }, 1000);
 
         startLiveLoop();
@@ -229,19 +281,7 @@ export const VoiceRecorderBar: React.FC<VoiceRecorderBarProps> = ({ onCancel, on
   }, []);
 
   const teardownMedia = useCallback(() => {
-    stopLiveLoop();
-    if (timerRef.current !== null) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
-    }
-    if (recorderRef.current && recorderRef.current.state !== 'inactive') {
-      recorderRef.current.onstop = null;
-      try {
-        recorderRef.current.stop();
-      } catch {
-        // already stopped
-      }
-    }
+    stopCapture();
     streamRef.current?.getTracks().forEach((track) => track.stop());
     streamRef.current = null;
     analyserRef.current = null;
@@ -249,7 +289,7 @@ export const VoiceRecorderBar: React.FC<VoiceRecorderBarProps> = ({ onCancel, on
       audioCtxRef.current.close().catch(() => {});
     }
     audioCtxRef.current = null;
-  }, [stopLiveLoop]);
+  }, [stopCapture]);
 
   useEffect(() => {
     return () => {
@@ -286,6 +326,9 @@ export const VoiceRecorderBar: React.FC<VoiceRecorderBarProps> = ({ onCancel, on
       timerRef.current = window.setInterval(() => {
         elapsedRef.current += 1;
         setElapsed(elapsedRef.current);
+        if (elapsedRef.current >= MAX_RECORDING_SECONDS) {
+          handleStopToPreview();
+        }
       }, 1000);
       startLiveLoop();
       setMode('recording');
@@ -319,7 +362,7 @@ export const VoiceRecorderBar: React.FC<VoiceRecorderBarProps> = ({ onCancel, on
         audioCtxRef.current = null;
       }
 
-      const blob = new Blob(chunksRef.current, { type: recorder.mimeType || 'audio/webm' });
+      const blob = new Blob(chunksRef.current, { type: mimeTypeRef.current || 'audio/webm' });
       if (blob.size === 0) {
         handleCancel();
         return;
@@ -328,21 +371,20 @@ export const VoiceRecorderBar: React.FC<VoiceRecorderBarProps> = ({ onCancel, on
       setPreviewUrl(url);
       setMode('preview');
 
-      // Convert to a durable data URL at send time (matches the media pipeline)
+      // Asynchronously load data URL payload
       const reader = new FileReader();
       reader.onload = () => {
         dataUrlRef.current = reader.result as string;
       };
       reader.readAsDataURL(blob);
     };
+
     try {
       recorder.stop();
     } catch {
       handleCancel();
     }
   };
-
-  const dataUrlRef = useRef<string | null>(null);
 
   const handleSeekPreview = (event: React.MouseEvent<HTMLCanvasElement>) => {
     const audio = previewAudioRef.current;
@@ -356,15 +398,28 @@ export const VoiceRecorderBar: React.FC<VoiceRecorderBarProps> = ({ onCancel, on
     }
   };
 
-  const handleSend = () => {
-    const payload = dataUrlRef.current || previewUrl;
+  const handleSend = async () => {
+    if (isPreparingSend) return;
+    setIsPreparingSend(true);
+
+    let payload = dataUrlRef.current;
+    if (!payload && chunksRef.current.length > 0) {
+      const blob = new Blob(chunksRef.current, { type: mimeTypeRef.current || 'audio/webm' });
+      payload = await new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.readAsDataURL(blob);
+      });
+    }
+
     if (!payload) {
       handleCancel();
       return;
     }
+
     previewAudioRef.current?.pause();
     teardownMedia();
-    onSend(payload, Math.max(1, elapsed));
+    onSend(payload, Math.max(1, elapsedRef.current));
   };
 
   // ── Render ───────────────────────────────────────────────────────────────
@@ -410,7 +465,13 @@ export const VoiceRecorderBar: React.FC<VoiceRecorderBarProps> = ({ onCancel, on
           <Trash2 size={17} />
         </button>
 
-        <button type="button" className="vn-btn vn-btn--primary" onClick={handleSend} aria-label="Send voice note">
+        <button
+          type="button"
+          className="vn-btn vn-btn--primary"
+          onClick={() => void handleSend()}
+          disabled={isPreparingSend}
+          aria-label="Send voice note"
+        >
           <Send size={16} />
         </button>
 
@@ -471,3 +532,4 @@ export const VoiceRecorderBar: React.FC<VoiceRecorderBarProps> = ({ onCancel, on
 };
 
 export default VoiceRecorderBar;
+
