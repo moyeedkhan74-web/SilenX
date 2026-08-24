@@ -6,6 +6,36 @@ let messaging: Messaging | null = null;
 
 /** Must match the channel created client-side in nativePush.ts */
 const ANDROID_MESSAGE_CHANNEL_ID = 'silenx_messages_channel';
+/** Must match the intent-filter action registered in AndroidManifest.xml */
+export const CHAT_CLICK_ACTION = 'CHAT_MESSAGE';
+
+/**
+ * Clean, content-type-aware notification preview.
+ * Text messages show their actual text; media types show labelled placeholders
+ * (media content itself is E2EE ciphertext and never travels to FCM).
+ */
+function formatNotificationPreview(payload: PushPayload): string {
+  switch (payload.contentType) {
+    case 'voice-note':
+      return `🎤 Voice note${payload.duration ? ` (${payload.duration})` : ''}`;
+    case 'image':
+      return '📷 Photo';
+    case 'video':
+      return '🎬 Video';
+    case 'file':
+      return `📄 ${payload.text || 'Document'}`;
+    case 'location':
+      return '📍 Location';
+    case 'contact':
+      return '👤 Contact';
+    case 'poll':
+      return '📊 Poll';
+    case 'event':
+      return '📅 Event';
+    default:
+      return payload.text?.trim() || '🔒 Encrypted message';
+  }
+}
 
 function getMessagingInstance(): Messaging | null {
   if (messaging) return messaging;
@@ -30,6 +60,10 @@ interface PushPayload {
   senderId: string;
   messageId: string;
   senderDisplayName: string;
+  /** Plaintext preview supplied by the sending client (metadata channel). */
+  text?: string;
+  contentType?: string;
+  duration?: string;
 }
 
 /**
@@ -65,22 +99,27 @@ export async function sendPushNotification(payload: PushPayload): Promise<boolea
   for (const targetUser of targetUsers) {
     if (!targetUser.fcmTokens || targetUser.fcmTokens.length === 0) continue;
     
+    const bodyText = formatNotificationPreview(payload);
+
     const message: MulticastMessage = {
       notification: {
         title: senderName,
-        body: '🔒 Encrypted Message',
+        body: bodyText,
       },
       data: {
         conversationId: payload.conversationId,
         senderId: payload.senderId,
         messageId: payload.messageId,
         senderDisplayName: senderName,
+        body: bodyText,
+        click_action: CHAT_CLICK_ACTION,
       },
       android: {
         priority: 'high',
         notification: {
           channelId: ANDROID_MESSAGE_CHANNEL_ID,
           sound: 'default',
+          clickAction: CHAT_CLICK_ACTION,
           tag: payload.conversationId,
         },
       },
@@ -141,22 +180,27 @@ export async function sendPushToUser(userId: string, payload: Omit<PushPayload, 
   const sender = users.find(u => u.id === payload.senderId);
   const senderName = sender?.displayName || 'Someone';
 
+  const bodyText = formatNotificationPreview(payload);
+
   const message: MulticastMessage = {
     notification: {
       title: senderName,
-      body: '🔒 Encrypted Message',
+      body: bodyText,
     },
     data: {
       conversationId: payload.conversationId,
       senderId: payload.senderId,
       messageId: payload.messageId,
       senderDisplayName: senderName,
+      body: bodyText,
+      click_action: CHAT_CLICK_ACTION,
     },
     android: {
       priority: 'high',
       notification: {
         channelId: ANDROID_MESSAGE_CHANNEL_ID,
         sound: 'default',
+        clickAction: CHAT_CLICK_ACTION,
         tag: payload.conversationId,
       },
     },

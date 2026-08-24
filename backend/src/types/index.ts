@@ -198,6 +198,11 @@ export interface SendMessagePayload {
   conversationId: string;
   encryptedContent: string;
   tempId: string;
+  /**
+   * Plaintext preview for push notifications (WhatsApp-style metadata
+   * channel). Never stored as message content; travels to FCM only.
+   */
+  previewText?: string;
   recipientId?: string;
   replyTo?: {
     sender: string;

@@ -1,5 +1,5 @@
 import { Server, Socket } from 'socket.io';
-import { setUserSocket, removeSocketById, getSocketIdForUser } from './socketStore';
+import { setUserSocket, removeSocketById, getSocketIdForUser, setIoServer } from './socketStore';
 import { messages, conversations, conversationMembers, users, saveDb, callLogs } from '../store/db';
 import { getAdminAuth } from '../config/firebaseAdmin';
 import { sendPushToUser } from '../services/pushService';
@@ -143,6 +143,9 @@ function isMemberOf(userId: string, conversationId: string): boolean {
 }
 
 export function registerSocketHandlers(io: any): void {
+  // Expose the io instance so REST routes can emit real-time events too.
+  setIoServer(io);
+
   // ── Token verification on connection ──────────────────────────────────────
   io.use(async (socket: Socket, next: (err?: Error) => void) => {
     const token =
@@ -272,6 +275,9 @@ export function registerSocketHandlers(io: any): void {
             senderId: userId,
             senderDisplayName: users.find(u => u.id === userId)?.displayName || 'SilenX User',
             messageId: newMsg.id,
+            text: data.previewText,
+            contentType: data.contentType,
+            duration: data.duration,
           });
         }
       });

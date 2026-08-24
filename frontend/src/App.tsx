@@ -109,9 +109,17 @@ function AppInner({
   };
 
 useEffect(() => {
+    // Instant boot fast-path: if a session is already stored locally, show the
+    // UI immediately while the auth listener refreshes tokens in the
+    // background — no spinner wait for returning users.
+    const currentStoreAtBoot = useAuthStore.getState();
+    if (currentStoreAtBoot.user && currentStoreAtBoot.token) {
+      setInitialized(true);
+    }
+
     const safetyTimer = setTimeout(() => {
       setInitialized(true);
-    }, 1500);
+    }, 400); // Reduced from 1500ms to 400ms max fallback
 
     const finalizeBoot = () => {
       clearTimeout(safetyTimer);

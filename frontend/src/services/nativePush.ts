@@ -48,6 +48,50 @@ export async function initializeNativePush(): Promise<boolean> {
     // Android: channel must exist before notifications are posted to it.
     await ensureNotificationChannel();
 
+    // OS system banners + sounds in ALL app states. API added in newer
+    // Capacitor push plugin majors — feature-detect so v5 builds still work.
+    const pushAny = PushNotifications as unknown as {
+      setPresentationOptions?: (opts: { badge: boolean; sound: boolean; alert: boolean }) => Promise<void>;
+      registerActionTypes?: (opts: {
+        types: Array<{
+          id: string;
+          actions: Array<{
+            id: string;
+            title: string;
+            input?: boolean;
+            inputButtonTitle?: string;
+            placeholder?: string;
+          }>;
+        }>;
+      }) => Promise<void>;
+    };
+
+    if (typeof pushAny.setPresentationOptions === 'function') {
+      await pushAny.setPresentationOptions({ badge: true, sound: true, alert: true });
+      console.log('[NativePush] Presentation options enabled (badge/sound/alert)');
+    }
+
+    if (typeof pushAny.registerActionTypes === 'function') {
+      await pushAny.registerActionTypes({
+        types: [
+          {
+            id: 'CHAT_MESSAGE',
+            actions: [
+              {
+                id: 'reply',
+                title: 'Reply',
+                input: true,
+                inputButtonTitle: 'Send',
+                placeholder: 'Type a reply...',
+              },
+              { id: 'mark_read', title: 'Mark as Read' },
+            ],
+          },
+        ],
+      });
+      console.log('[NativePush] CHAT_MESSAGE action category registered');
+    }
+
     // Request permissions
     const permResult = await PushNotifications.requestPermissions();
     console.log('[NativePush] Permission result:', permResult);
@@ -163,16 +207,37 @@ function handlePushNotification(notification: PushNotificationSchema): void {
 }
 
 /**
- * Handle notification tap/action - navigate to conversation
+ * Handle notification tap/action:
+ *  - `reply` (inline, from the Android shade): send the typed reply via the
+ *    REST API without opening the app.
+ *  - `mark_read`: mark the conversation read in the background.
+ *  - default tap: deep-link into the conversation.
  */
 function handleNotificationAction(action: ActionPerformed): void {
   const notification = action.notification;
   const data = notification.data || {};
   const conversationId = data.conversationId;
-  const actionId = action.actionId;
 
-  // Handle different actions
-  switch (actionId) {
+  // Inline reply from the notification shade (input actions deliver
+  // `inputValue` on plugins that support it).
+  if (action.actionId === 'reply' && action.inputValue && conversationId) {
+    void sendInlineReply(conversationId, action.inputValue);
+    return;
+  }
+
+  // Mark as Read directly from the shade — no app launch.
+  if (action.actionId === 'mark_read' && conversationId) {
+    void markConversationReadRemotely(conversationId);
+    // Also clear any locally cached unread state for instant UI consistency.
+    useChatStore.setState((state) => ({
+      conversations: state.conversations.map((c) =>
+        c.id === conversationId ? { ...c, unreadCount: 0 } : c
+      ),
+    }));
+    return;
+  }
+
+  switch (action.actionId) {
     case 'open':
     case '':
     case undefined:
@@ -194,6 +259,50 @@ function handleNotificationAction(action: ActionPerformed): void {
         navigateToConversation(conversationId);
       }
       break;
+  }
+}
+
+/** Fire-and-forget REST reply sent from the notification shade. */
+async function sendInlineReply(conversationId: string, text: string): Promise<void> {
+  const idToken = useAuthStore.getState().token;
+  if (!idToken) {
+    console.warn('[NativePush] Inline reply skipped — not signed in');
+    return;
+  }
+  try {
+    const res = await fetch(`${API_URL}/api/conversations/${encodeURIComponent(conversationId)}/messages`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${idToken}`,
+      },
+      body: JSON.stringify({ text }),
+    });
+    if (!res.ok) {
+      const detail = await res.text().catch(() => '');
+      console.error(`[NativePush] Inline reply failed — HTTP ${res.status}: ${detail}`);
+    } else {
+      console.log('[NativePush] Inline reply delivered');
+    }
+  } catch (err) {
+    console.error('[NativePush] Inline reply error:', err);
+  }
+}
+
+/** Background read receipt straight from the notification shade. */
+async function markConversationReadRemotely(conversationId: string): Promise<void> {
+  const idToken = useAuthStore.getState().token;
+  if (!idToken) return;
+  try {
+    const res = await fetch(`${API_URL}/api/conversations/${encodeURIComponent(conversationId)}/read`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${idToken}` },
+    });
+    if (!res.ok) {
+      console.error(`[NativePush] Mark-as-read failed — HTTP ${res.status}`);
+    }
+  } catch (err) {
+    console.error('[NativePush] Mark read error:', err);
   }
 }
 

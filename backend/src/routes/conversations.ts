@@ -8,6 +8,7 @@ import {
   saveDb,
 } from '../store/db';
 import { requireAuth, AuthenticatedRequest } from '../middleware/auth';
+import { getIoServer, getSocketIdForUser } from '../websocket/socketStore';
 
 const router = Router();
 
@@ -182,6 +183,142 @@ router.post('/', (req: AuthenticatedRequest, res: Response) => {
     unreadCount: 0,
     members: detailedMembers,
   });
+});
+
+// POST /api/conversations/:id/messages — Send a message via REST.
+// Used by the Android notification-shade INLINE REPLY, where no client crypto
+// context exists. The text is stored as-is; recipients' decryptIncoming treats
+// non-ciphertext content as plaintext passthrough.
+router.post('/:id/messages', (req: AuthenticatedRequest, res: Response) => {
+  const convoId = req.params.id;
+  const currentUserId = req.currentUser!.dbId;
+  const text = String(req.body?.text || '').trim();
+
+  if (!text) {
+    res.status(400).json({ message: 'Message text is required' });
+    return;
+  }
+  if (text.length > 4000) {
+    res.status(413).json({ message: 'Message too long' });
+    return;
+  }
+
+  const isMember = conversationMembers.some(
+    m => m.conversationId === convoId && m.userId === currentUserId
+  );
+  if (!isMember) {
+    res.status(403).json({ message: 'Not a member of this conversation' });
+    return;
+  }
+
+  const sender = users.find(u => u.id === currentUserId);
+  const now = new Date();
+  const newMsg = {
+    id: `msg_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+    conversationId: convoId,
+    senderId: currentUserId,
+    encryptedContent: text,
+    contentType: 'text' as const,
+    createdAt: now,
+    editedAt: null,
+    deletedAt: null,
+    deliveryStatus: 'sent',
+    reactions: [] as { userId: string; emoji: string }[],
+  };
+
+  messages.push(newMsg);
+  saveDb();
+
+  // Real-time fan-out to online members (same shape as the socket path).
+  const io = getIoServer();
+  if (io) {
+    const outgoing = {
+      id: newMsg.id,
+      conversationId: convoId,
+      senderId: currentUserId,
+      senderDisplayName: sender?.displayName || 'SilenX User',
+      text,
+      encryptedContent: text,
+      contentType: 'text',
+      isSelf: false,
+      time: now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }),
+      createdAt: now.toISOString(),
+      deliveryStatus: 'sent',
+      reactions: [],
+    };
+
+    conversationMembers
+      .filter(m => m.conversationId === convoId && m.userId !== currentUserId)
+      .forEach(m => {
+        const sid = getSocketIdForUser(m.userId);
+        if (sid) io.to(sid).emit('receive-message', outgoing);
+      });
+  }
+
+  res.status(201).json({
+    id: newMsg.id,
+    conversationId: convoId,
+    senderId: currentUserId,
+    text,
+    createdAt: now.toISOString(),
+  });
+});
+
+// POST /api/conversations/:id/read — Mark all received messages as read.
+// Used by the notification-shade "Mark as Read" action and read receipts.
+router.post('/:id/read', (req: AuthenticatedRequest, res: Response) => {
+  const convoId = req.params.id;
+  const currentUserId = req.currentUser!.dbId;
+
+  const isMember = conversationMembers.some(
+    m => m.conversationId === convoId && m.userId === currentUserId
+  );
+  if (!isMember) {
+    res.status(403).json({ message: 'Not a member of this conversation' });
+    return;
+  }
+
+  let updated = 0;
+  for (const msg of messages) {
+    if (msg.conversationId === convoId && msg.senderId !== currentUserId) {
+      const record = msg as any;
+      if (!record.isRead || record.deliveryStatus !== 'read') {
+        record.isRead = true;
+        record.deliveryStatus = 'read';
+        updated += 1;
+      }
+    }
+  }
+
+  if (updated > 0) {
+    saveDb();
+
+    // Notify senders so their bubbles flip to the purple read state live.
+    const io = getIoServer();
+    if (io) {
+      const affectedSenderIds = new Set(
+        messages
+          .filter(
+            m =>
+              m.conversationId === convoId &&
+              m.senderId !== currentUserId &&
+              (m as any).isRead === true
+          )
+          .map(m => m.senderId)
+      );
+      affectedSenderIds.forEach(senderId => {
+        const sid = getSocketIdForUser(senderId);
+        if (sid) {
+          io.to(sid).emit('messages-read', {
+            conversationId: convoId,
+            readerId: currentUserId,
+          });
+        }
+      });
+    }
+  }
+
+  res.status(200).json({ message: 'Conversation marked as read', updated });
 });
 
 // GET /api/conversations/:id/messages — Get messages for a conversation

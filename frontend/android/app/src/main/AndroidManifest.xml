@@ -21,6 +21,12 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <!-- FCM notification clickAction: opens the app directly from a
+                 chat message notification (matches pushService.ts) -->
+            <intent-filter>
+                <action android:name="CHAT_MESSAGE" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
             <!-- App Links Intent Filter (Auto-Verify) -->
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />

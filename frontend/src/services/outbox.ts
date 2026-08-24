@@ -21,6 +21,11 @@ export interface OutgoingPayload {
   /** Optional: pre-encrypted content. When omitted, the dispatcher encrypts
    * message.text under the conversation's current E2EE epoch key. */
   encryptedContent?: string;
+  /** Plaintext message body (used for previews and offline queueing). */
+  text?: string;
+  /** Plaintext preview for push notifications (WhatsApp-style metadata
+   * channel — travels to FCM only, never stored as message content). */
+  previewText?: string;
   tempId: string;
   recipientId?: string;
   replyTo?: { sender: string; text: string };
@@ -38,6 +43,30 @@ export interface OutgoingPayload {
 
 const ACK_TIMEOUT_MS = 8_000;
 
+/** Content-type-aware push preview, mirroring the backend's placeholders. */
+function buildPreviewText(payload: OutgoingPayload): string {
+  switch (payload.contentType) {
+    case 'voice-note':
+      return `🎤 Voice note${payload.duration ? ` (${payload.duration})` : ''}`;
+    case 'image':
+      return '📷 Photo';
+    case 'video':
+      return '🎬 Video';
+    case 'file':
+      return `📄 ${payload.fileName || payload.text || 'Document'}`;
+    case 'location':
+      return '📍 Location';
+    case 'contact':
+      return '👤 Contact';
+    case 'poll':
+      return `📊 ${payload.text || 'Poll'}`;
+    case 'event':
+      return `📅 ${payload.text || 'Event'}`;
+    default:
+      return payload.previewText?.trim() || payload.text?.trim() || '🔒 Encrypted message';
+  }
+}
+
 /**
  * Entry point used by the UI. If we are online the message is emitted right
  * away (encrypted under the current E2EE epoch key); if not, the PLAINTEXT is
@@ -54,7 +83,11 @@ export async function dispatchMessage(
   if (socket?.connected) {
     const encryptedContent =
       payload.encryptedContent ?? (await encryptOutgoingText(conversationId, message.text, payload.recipientId));
-    socket.emit('send-message', { ...payload, encryptedContent });
+    socket.emit('send-message', {
+      ...payload,
+      encryptedContent,
+      previewText: buildPreviewText(payload),
+    });
     noteMessageSent(conversationId, payload.recipientId);
     playOutgoingPop();
     void saveOfflineMessage(message);
@@ -172,7 +205,15 @@ async function sendQueuedEntry(entry: OutgoingEntry): Promise<boolean> {
   const payload = {
     conversationId: entry.conversationId,
     encryptedContent,
-    tempId: entry.tempId,
+    previewText: buildPreviewText({
+      conversationId: entry.conversationId,
+      encryptedContent: '',
+      tempId: entry.tempId,
+      text: entry.text,
+      contentType: entry.contentType,
+      duration: entry.duration,
+      fileName: entry.fileName,
+    }),
     recipientId: entry.recipientId,
     replyTo: entry.replyTo,
     contentType: entry.contentType,
