@@ -106,9 +106,15 @@ const MessageSchema = new Schema({
   senderId: { type: String, required: true },
   encryptedContent: { type: String, required: true },
   contentType: { type: String, required: true },
-  createdAt: { type: Date, required: true, default: Date.now },
+  createdAt: { type: Date, required: true, default: Date.now, index: true },
   editedAt: { type: Date, default: null },
   deletedAt: { type: Date, default: null },
+  // Native MongoDB TTL index: the document is auto-deleted once `expireAt`
+  // passes. Documents keep `expireAt: null` until the pruner schedules them,
+  // and null dates are ignored by the TTL monitor — safe default.
+  expireAt: { type: Date, default: null, index: { expires: 0 } },
+  // Set when a heavy media payload has been replaced with a placeholder.
+  prunedAt: { type: Date, default: null },
   replyTo: {
     sender: { type: String },
     text: { type: String },

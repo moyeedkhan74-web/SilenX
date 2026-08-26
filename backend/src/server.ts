@@ -19,6 +19,7 @@ import groupCallRoutes from './routes/groupCalls';
 import requestRoutes from './routes/requests';
 import mediaRoutes from './routes/media';
 import { connectDb } from './store/db';
+import { initializePruner } from './services/pruneService';
 
 const app = express();
 
@@ -243,6 +244,7 @@ const startServer = async () => {
 
   try {
     await connectDb();
+    initializePruner(); // Start zero-bandwidth background pruner (media 7d / messages 30d)
   } catch (err) {
     console.error('[Server] MongoDB connection failed:', err);
   }
