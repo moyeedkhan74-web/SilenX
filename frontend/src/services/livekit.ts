@@ -1046,31 +1046,51 @@ export class LiveKitService {
         this.localStream?.getVideoTracks().forEach((t) => t.stop());
         await new Promise((resolve) => setTimeout(resolve, 150));
 
-        let stream: MediaStream;
+        let newTrack: MediaStreamTrack | null = null;
+        let newStream: MediaStream | null = null;
+
+        // Use facingMode without exact to avoid OverconstrainedError on Android.
+        // Fall back to deviceId if the constraint fails.
         try {
-          stream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: { exact: nextFacingMode } },
+          newStream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: nextFacingMode },
           });
         } catch {
-          stream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: { ideal: nextFacingMode } },
-          });
+          // Fallback: enumerate devices and switch by deviceId.
+          const devices = await navigator.mediaDevices.enumerateDevices();
+          const videoDevices = devices.filter((d) => d.kind === 'videoinput');
+          const targetDevice = videoDevices.find(
+            (d) => d.label.toLowerCase().includes('back') || d.label.toLowerCase().includes('rear')
+          ) || videoDevices.find((d) => !d.label.toLowerCase().includes('front') && !d.label.toLowerCase().includes('user'));
+          if (targetDevice) {
+            newStream = await navigator.mediaDevices.getUserMedia({
+              video: { deviceId: { exact: targetDevice.deviceId } },
+            });
+          } else {
+            // Last resort: try ideal facingMode
+            newStream = await navigator.mediaDevices.getUserMedia({
+              video: { facingMode: nextFacingMode },
+            });
+          }
         }
 
-        const newTrack = stream.getVideoTracks()[0];
-        if (!newTrack) return false;
+        if (!newStream || !newStream.getVideoTracks()[0]) return false;
+
+        newTrack = newStream.getVideoTracks()[0];
 
         const sender = pc.getSenders().find((s) => s.track?.kind === 'video');
         if (sender) {
           await sender.replaceTrack(newTrack);
         } else {
-          pc.addTrack(newTrack, stream);
+          pc.addTrack(newTrack, newStream);
         }
 
         // Keep the local preview MediaStream coherent.
-        const oldTracks = this.localStream?.getVideoTracks() ?? [];
-        oldTracks.forEach((t) => this.localStream?.removeTrack(t));
-        this.localStream?.addTrack(newTrack);
+        const localStream = this.localStream;
+        if (localStream) {
+          localStream.getVideoTracks().forEach((t) => localStream.removeTrack(t));
+          localStream.addTrack(newTrack!);
+        }
         this.currentFacingMode = nextFacingMode;
         if (this.localVideoElement) {
           this.localVideoElement.srcObject = this.localStream;
@@ -1097,16 +1117,32 @@ export class LiveKitService {
       const candidates = devices.filter(
         (d) => d.kind === 'videoinput' && d.deviceId !== currentDeviceId
       );
-      const preferred =
-        candidates.find((d) => {
-          const label = d.label.toLowerCase();
-          return wantRear
-            ? label.includes('back') || label.includes('rear')
-            : label.includes('front') || label.includes('user');
-        }) || candidates[0];
+
+      // When labels are empty on mobile WebViews, fallback to deviceId cycling.
+      let preferred: MediaDeviceInfo | undefined;
+      if (candidates.length > 0) {
+        const hasLabels = candidates.some(
+          (d) => d.label && d.label.trim().length > 0
+        );
+        if (hasLabels) {
+          preferred = candidates.find((d) => {
+            const label = d.label.toLowerCase();
+            return wantRear
+              ? label.includes('back') || label.includes('rear')
+              : label.includes('front') || label.includes('user');
+          });
+        } else {
+          // No labels — cycle by deviceId, picking the first that isn't current.
+          preferred = candidates.find((d) => d.deviceId !== currentDeviceId) || candidates[0];
+        }
+      }
 
       if (preferred) {
-        await this.room.switchActiveDevice('videoinput', preferred.deviceId);
+        try {
+          await this.room.switchActiveDevice('videoinput', preferred.deviceId);
+        } catch {
+          // room.switchActiveDevice not supported — fallback to manual track replacement.
+        }
         this.currentFacingMode = nextFacingMode;
         this.rebuildLocalStream();
         return true;
@@ -1123,7 +1159,7 @@ export class LiveKitService {
       let stream: MediaStream;
       try {
         stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: { exact: nextFacingMode } },
+          video: { facingMode: nextFacingMode },
         });
       } catch {
         stream = await navigator.mediaDevices.getUserMedia({
