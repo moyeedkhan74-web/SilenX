@@ -145,6 +145,8 @@ const LoginPage: React.FC = () => {
     if (isNative) {
       // 1. Native Android System Google Account Picker
       try {
+        // Force-clear any cached native Google session so Android displays the Account Picker modal
+        await GoogleAuth.signOut().catch(() => null);
         const googleUser = await GoogleAuth.signIn();
         const idToken = googleUser?.authentication?.idToken || (googleUser as any)?.idToken;
         const userEmail = googleUser?.email || (googleUser as any)?.email;

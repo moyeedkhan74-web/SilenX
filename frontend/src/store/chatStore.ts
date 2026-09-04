@@ -235,12 +235,17 @@ export const useChatStore = create<ChatState>((set, get) => ({
                 msg.senderId,
                 otherMemberId
               );
-              return { ...msg, text: plain !== null ? plain : '[Encrypted Message]' };
+              return {
+                ...msg,
+                text: plain !== null ? plain : '[Encrypted Message]',
+                encryptedContent: rawText.startsWith('SLX2.') ? rawText : msg.encryptedContent,
+              };
             } catch (error) {
               console.warn('[ChatStore] History decryption failed for', msg.id, error);
               return {
                 ...msg,
                 text: rawText.startsWith('SLX2.') ? '[Encrypted Message]' : rawText,
+                encryptedContent: rawText.startsWith('SLX2.') ? rawText : msg.encryptedContent,
               };
             }
           })

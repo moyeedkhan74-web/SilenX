@@ -9,6 +9,8 @@ import { API_URL } from '../../config/webrtc-config';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import '../Sidebar.css';
 
+import { GoogleAuth } from '@codetrix-studio/capacitor-google-auth';
+
 interface SidebarProps {}
 
 export const Sidebar: React.FC<SidebarProps> = () => {
@@ -84,6 +86,7 @@ export const Sidebar: React.FC<SidebarProps> = () => {
     console.log('[Auth] Confirmed sign out. Clearing session.');
     logout();
     auth?.signOut().catch(() => {});
+    GoogleAuth.signOut().catch(() => {});
     navigate('/login');
   };
 
