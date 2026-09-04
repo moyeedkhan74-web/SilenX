@@ -90,6 +90,7 @@ export class LiveKitService {
   private p2pOfferResolver: ((sdp: RTCSessionDescriptionInit) => void) | null = null;
   private p2pOfferQueue: RTCSessionDescriptionInit[] = [];
   private p2pAnswerResolver: ((sdp: RTCSessionDescriptionInit) => void) | null = null;
+  private p2pAnswerQueue: RTCSessionDescriptionInit[] = [];
   private lastTokenFailure: { fallbackToP2p: boolean; reason?: string; message?: string } | null = null;
   private static CALL_TIMEOUT_MS = 45_000;
 
@@ -754,15 +755,20 @@ export class LiveKitService {
     }
 
     pc.ontrack = (event: RTCTrackEvent) => {
-      const [remoteStream] = event.streams;
-      if (remoteStream && this.remoteStream !== remoteStream) {
-        console.log('[P2P] Remote track received:', event.track.kind);
-        this.remoteStream = remoteStream;
-        if (this.remoteVideoElement) {
-          this.remoteVideoElement.srcObject = this.remoteStream;
-        }
-        this.notifyStreamListeners();
+      console.log('[P2P] Remote track received:', event.track.kind, event.track.id);
+
+      if (!this.remoteStream) {
+        this.remoteStream = event.streams[0] || new MediaStream();
       }
+
+      if (!this.remoteStream.getTracks().some((t) => t.id === event.track.id)) {
+        this.remoteStream.addTrack(event.track);
+      }
+
+      if (this.remoteVideoElement && this.remoteVideoElement.srcObject !== this.remoteStream) {
+        this.remoteVideoElement.srcObject = this.remoteStream;
+      }
+      this.notifyStreamListeners();
     };
 
     pc.onicecandidate = (event: RTCPeerConnectionIceEvent) => {
@@ -907,6 +913,9 @@ export class LiveKitService {
   }
 
   private waitForP2pAnswer(timeoutMs: number): Promise<RTCSessionDescriptionInit | null> {
+    if (this.p2pAnswerQueue.length > 0) {
+      return Promise.resolve(this.p2pAnswerQueue.shift()!);
+    }
     return new Promise((resolve) => {
       const timer = setTimeout(() => {
         this.p2pAnswerResolver = null;
@@ -920,7 +929,7 @@ export class LiveKitService {
   }
 
   private handleP2pOffer = (payload: { sdp?: RTCSessionDescriptionInit; senderId?: string }): void => {
-    if (!payload?.sdp || payload.senderId !== this.targetUserId || this.isCaller) return;
+    if (!payload?.sdp || this.isCaller) return;
     if (this.p2pOfferResolver) {
       this.p2pOfferResolver(payload.sdp);
       this.p2pOfferResolver = null;
@@ -930,16 +939,20 @@ export class LiveKitService {
   };
 
   private handleP2pAnswer = (payload: { sdp?: RTCSessionDescriptionInit; senderId?: string }): void => {
-    if (!payload?.sdp || payload.senderId !== this.targetUserId || !this.isCaller) return;
-    this.p2pAnswerResolver?.(payload.sdp);
-    this.p2pAnswerResolver = null;
+    if (!payload?.sdp || !this.isCaller) return;
+    if (this.p2pAnswerResolver) {
+      this.p2pAnswerResolver(payload.sdp);
+      this.p2pAnswerResolver = null;
+    } else {
+      this.p2pAnswerQueue.push(payload.sdp);
+    }
   };
 
   private handleP2pRemoteCandidate = (payload: {
     candidate?: RTCIceCandidateInit;
     senderId?: string;
   }): void => {
-    if (!payload?.candidate || payload.senderId !== this.targetUserId) return;
+    if (!payload?.candidate) return;
     const pc = this.p2pConnection;
     if (pc && pc.remoteDescription) {
       pc.addIceCandidate(payload.candidate).catch((error) =>
@@ -966,26 +979,37 @@ export class LiveKitService {
   }
 
   private waitUntilP2pConnected(pc: RTCPeerConnection, timeoutMs: number): Promise<boolean> {
-    if (pc.connectionState === 'connected') return Promise.resolve(true);
+    const isConnected = () =>
+      pc.connectionState === 'connected' ||
+      pc.iceConnectionState === 'connected' ||
+      pc.iceConnectionState === 'completed';
+
+    if (isConnected()) return Promise.resolve(true);
+
     return new Promise((resolve) => {
       const timer = setTimeout(() => {
         cleanup();
-        resolve(false);
+        resolve(isConnected());
       }, timeoutMs);
-      const onChange = () => {
-        if (pc.connectionState === 'connected') {
+
+      const check = () => {
+        if (isConnected()) {
           cleanup();
           resolve(true);
-        } else if (pc.connectionState === 'failed' || pc.connectionState === 'closed') {
+        } else if (pc.connectionState === 'failed' || pc.connectionState === 'closed' || pc.iceConnectionState === 'failed') {
           cleanup();
           resolve(false);
         }
       };
+
       const cleanup = () => {
         clearTimeout(timer);
-        pc.removeEventListener('connectionstatechange', onChange);
+        pc.removeEventListener('connectionstatechange', check);
+        pc.removeEventListener('iceconnectionstatechange', check);
       };
-      pc.addEventListener('connectionstatechange', onChange);
+
+      pc.addEventListener('connectionstatechange', check);
+      pc.addEventListener('iceconnectionstatechange', check);
     });
   }
 
@@ -1462,6 +1486,7 @@ export class LiveKitService {
     this.transportMode = null;
     this.pendingRemoteCandidates = [];
     this.p2pOfferQueue = [];
+    this.p2pAnswerQueue = [];
     this.p2pOfferResolver = null;
     this.p2pAnswerResolver = null;
 
