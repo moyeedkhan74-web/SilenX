@@ -1037,47 +1037,76 @@ export class LiveKitService {
       return false;
     }
 
-    // P2P mode: acquire the other camera and hot-swap it on the active sender.
+    const nextFacingMode: 'user' | 'environment' = this.currentFacingMode === 'user' ? 'environment' : 'user';
+
+    // Helper to stop all existing local video tracks prior to requesting a new camera
+    const stopExistingVideoTracks = () => {
+      if (this.localStream) {
+        this.localStream.getVideoTracks().forEach((track) => {
+          try {
+            track.stop();
+          } catch {}
+        });
+      }
+    };
+
+    // Helper to attempt getUserMedia with multi-tiered constraints for exact camera facing
+    const acquireStreamForFacingMode = async (facing: 'user' | 'environment'): Promise<MediaStream | null> => {
+      stopExistingVideoTracks();
+      await new Promise((resolve) => setTimeout(resolve, 150));
+
+      const constraintAttempts: MediaStreamConstraints[] = [
+        { video: { facingMode: { exact: facing } } },
+        { video: { facingMode: facing } },
+        { video: { facingMode: { ideal: facing } } },
+      ];
+
+      for (const constraint of constraintAttempts) {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia(constraint);
+          if (stream && stream.getVideoTracks().length > 0) {
+            return stream;
+          }
+        } catch {}
+      }
+
+      // DeviceId fallback based on device enumeration and matching front vs back labels
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const videoDevices = devices.filter((d) => d.kind === 'videoinput');
+        const target = videoDevices.find((d) => {
+          const label = d.label.toLowerCase();
+          return facing === 'environment'
+            ? label.includes('back') || label.includes('rear') || label.includes('environment')
+            : label.includes('front') || label.includes('user') || label.includes('facing front');
+        });
+
+        if (target && target.deviceId) {
+          const stream = await navigator.mediaDevices.getUserMedia({
+            video: { deviceId: { exact: target.deviceId } },
+          });
+          if (stream && stream.getVideoTracks().length > 0) {
+            return stream;
+          }
+        }
+      } catch {}
+
+      return null;
+    };
+
+    // --- P2P WebRTC Mode ---
     if (this.transportMode === 'p2p') {
       const pc = this.p2pConnection;
       if (!pc) return false;
-      const nextFacingMode = this.currentFacingMode === 'user' ? 'environment' : 'user';
+
       try {
-        this.localStream?.getVideoTracks().forEach((t) => t.stop());
-        await new Promise((resolve) => setTimeout(resolve, 150));
-
-        let newTrack: MediaStreamTrack | null = null;
-        let newStream: MediaStream | null = null;
-
-        // Use facingMode without exact to avoid OverconstrainedError on Android.
-        // Fall back to deviceId if the constraint fails.
-        try {
-          newStream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: nextFacingMode },
-          });
-        } catch {
-          // Fallback: enumerate devices and switch by deviceId.
-          const devices = await navigator.mediaDevices.enumerateDevices();
-          const videoDevices = devices.filter((d) => d.kind === 'videoinput');
-          const targetDevice = videoDevices.find(
-            (d) => d.label.toLowerCase().includes('back') || d.label.toLowerCase().includes('rear')
-          ) || videoDevices.find((d) => !d.label.toLowerCase().includes('front') && !d.label.toLowerCase().includes('user'));
-          if (targetDevice) {
-            newStream = await navigator.mediaDevices.getUserMedia({
-              video: { deviceId: { exact: targetDevice.deviceId } },
-            });
-          } else {
-            // Last resort: try ideal facingMode
-            newStream = await navigator.mediaDevices.getUserMedia({
-              video: { facingMode: nextFacingMode },
-            });
-          }
+        const newStream = await acquireStreamForFacingMode(nextFacingMode);
+        if (!newStream) {
+          console.error(`[P2P] Failed to acquire camera stream for facingMode: ${nextFacingMode}`);
+          return false;
         }
 
-        if (!newStream || !newStream.getVideoTracks()[0]) return false;
-
-        newTrack = newStream.getVideoTracks()[0];
-
+        const newTrack = newStream.getVideoTracks()[0];
         const sender = pc.getSenders().find((s) => s.track?.kind === 'video');
         if (sender) {
           await sender.replaceTrack(newTrack);
@@ -1085,13 +1114,17 @@ export class LiveKitService {
           pc.addTrack(newTrack, newStream);
         }
 
-        // Keep the local preview MediaStream coherent.
-        const localStream = this.localStream;
-        if (localStream) {
-          localStream.getVideoTracks().forEach((t) => localStream.removeTrack(t));
-          localStream.addTrack(newTrack!);
+        // Update localStream
+        if (this.localStream) {
+          this.localStream.getVideoTracks().forEach((t) => this.localStream!.removeTrack(t));
+          this.localStream.addTrack(newTrack);
+        } else {
+          this.localStream = newStream;
         }
-        this.currentFacingMode = nextFacingMode;
+
+        const actualFacing = newTrack.getSettings()?.facingMode as 'user' | 'environment' | undefined;
+        this.currentFacingMode = actualFacing || nextFacingMode;
+
         if (this.localVideoElement) {
           this.localVideoElement.srcObject = this.localStream;
         }
@@ -1103,73 +1136,19 @@ export class LiveKitService {
       }
     }
 
+    // --- LiveKit SFU Mode ---
     if (!this.room?.localParticipant) {
       return false;
     }
 
-    const nextFacingMode = this.currentFacingMode === 'user' ? 'environment' : 'user';
-    const wantRear = nextFacingMode === 'environment';
-
     try {
-      // Preferred path: switch among already-known camera devices.
-      const devices = await navigator.mediaDevices.enumerateDevices();
-      const currentDeviceId = this.room.getActiveDevice('videoinput');
-      const candidates = devices.filter(
-        (d) => d.kind === 'videoinput' && d.deviceId !== currentDeviceId
-      );
-
-      // When labels are empty on mobile WebViews, fallback to deviceId cycling.
-      let preferred: MediaDeviceInfo | undefined;
-      if (candidates.length > 0) {
-        const hasLabels = candidates.some(
-          (d) => d.label && d.label.trim().length > 0
-        );
-        if (hasLabels) {
-          preferred = candidates.find((d) => {
-            const label = d.label.toLowerCase();
-            return wantRear
-              ? label.includes('back') || label.includes('rear')
-              : label.includes('front') || label.includes('user');
-          });
-        } else {
-          // No labels — cycle by deviceId, picking the first that isn't current.
-          preferred = candidates.find((d) => d.deviceId !== currentDeviceId) || candidates[0];
-        }
+      const newStream = await acquireStreamForFacingMode(nextFacingMode);
+      if (!newStream) {
+        console.error(`[LiveKit] Failed to acquire camera stream for facingMode: ${nextFacingMode}`);
+        return false;
       }
 
-      if (preferred) {
-        try {
-          await this.room.switchActiveDevice('videoinput', preferred.deviceId);
-        } catch {
-          // room.switchActiveDevice not supported — fallback to manual track replacement.
-        }
-        this.currentFacingMode = nextFacingMode;
-        this.rebuildLocalStream();
-        return true;
-      }
-    } catch (error) {
-      console.warn('[LiveKit] Device-list switchCamera failed, trying manual replacement:', error);
-    }
-
-    // Manual fallback: acquire the other facing camera and replace the published track.
-    try {
-      this.localStream?.getVideoTracks().forEach((t) => t.stop());
-      await new Promise((resolve) => setTimeout(resolve, 150));
-
-      let stream: MediaStream;
-      try {
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: nextFacingMode },
-        });
-      } catch {
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: { ideal: nextFacingMode } },
-        });
-      }
-
-      const newTrack = stream.getVideoTracks()[0];
-      if (!newTrack) return false;
-
+      const newTrack = newStream.getVideoTracks()[0];
       const publication = this.room.localParticipant.getTrackPublication(Track.Source.Camera);
       if (publication?.videoTrack) {
         await publication.videoTrack.replaceTrack(newTrack);
@@ -1177,11 +1156,24 @@ export class LiveKitService {
         await this.room.localParticipant.publishTrack(newTrack, { source: Track.Source.Camera });
       }
 
-      this.currentFacingMode = nextFacingMode;
-      this.rebuildLocalStream();
+      // Update localStream
+      if (this.localStream) {
+        this.localStream.getVideoTracks().forEach((t) => this.localStream!.removeTrack(t));
+        this.localStream.addTrack(newTrack);
+      } else {
+        this.localStream = newStream;
+      }
+
+      const actualFacing = newTrack.getSettings()?.facingMode as 'user' | 'environment' | undefined;
+      this.currentFacingMode = actualFacing || nextFacingMode;
+
+      if (this.localVideoElement) {
+        this.localVideoElement.srcObject = this.localStream;
+      }
+      this.notifyStreamListeners();
       return true;
-    } catch (recoveryError) {
-      console.error('[LiveKit] Failed to switch camera:', recoveryError);
+    } catch (error) {
+      console.error('[LiveKit] Failed to switch camera:', error);
       return false;
     }
   }
@@ -1515,6 +1507,7 @@ export class LiveKitService {
     this.isCaller = false;
     this.callLogId = null;
     this.callStartTimestamp = null;
+    this.currentFacingMode = 'user';
   }
 }
 
