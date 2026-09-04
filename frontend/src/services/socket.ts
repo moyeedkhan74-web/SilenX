@@ -476,16 +476,24 @@ socket.on('receive-message-reaction', (payload: any) => {
   socket.on('messages-read', (payload: any) => {
     const { conversationId } = payload || {};
     if (!conversationId) return;
-    useChatStore.setState((state) => {
-      const msgs = state.messages[conversationId] || [];
-      const updated = msgs.map((m) => (m.isSelf ? { ...m, isRead: true, deliveryStatus: 'read' as const } : m));
-      return {
-        messages: {
-          ...state.messages,
-          [conversationId]: updated,
-        },
-      };
+    const currentState = useChatStore.getState();
+    const msgs = currentState.messages[conversationId] || [];
+    const updated = msgs.map((m) => (m.isSelf ? { ...m, isRead: true, deliveryStatus: 'read' as const } : m));
+    useChatStore.setState({
+      messages: {
+        ...currentState.messages,
+        [conversationId]: updated,
+      },
     });
+    // Persist read status to local storage & IndexedDB cache
+    const key = `slienx-chat-state-${useAuthStore.getState().user?.id || 'guest'}`;
+    try {
+      const stored = JSON.parse(localStorage.getItem(key) || '{}');
+      stored.messages = { ...stored.messages, [conversationId]: updated };
+      localStorage.setItem(key, JSON.stringify(stored));
+    } catch (e) {
+      console.warn('[Socket] Failed to persist messages-read state:', e);
+    }
   });
 
   socket.on('group-updated', (payload: any) => {

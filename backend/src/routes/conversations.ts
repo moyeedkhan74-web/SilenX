@@ -52,6 +52,9 @@ router.get('/', (req: AuthenticatedRequest, res: Response) => {
       .filter(m => m.conversationId === c.id)
       .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
     const lastMessage = convoMessages[convoMessages.length - 1];
+    const unreadCount = convoMessages.filter(
+      m => m.senderId !== currentUserId && !(m as any).isRead
+    ).length;
 
     const relatedGroup = c.groupId ? groups.find(g => g.id === c.groupId) : null;
 
@@ -68,7 +71,7 @@ router.get('/', (req: AuthenticatedRequest, res: Response) => {
       lastMessageTime: lastMessage
         ? lastMessage.createdAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         : '',
-      unreadCount: 0,
+      unreadCount,
       members: detailedMembers,
     };
   });

@@ -169,7 +169,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
             const otherMemberId =
               convo.members?.find((m) => m.id !== currentUserId)?.id || currentUserId;
             try {
-              const plain = await decryptIncoming(convo.id, preview, '', otherMemberId);
+              const plain = await decryptIncoming(convo.id, preview, otherMemberId, otherMemberId);
               convo.lastMessage = plain !== null ? plain : '🔒 Encrypted message';
             } catch {
               convo.lastMessage = '🔒 Encrypted message';
@@ -201,8 +201,17 @@ export const useChatStore = create<ChatState>((set, get) => ({
         // whose shared secret is derived against the conversation peer.
         const currentUserId = useAuthStore.getState().user?.id || '';
         const conversation = get().conversations.find((c) => c.id === conversationId);
-        const otherMemberId =
-          conversation?.members?.find((m) => m.id !== currentUserId)?.id || currentUserId;
+        let otherMemberId = conversation?.members?.find((m) => m.id !== currentUserId)?.id;
+        
+        if (!otherMemberId) {
+          const peerMsg = data.find((m: ChatMessage) => m.senderId && m.senderId !== currentUserId && m.senderId !== 'system');
+          if (peerMsg) {
+            otherMemberId = peerMsg.senderId;
+          }
+        }
+        if (!otherMemberId) {
+          otherMemberId = currentUserId;
+        }
 
         const decrypted = await Promise.all(
           data.map(async (msg: ChatMessage) => {
@@ -675,11 +684,42 @@ export const useChatStore = create<ChatState>((set, get) => ({
     });
   },
   markAsRead: (convId) => {
+    // 1. Notify server backend via REST API (fire and forget / async)
+    const token = useAuthStore.getState().token;
+    if (token && convId) {
+      void apiFetch(`${API_URL}/api/conversations/${encodeURIComponent(convId)}/read`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      }).catch((err) => console.warn('[ChatStore] Mark as read REST call failed:', err));
+    }
+
+    // 2. Emit real-time read receipt events over live socket
+    void import('../services/socket').then(({ getSocket }) => {
+      const socket = getSocket();
+      if (socket?.connected) {
+        socket.emit('read-receipt', { conversationId: convId });
+        socket.emit('mark-messages-read', { conversationId: convId });
+      }
+    });
+
+    // 3. Update local state & IndexedDB
     set((state) => {
       const nextConvos = state.conversations.map((c) =>
         c.id === convId ? { ...c, unreadCount: 0 } : c
       );
-      const nextState = { conversations: nextConvos };
+      const convMsgs = state.messages[convId] || [];
+      const updatedMsgs = convMsgs.map((m) =>
+        !m.isSelf ? { ...m, isRead: true, deliveryStatus: 'read' as const } : m
+      );
+      void saveOfflineMessages(updatedMsgs);
+
+      const nextState = {
+        conversations: nextConvos,
+        messages: {
+          ...state.messages,
+          [convId]: updatedMsgs,
+        },
+      };
       persistState(nextState);
       return nextState;
     });
