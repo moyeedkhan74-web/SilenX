@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Download, FileText, PlayCircle } from 'lucide-react';
 import type { ChatMessage } from '../types';
 import { useChatStore } from '../store/chatStore';
 import VoiceNotePlayer from './VoiceNotePlayer';
+import { ViewOnceMediaBubble } from './ViewOnceMediaBubble';
 
 interface MediaMessageProps {
   message: ChatMessage;
@@ -32,6 +33,21 @@ const formatFileSize = (message: ChatMessage) => message.fileSize || 'Unknown si
 
 export const MediaMessage: React.FC<MediaMessageProps> = ({ message }) => {
   const setActiveMediaMessage = useChatStore((state) => state.setActiveMediaMessage);
+  const [viewOnceOpened, setViewOnceOpened] = useState(false);
+
+  // Mark view-once as opened - called from ViewOnceMediaBubble
+  const markViewOnceOpened = (messageId: string) => {
+    setViewOnceOpened(true);
+    // In a full implementation, this would emit a socket event to the backend
+    // to mark the media as opened and trigger deletion on the server.
+    // For now, we just update local state.
+    console.log('[MediaMessage] View-once message opened:', messageId);
+  };
+
+  // Render view-once media first
+  if (message.contentType === 'view-once' && message.isViewOnce && !viewOnceOpened) {
+    return <ViewOnceMediaBubble message={message} onViewOnceOpened={() => markViewOnceOpened(message.id)} />;
+  }
 
   const openViewer = (event: React.MouseEvent<HTMLElement>) => {
     event.preventDefault();

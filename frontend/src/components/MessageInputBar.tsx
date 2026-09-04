@@ -3,7 +3,9 @@ import { Send, Smile, X, Paperclip, Mic } from 'lucide-react';
 import Picker from '@emoji-mart/react';
 import data from '@emoji-mart/data';
 import { AttachmentMenu } from './AttachmentMenu';
+import { API_URL } from '../config/webrtc-config';
 import VoiceRecorderBar from './VoiceRecorderBar';
+import { MediaProgressRing } from './MediaProgressRing';
 import type { ChatMessage } from '../types';
 
 interface ReplyTo {
@@ -39,6 +41,9 @@ export function MessageInputBar({ onSend, onSendRichMessage, replyTo, onCancelRe
   const [gifResults, setGifResults] = useState<GiphyGifResult[]>([]);
   const [gifLoading, setGifLoading] = useState(false);
   const [gifError, setGifError] = useState('');
+  const [uploadProgress, setUploadProgress] = useState<number>(0); // used for upload progress tracking in pending_sync state
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [caption, setCaption] = useState('');
   const textRef = useRef<HTMLTextAreaElement>(null);
   const giphyRequestId = useRef(0);
 
@@ -133,30 +138,56 @@ export function MessageInputBar({ onSend, onSendRichMessage, replyTo, onCancelRe
     setVoiceMode(false);
   }, [onSendRichMessage]);
 
+  // ─── Upload progress ───
+  const uploadWithProgress = (file: Blob | string, url: string, onProgress: (pct: number) => void, onComplete: (msgId: string) => void) => {
+    return new Promise<Response>((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', url);
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100));
+      };
+      xhr.onload = () => {
+        resolve(new Response(xhr.response, { status: xhr.status }));
+        onComplete?.(crypto.randomUUID());
+      };
+      xhr.onerror = () => reject(new Error('Upload failed'));
+      xhr.send(file);
+    });
+  };
+
   // ─── Attachment callbacks ───
   const handleSendImage = (dataUrl: string) => {
-    onSendRichMessage?.({ text: '', contentType: 'image', mediaUrl: dataUrl });
+    uploadWithProgress(
+      dataUrl,
+      `${API_URL}/api/messages/image`,
+      (pct) => setUploadProgress(pct),
+      () => {
+        setUploadProgress(100);
+        setTimeout(() => setUploadProgress(0), 500);
+      }
+    );
   };
   const handleSendCamera = (dataUrl: string) => {
-    onSendRichMessage?.({ text: '', contentType: 'image', mediaUrl: dataUrl });
+    uploadWithProgress(
+      dataUrl,
+      `${API_URL}/api/messages/image`,
+      (pct) => setUploadProgress(pct),
+      () => {
+        setUploadProgress(100);
+        setTimeout(() => setUploadProgress(0), 500);
+      }
+    );
   };
   const handleSendDocument = (data: { fileName: string; fileSize: string; dataUrl: string; fileType?: string }) => {
-    const contentType = data.fileType?.startsWith('video/')
-      ? 'video'
-      : data.fileType?.startsWith('image/')
-      ? 'image'
-      : 'file';
-
-    const displayText = contentType === 'file' ? `📄 ${data.fileName}` : '';
-
-    onSendRichMessage?.({
-      text: displayText,
-      contentType,
-      mediaUrl: data.dataUrl,
-      fileName: data.fileName,
-      fileSize: data.fileSize,
-      fileType: data.fileType,
-    });
+    uploadWithProgress(
+      data.dataUrl,
+      `${API_URL}/api/messages/document`,
+      (pct) => setUploadProgress(pct),
+      () => {
+        setUploadProgress(100);
+        setTimeout(() => setUploadProgress(0), 500);
+      }
+    );
   };
   const handleSendLocation = (data: { latitude: number; longitude: number; description: string }) => {
     onSendRichMessage?.({ text: `📍 ${data.description}`, contentType: 'location', locationData: data });
@@ -191,8 +222,66 @@ export function MessageInputBar({ onSend, onSendRichMessage, replyTo, onCancelRe
     setAttachOpen(false);
   };
 
+  // ─── Multi-select file browsing ───
+  const handleFileSelect = (files: FileList) => {
+    const newFiles = Array.from(files).slice(0, 10); // cap batch size to 10
+    setSelectedFiles((prev) => {
+      // Combine with existing, dedupe by name
+      const combined = [...prev, ...newFiles];
+      const deduped = combined.filter(
+        (file, index) => combined.findIndex((f) => f.name === file.name) === index
+      );
+      setCaption(''); // reset caption on new selection
+      return deduped.slice(0, 10);
+    });
+  };
+
+  const sendBatch = async () => {
+    if (selectedFiles.length === 0) {
+      return;
+    }
+
+    const mediaGroupId = crypto.randomUUID();
+    const batchCaption = caption.trim();
+
+    // Send each file with the same mediaGroupId and optional caption on first item
+    for (let index = 0; index < selectedFiles.length; index++) {
+      const file = selectedFiles[index];
+      const fileReader = new FileReader();
+      const dataUrlPromise = new Promise<string>((resolve) => {
+        fileReader.onloadend = () => resolve(fileReader.result as string);
+        fileReader.readAsDataURL(file);
+      });
+
+      const dataUrl = await dataUrlPromise;
+
+      const isImage = file.type.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp)$/i.test(file.name);
+      const isVideo = file.type.startsWith('video/') || /\.(mp4|webm|mov|mkv)$/i.test(file.name);
+      const validContentType: ChatMessage['contentType'] = isImage ? 'image' : isVideo ? 'video' : 'file';
+      const mimeType = file.type || (isImage ? 'image/jpeg' : isVideo ? 'video/mp4' : 'application/octet-stream');
+
+      onSendRichMessage?.({
+        text: index === 0 && batchCaption ? batchCaption : file.name,
+        contentType: validContentType,
+        mediaUrl: dataUrl,
+        fileName: file.name,
+        fileSize: (file.size / 1024 / 1024).toFixed(1) + ' MB',
+        fileType: mimeType,
+        mediaGroupId,
+      });
+    }
+
+    setSelectedFiles([]);
+    setCaption('');
+  };
+
   return (
     <div className="input-bar-wrapper" style={{ position: 'relative' }}>
+      {uploadProgress > 0 && (
+        <div style={{ position: 'absolute', top: -56, right: 16, zIndex: 100, background: 'rgba(0,0,0,0.6)', padding: 6, borderRadius: 28 }}>
+          <MediaProgressRing progress={uploadProgress} onCancel={() => setUploadProgress(0)} />
+        </div>
+      )}
       {replyTo && (
         <div className="reply-banner">
           <div className="reply-banner-content">
@@ -300,6 +389,40 @@ export function MessageInputBar({ onSend, onSendRichMessage, replyTo, onCancelRe
         onSendEvent={handleSendEvent}
       />
 
+      <input
+        id="file-input"
+        type="file"
+        multiple
+        accept="image/*,video/*,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.presentationml.presentation"
+        style={{ display: 'none' }}
+        onChange={(e) => handleFileSelect(e.target.files as FileList)}
+      />
+
+      {selectedFiles.length > 0 && (
+        <div className="media-preview-panel">
+          <div className="media-preview-grid">
+            {selectedFiles.map((f, i) => (
+              <img
+                key={i}
+                src={URL.createObjectURL(f)}
+                className="media-preview-thumb"
+                alt={f.name}
+              />
+            ))}
+          </div>
+          <div className="media-preview-caption">
+            <input
+              type="text"
+              placeholder="Add a caption"
+              value={caption}
+              onChange={(e) => setCaption(e.target.value)}
+              className="media-caption-input"
+            />
+          </div>
+          <button onClick={sendBatch}>Send {selectedFiles.length}</button>
+        </div>
+      )}
+
       <div className="input-row">
         {voiceMode ? (
           <VoiceRecorderBar
@@ -341,6 +464,12 @@ export function MessageInputBar({ onSend, onSendRichMessage, replyTo, onCancelRe
             >
               <Paperclip size={22} />
             </button>
+
+            {selectedFiles.length > 0 && (
+              <div className="selected-files-badge">
+                {selectedFiles.length} selected
+              </div>
+            )}
 
             {text.trim() ? (
               <button className="send-btn active" onClick={handleSend} type="button">

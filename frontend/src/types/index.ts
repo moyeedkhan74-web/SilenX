@@ -54,7 +54,10 @@ export interface ChatMessage {
     sender: string;
     text: string;
   };
-  contentType?: 'text' | 'system' | 'image' | 'video' | 'file' | 'location' | 'contact' | 'poll' | 'event' | 'voice-note';
+  isViewOnce?: boolean;
+  viewOnceOpenedAt?: string;
+  mediaGroupId?: string;
+  contentType?: 'text' | 'system' | 'image' | 'video' | 'file' | 'location' | 'contact' | 'poll' | 'event' | 'voice-note' | 'view-once';
   mediaUrl?: string;
   fileName?: string;
   fileSize?: string;
