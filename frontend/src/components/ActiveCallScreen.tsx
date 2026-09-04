@@ -78,9 +78,7 @@ export default function ActiveCallScreen({
   // Remote video stream binding (Handles both video & audio tracks when remote video element is shown)
   useEffect(() => {
     if (remoteVideoRef.current && remoteStream && showRemoteVideo) {
-      if (remoteVideoRef.current.srcObject !== remoteStream) {
-        remoteVideoRef.current.srcObject = remoteStream;
-      }
+      remoteVideoRef.current.srcObject = remoteStream;
       remoteVideoRef.current.volume = speakerOn ? 1 : 0;
       remoteVideoRef.current
         .play()
@@ -91,6 +89,27 @@ export default function ActiveCallScreen({
         });
     }
   }, [remoteStream, speakerOn, showRemoteVideo]);
+
+  // Re-bind remote video dynamically whenever tracks are added or removed from remoteStream
+  useEffect(() => {
+    if (!remoteStream) return;
+    const handleTrackChange = () => {
+      if (remoteVideoRef.current && showRemoteVideo) {
+        remoteVideoRef.current.srcObject = remoteStream;
+        remoteVideoRef.current
+          .play()
+          .then(() => setAudioPlaybackBlocked(false))
+          .catch(() => setAudioPlaybackBlocked(true));
+      }
+    };
+
+    remoteStream.addEventListener('addtrack', handleTrackChange);
+    remoteStream.addEventListener('removetrack', handleTrackChange);
+    return () => {
+      remoteStream.removeEventListener('addtrack', handleTrackChange);
+      remoteStream.removeEventListener('removetrack', handleTrackChange);
+    };
+  }, [remoteStream, showRemoteVideo]);
 
   // Remote audio stream binding — ALWAYS bind regardless of call type.
   // For audio-only calls this is the ONLY audio path.

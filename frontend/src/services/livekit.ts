@@ -758,15 +758,20 @@ export class LiveKitService {
       console.log('[P2P] Remote track received:', event.track.kind, event.track.id);
 
       if (!this.remoteStream) {
-        this.remoteStream = event.streams[0] || new MediaStream();
+        this.remoteStream = new MediaStream();
       }
 
       if (!this.remoteStream.getTracks().some((t) => t.id === event.track.id)) {
         this.remoteStream.addTrack(event.track);
       }
 
-      if (this.remoteVideoElement && this.remoteVideoElement.srcObject !== this.remoteStream) {
+      // Re-instantiate MediaStream reference so React state updates trigger re-render
+      const tracks = this.remoteStream.getTracks();
+      this.remoteStream = new MediaStream(tracks);
+
+      if (this.remoteVideoElement) {
         this.remoteVideoElement.srcObject = this.remoteStream;
+        this.remoteVideoElement.play().catch(() => null);
       }
       this.notifyStreamListeners();
     };
