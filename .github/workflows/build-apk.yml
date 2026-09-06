@@ -51,8 +51,10 @@ jobs:
         run: npx cap sync android
         working-directory: frontend
 
-      - name: Make gradlew executable
-        run: chmod +x ./gradlew
+      - name: Fix line endings and make gradlew executable
+        run: |
+          sed -i 's/\r$//' ./gradlew
+          chmod +x ./gradlew
         working-directory: frontend/android
 
       - name: Build Debug APK
