@@ -168,6 +168,34 @@ export const ChatList: React.FC<ChatListProps> = ({ onNewChatClick }) => {
           const status = convo.type === 'direct' && other ? other.status : undefined;
           const avatarUrl = convo.type === 'group' ? (convo.avatarUrl || null) : (convo.avatarUrl || other?.avatarUrl || null);
 
+          const convoMsgs = useChatStore.getState().messages[convo.id] || [];
+          const lastMsg = convoMsgs.length > 0 ? convoMsgs[convoMsgs.length - 1] : null;
+
+          const getPreviewText = () => {
+            if (!lastMsg) {
+              if (convo.lastMessage && !convo.lastMessage.includes('Say hi') && !convo.lastMessage.includes('connection') && !convo.lastMessage.startsWith('SLX2.')) {
+                return convo.lastMessage;
+              }
+              const firstName = (displayName || 'user').split(' ')[0];
+              return `Say hi to ${firstName}! 👋`;
+            }
+
+            if (lastMsg.contentType === 'image') return '📷 Photo';
+            if (lastMsg.contentType === 'video') return '🎥 Video';
+            if (lastMsg.contentType === 'voice-note') return '🎤 Voice note';
+            if (lastMsg.contentType === 'file') return `📄 ${lastMsg.fileName || 'Document'}`;
+            if (lastMsg.contentType === 'location') return '📍 Location';
+            if (lastMsg.contentType === 'contact') return '👤 Contact';
+            if (lastMsg.contentType === 'poll') return '📊 Poll';
+            if (lastMsg.contentType === 'event') return '📅 Event';
+
+            const text = lastMsg.text || '';
+            if (text === '[Encrypted Message]' || text.startsWith('SLX2.')) {
+              return '🔒 Message';
+            }
+            return text;
+          };
+
           return (
             <button
               key={convo.id}
@@ -206,7 +234,7 @@ export const ChatList: React.FC<ChatListProps> = ({ onNewChatClick }) => {
                   overflow: 'hidden',
                   marginTop: '2px'
                 }}>
-                  {convo.lastMessage || 'No messages yet'}
+                  {getPreviewText()}
                 </div>
               </div>
               <div className="convo-meta" style={{

@@ -65,9 +65,7 @@ router.get('/', (req: AuthenticatedRequest, res: Response) => {
       avatarUrl: c.type === 'group' && relatedGroup ? (relatedGroup.avatarUrl || c.avatarUrl) : c.avatarUrl,
       groupId: c.groupId,
       description: relatedGroup ? relatedGroup.description : '',
-      lastMessage: lastMessage
-        ? lastMessage.encryptedContent
-        : 'Say hi! 🔗 Secure connection established.',
+      lastMessage: lastMessage ? lastMessage.encryptedContent : null,
       lastMessageTime: lastMessage
         ? lastMessage.createdAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         : '',
@@ -128,7 +126,7 @@ router.post('/', (req: AuthenticatedRequest, res: Response) => {
           type: existingConvo.type,
           name: existingConvo.name,
           avatarUrl: existingConvo.avatarUrl,
-          lastMessage: lastMessage ? lastMessage.encryptedContent : 'Connection established',
+          lastMessage: lastMessage ? lastMessage.encryptedContent : null,
           lastMessageTime: lastMessage
             ? lastMessage.createdAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
             : '',
@@ -181,7 +179,7 @@ router.post('/', (req: AuthenticatedRequest, res: Response) => {
     type: newConvo.type,
     name: newConvo.name,
     avatarUrl: newConvo.avatarUrl,
-    lastMessage: 'Say hi! 🔗 Secure connection established.',
+    lastMessage: null,
     lastMessageTime: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     unreadCount: 0,
     members: detailedMembers,
