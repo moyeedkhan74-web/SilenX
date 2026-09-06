@@ -51,6 +51,7 @@ interface ChatState {
   pinConversation: (convId: string) => void;
   muteConversation: (convId: string) => void;
   markAsRead: (convId: string) => void;
+  redecryptMessages: (conversationId?: string) => Promise<void>;
 }
 
 const getStorageKey = (userId?: string | null) => `slienx-chat-state-${userId || 'guest'}`;
@@ -728,5 +729,49 @@ export const useChatStore = create<ChatState>((set, get) => ({
       persistState(nextState);
       return nextState;
     });
+  },
+  redecryptMessages: async (conversationId?: string) => {
+    const state = get();
+    const convIds = conversationId ? [conversationId] : Object.keys(state.messages);
+    const currentUserId = useAuthStore.getState().user?.id || '';
+
+    let updatedAny = false;
+    const newMessagesState = { ...state.messages };
+
+    for (const convId of convIds) {
+      const msgs = newMessagesState[convId] || [];
+      if (!msgs.some((m) => (m.text === '[Encrypted Message]' || m.text?.startsWith('SLX2.')) && m.encryptedContent)) continue;
+
+      const conversation = state.conversations.find((c) => c.id === convId);
+      let otherMemberId = conversation?.members?.find((m) => m.id !== currentUserId)?.id;
+
+      const updatedMsgs = await Promise.all(
+        msgs.map(async (msg) => {
+          if ((msg.text === '[Encrypted Message]' || msg.text?.startsWith('SLX2.')) && msg.encryptedContent) {
+            const peerId = otherMemberId || (msg.senderId !== currentUserId ? msg.senderId : currentUserId);
+            try {
+              const plain = await decryptIncoming(convId, msg.encryptedContent, msg.senderId, peerId);
+              if (plain !== null) {
+                updatedAny = true;
+                return { ...msg, text: plain };
+              }
+            } catch (e) {
+              // keep as-is
+            }
+          }
+          return msg;
+        })
+      );
+
+      if (updatedAny) {
+        newMessagesState[convId] = updatedMsgs;
+        void saveOfflineMessages(updatedMsgs);
+      }
+    }
+
+    if (updatedAny) {
+      set({ messages: newMessagesState });
+      persistState({ messages: newMessagesState });
+    }
   },
 }));

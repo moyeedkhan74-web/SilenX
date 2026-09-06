@@ -3,7 +3,6 @@ import { Send, Smile, X, Paperclip, Mic } from 'lucide-react';
 import Picker from '@emoji-mart/react';
 import data from '@emoji-mart/data';
 import { AttachmentMenu } from './AttachmentMenu';
-import { API_URL } from '../config/webrtc-config';
 import VoiceRecorderBar from './VoiceRecorderBar';
 import { MediaProgressRing } from './MediaProgressRing';
 import type { ChatMessage } from '../types';
@@ -138,56 +137,37 @@ export function MessageInputBar({ onSend, onSendRichMessage, replyTo, onCancelRe
     setVoiceMode(false);
   }, [onSendRichMessage]);
 
-  // ─── Upload progress ───
-  const uploadWithProgress = (file: Blob | string, url: string, onProgress: (pct: number) => void, onComplete: (msgId: string) => void) => {
-    return new Promise<Response>((resolve, reject) => {
-      const xhr = new XMLHttpRequest();
-      xhr.open('POST', url);
-      xhr.upload.onprogress = (e) => {
-        if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100));
-      };
-      xhr.onload = () => {
-        resolve(new Response(xhr.response, { status: xhr.status }));
-        onComplete?.(crypto.randomUUID());
-      };
-      xhr.onerror = () => reject(new Error('Upload failed'));
-      xhr.send(file);
+  // ─── Attachment callbacks ───
+  const handleSendImage = (dataUrl: string) => {
+    onSendRichMessage?.({
+      text: '📷 Photo',
+      contentType: 'image',
+      mediaUrl: dataUrl,
+      fileName: `photo_${Date.now()}.jpg`,
+      fileType: 'image/jpeg',
     });
   };
 
-  // ─── Attachment callbacks ───
-  const handleSendImage = (dataUrl: string) => {
-    uploadWithProgress(
-      dataUrl,
-      `${API_URL}/api/messages/image`,
-      (pct) => setUploadProgress(pct),
-      () => {
-        setUploadProgress(100);
-        setTimeout(() => setUploadProgress(0), 500);
-      }
-    );
-  };
   const handleSendCamera = (dataUrl: string) => {
-    uploadWithProgress(
-      dataUrl,
-      `${API_URL}/api/messages/image`,
-      (pct) => setUploadProgress(pct),
-      () => {
-        setUploadProgress(100);
-        setTimeout(() => setUploadProgress(0), 500);
-      }
-    );
+    onSendRichMessage?.({
+      text: '📸 Camera photo',
+      contentType: 'image',
+      mediaUrl: dataUrl,
+      fileName: `camera_${Date.now()}.jpg`,
+      fileType: 'image/jpeg',
+    });
   };
+
   const handleSendDocument = (data: { fileName: string; fileSize: string; dataUrl: string; fileType?: string }) => {
-    uploadWithProgress(
-      data.dataUrl,
-      `${API_URL}/api/messages/document`,
-      (pct) => setUploadProgress(pct),
-      () => {
-        setUploadProgress(100);
-        setTimeout(() => setUploadProgress(0), 500);
-      }
-    );
+    const isVideo = data.fileType?.startsWith('video/') || /\.(mp4|webm|mov|mkv)$/i.test(data.fileName);
+    onSendRichMessage?.({
+      text: isVideo ? `🎬 ${data.fileName}` : `📄 ${data.fileName}`,
+      contentType: isVideo ? 'video' : 'file',
+      mediaUrl: data.dataUrl,
+      fileName: data.fileName,
+      fileSize: data.fileSize,
+      fileType: data.fileType || (isVideo ? 'video/mp4' : 'application/octet-stream'),
+    });
   };
   const handleSendLocation = (data: { latitude: number; longitude: number; description: string }) => {
     onSendRichMessage?.({ text: `📍 ${data.description}`, contentType: 'location', locationData: data });

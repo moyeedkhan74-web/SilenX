@@ -17,6 +17,7 @@ import { GroupDetailsModal } from './GroupDetailsModal';
 import { MediaMessage } from './MediaMessage';
 import { MediaViewer } from './MediaViewer';
 import VoiceNotePlayer from './VoiceNotePlayer';
+import { EncryptionBadge } from './EncryptionBadge';
 import { useAuthStore } from '../store/authStore';
 import { useSettingsStore } from '../store/settingsStore';
 import WallpaperPicker from './WallpaperPicker';
@@ -897,6 +898,9 @@ export const ChatView: React.FC = () => {
                                   <CheckCheck size={12} strokeWidth={2.2} />
                                 ) : (
                                   <Check size={12} strokeWidth={2.2} />
+                                )}
+                                {isOwn && !isPending && !isRead && !isDelivered && (
+                                  <EncryptionBadge confirmed={msg.encryptedContent != null} />
                                 )}
                               </span>
                             </span>

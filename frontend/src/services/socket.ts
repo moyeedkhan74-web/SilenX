@@ -61,15 +61,23 @@ const noKeyCache = new Set<string>();
 // Known non-user virtual sender IDs that will never have a public key
 const VIRTUAL_SENDER_IDS = new Set(['system', 'bot', 'server', 'admin', '']);
 
-const fetchPublicKeyFromApi = async (userId: string): Promise<string | null> => {
-  // apiFetch transparently force-refreshes an expired Firebase token on 401
-  const res = await apiFetch(`${API_URL}/api/users/${userId}/public-key`);
-  if (!res.ok) {
-    console.warn(`[Socket] Public key fetch for ${userId} failed — HTTP ${res.status}`);
-    return null;
+const fetchPublicKeyFromApi = async (userId: string): Promise<{ publicKey: string | null; isNotFound: boolean }> => {
+  try {
+    // apiFetch transparently force-refreshes an expired Firebase token on 401
+    const res = await apiFetch(`${API_URL}/api/users/${userId}/public-key`);
+    if (res.status === 404) {
+      return { publicKey: null, isNotFound: true };
+    }
+    if (!res.ok) {
+      console.warn(`[Socket] Public key fetch for ${userId} failed — HTTP ${res.status}`);
+      return { publicKey: null, isNotFound: false };
+    }
+    const data = await res.json();
+    return { publicKey: data.publicKey || null, isNotFound: !data.publicKey };
+  } catch (err) {
+    console.warn(`[Socket] Network error fetching public key for ${userId}:`, err);
+    return { publicKey: null, isNotFound: false };
   }
-  const data = await res.json();
-  return data.publicKey || null;
 };
 
 /** Shared PUT /api/users/public-key uploader (token-refresh safe via apiFetch). */
@@ -111,10 +119,11 @@ const requestPeerPublicKeyUpload = (userId: string): void => {
     void (async () => {
       try {
         const retried = await fetchPublicKeyFromApi(userId);
-        if (retried) {
+        if (retried.publicKey) {
           console.info(`[Socket] Recovered public key for ${userId} after peer re-upload`);
           noKeyCache.delete(userId);
-          writeCachedPublicKey(userId, retried);
+          writeCachedPublicKey(userId, retried.publicKey);
+          void useChatStore.getState().redecryptMessages();
         }
       } catch {
         // next getPublicKey() call will retry through the normal path
@@ -137,7 +146,9 @@ export const getPublicKey = async (userId: string): Promise<string | null> => {
   if (noKeyCache.has(userId)) return null;
 
   try {
-    let publicKey = await fetchPublicKeyFromApi(userId);
+    let result = await fetchPublicKeyFromApi(userId);
+    let publicKey = result.publicKey;
+
     // Auto-heal: If this is the current user and local storage has a key, sync to server
     const currentUserId = useAuthStore.getState().user?.id;
     if (!publicKey && userId === currentUserId) {
@@ -150,20 +161,26 @@ export const getPublicKey = async (userId: string): Promise<string | null> => {
       }
     }
 
-    // Retry once on empty responses before giving up.
-    if (!publicKey) {
-      console.warn(`[Socket] Empty public key for ${userId} — retrying once`);
-      publicKey = await fetchPublicKeyFromApi(userId);
+    // Retry once on empty/failed responses before deciding whether to cache negative result
+    if (!publicKey && !result.isNotFound) {
+      console.warn(`[Socket] Retrying public key fetch for ${userId} after initial failure/cold-start`);
+      result = await fetchPublicKeyFromApi(userId);
+      publicKey = result.publicKey;
     }
+
     if (publicKey) {
       writeCachedPublicKey(userId, publicKey);
       return publicKey;
     }
-    // Add to negative cache so we don't keep spamming the server
-    noKeyCache.add(userId);
-    console.warn(`[Socket] No public key available for ${userId} after retry`);
-    // Last resort: ask the peer (over the live socket) to re-upload their key —
-    // covers Render cold-starts where the in-memory store died before MongoDB sync.
+
+    // ONLY populate negative cache if the server definitively confirmed 404/no key.
+    // Network errors/cold-starts (isNotFound: false) must NOT pollute negative cache.
+    if (result.isNotFound) {
+      noKeyCache.add(userId);
+      console.warn(`[Socket] No public key registered for ${userId} (404)`);
+    }
+
+    // Last resort: ask the peer (over the live socket) to re-upload their key
     requestPeerPublicKeyUpload(userId);
   } catch (error) {
     console.error('[Socket] Failed to fetch public key:', error);
@@ -263,6 +280,8 @@ export const connectSocket = (idToken?: string): Socket => {
     clearNegativeKeyCache();
     // Drain any messages queued while offline, then resume heartbeats
     void processOutbox();
+    // Automatically re-attempt decryption on any messages stuck as '[Encrypted Message]' during cold-start
+    void useChatStore.getState().redecryptMessages();
     // Start heartbeat pings to keep the server aware we are active
     if (heartbeatInterval) clearInterval(heartbeatInterval);
     heartbeatInterval = setInterval(() => {
@@ -345,6 +364,7 @@ socket.on('receive-message', async (payload: any) => {
       conversationId,
       senderId: senderId || 'remote',
       text: decryptedText,
+      encryptedContent: payload?.encryptedContent ?? payload?.text ?? undefined,
       isSelf: false,
       time: messageDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       createdAt: messageDate.toISOString(),
