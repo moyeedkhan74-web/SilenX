@@ -344,9 +344,17 @@ socket.on('receive-message', async (payload: any) => {
     // content passes through unchanged; total failure shows '[Encrypted Message]'.
     let decryptedText = encryptedContent;
 
-    const isLikelyPlaintext = !encryptedContent ||
-      encryptedContent.length < 20 || // Very short, likely not encrypted
-      /^[a-zA-Z0-9\s]+$/.test(encryptedContent); // Only alphanumeric, likely plaintext
+    // Always attempt decryption on SLX2 headers; for legacy payloads only skip
+    // if the content contains human-readable characters (spaces, emoji, etc.)
+    const isSLX2 = encryptedContent.startsWith('SLX2.');
+    // Only skip decryption for obvious human text (very short alpha-only or emoji-only).
+    // Always attempt decryption on SLX2-structured ciphertext; for legacy payloads,
+    // skip only when the content is unmistakably plaintext (single word, no cipher structure).
+    const isLikelyPlaintext = !isSLX2 && (
+      !encryptedContent ||
+      (encryptedContent.length < 12 && /^[a-zA-Z\s]+$/.test(encryptedContent)) ||
+      /[\s\p{Emoji}]/u.test(encryptedContent) && encryptedContent.length < 15
+    );
 
     if (senderId && encryptedContent && !isLikelyPlaintext) {
       try {

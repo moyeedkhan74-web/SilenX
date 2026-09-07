@@ -740,11 +740,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
     for (const convId of convIds) {
       const msgs = newMessagesState[convId] || [];
-      if (!msgs.some((m) => (m.text === '[Encrypted Message]' || m.text?.startsWith('SLX2.')) && m.encryptedContent)) continue;
+      // Always attempt re-decryption for messages stuck as '[Encrypted Message]';
+      // do NOT skip the conversation based on a single stuck message.
 
       const conversation = state.conversations.find((c) => c.id === convId);
       let otherMemberId = conversation?.members?.find((m) => m.id !== currentUserId)?.id;
 
+      let convUpdated = false;
       const updatedMsgs = await Promise.all(
         msgs.map(async (msg) => {
           if ((msg.text === '[Encrypted Message]' || msg.text?.startsWith('SLX2.')) && msg.encryptedContent) {
@@ -752,6 +754,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
             try {
               const plain = await decryptIncoming(convId, msg.encryptedContent, msg.senderId, peerId);
               if (plain !== null) {
+                convUpdated = true;
                 updatedAny = true;
                 return { ...msg, text: plain };
               }
@@ -763,7 +766,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         })
       );
 
-      if (updatedAny) {
+      if (convUpdated) {
         newMessagesState[convId] = updatedMsgs;
         void saveOfflineMessages(updatedMsgs);
       }

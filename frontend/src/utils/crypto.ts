@@ -286,7 +286,7 @@ export function encryptWithSymmetricKey(plaintext: string, symmetricKey: Uint8Ar
  */
 export function decryptWithSymmetricKey(encryptedMessageBase64: string, symmetricKey: Uint8Array): string | null {
   try {
-    const fullMessage = naclUtil.decodeBase64(encryptedMessageBase64);
+    const fullMessage = safeDecodeBase64(encryptedMessageBase64);
     const nonce = fullMessage.slice(0, nacl.secretbox.nonceLength);
     const ciphertext = fullMessage.slice(nacl.secretbox.nonceLength);
 
