@@ -6,6 +6,10 @@ import { API_URL } from '../config/webrtc-config';
 let messaging: Messaging | null = null;
 let isInitialized = false;
 let currentToken: string | null = null;
+let lastSyncedToken: string | null = null;
+let lastSyncedUserId: string | null = null;
+let swRegistrationPromise: Promise<ServiceWorkerRegistration | null> | null = null;
+let initPromise: Promise<boolean> | null = null;
 
 /**
  * Initialize Firebase Messaging
@@ -54,10 +58,12 @@ export async function requestPermissionAndGetToken(): Promise<string | null> {
     });
 
     if (token) {
-      currentToken = token;
-      console.log('[PushNotification] FCM token retrieved:', token);
+      if (currentToken !== token) {
+        currentToken = token;
+        console.log('[PushNotification] FCM token retrieved:', token);
+      }
       
-      // Sync token to backend
+      // Sync token to backend (deduplicated)
       await syncTokenToBackend(token);
       
       return token;
@@ -78,10 +84,16 @@ async function syncTokenToBackend(token: string): Promise<boolean> {
   try {
     const authState = useAuthStore.getState();
     const idToken = authState.token;
+    const userId = authState.user?.id;
     
-    if (!idToken) {
+    if (!idToken || !userId) {
       console.warn('[PushNotification] No auth token available, skipping backend sync');
       return false;
+    }
+
+    // Deduplicate: avoid re-POSTing the exact same token for the same user
+    if (lastSyncedToken === token && lastSyncedUserId === userId) {
+      return true;
     }
 
     const response = await fetch(`${API_URL}/api/users/fcm-token`, {
@@ -94,10 +106,12 @@ async function syncTokenToBackend(token: string): Promise<boolean> {
     });
 
     if (response.ok) {
+      lastSyncedToken = token;
+      lastSyncedUserId = userId;
       console.log('[PushNotification] Token synced to backend successfully');
       return true;
     } else {
-      const error = await response.json();
+      const error = await response.json().catch(() => ({}));
       console.warn('[PushNotification] Failed to sync token to backend:', error);
       return false;
     }
@@ -171,7 +185,7 @@ export function isPushSupported(): boolean {
 }
 
 /**
- * Register service worker for push notifications
+ * Register service worker for push notifications (cached promise)
  */
 export async function registerServiceWorker(): Promise<ServiceWorkerRegistration | null> {
   if (!('serviceWorker' in navigator)) {
@@ -179,16 +193,29 @@ export async function registerServiceWorker(): Promise<ServiceWorkerRegistration
     return null;
   }
 
-  try {
-    const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js', {
-      scope: '/',
-    });
-    console.log('[PushNotification] Service worker registered:', registration.scope);
-    return registration;
-  } catch (error) {
-    console.error('[PushNotification] Service worker registration failed:', error);
-    return null;
+  if (swRegistrationPromise) {
+    return swRegistrationPromise;
   }
+
+  swRegistrationPromise = (async () => {
+    try {
+      const existingReg = await navigator.serviceWorker.getRegistration('/');
+      if (existingReg) {
+        return existingReg;
+      }
+      const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js', {
+        scope: '/',
+      });
+      console.log('[PushNotification] Service worker registered:', registration.scope);
+      return registration;
+    } catch (error) {
+      console.error('[PushNotification] Service worker registration failed:', error);
+      swRegistrationPromise = null;
+      return null;
+    }
+  })();
+
+  return swRegistrationPromise;
 }
 
 /**
@@ -200,19 +227,36 @@ export async function initializePushNotifications(): Promise<boolean> {
     return false;
   }
 
-  // Register service worker
-  await registerServiceWorker();
-
-  // Initialize messaging
-  const messagingInstance = initializePushMessaging();
-  if (!messagingInstance) {
-    return false;
+  const currentUserId = useAuthStore.getState().user?.id;
+  if (lastSyncedToken && lastSyncedUserId === currentUserId) {
+    return true;
   }
 
-  // Request permission and get token
-  const token = await requestPermissionAndGetToken();
-  
-  return !!token;
+  if (initPromise) {
+    return initPromise;
+  }
+
+  initPromise = (async () => {
+    try {
+      // Register service worker
+      await registerServiceWorker();
+
+      // Initialize messaging
+      const messagingInstance = initializePushMessaging();
+      if (!messagingInstance) {
+        return false;
+      }
+
+      // Request permission and get token
+      const token = await requestPermissionAndGetToken();
+      
+      return !!token;
+    } finally {
+      initPromise = null;
+    }
+  })();
+
+  return initPromise;
 }
 
 /**
@@ -230,5 +274,7 @@ export async function cleanupPushNotifications(): Promise<void> {
   if (currentToken) {
     await removeTokenFromBackend(currentToken);
     currentToken = null;
+    lastSyncedToken = null;
+    lastSyncedUserId = null;
   }
 }

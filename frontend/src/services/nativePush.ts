@@ -5,9 +5,12 @@ import { useChatStore } from '../store/chatStore';
 import { API_URL } from '../config/webrtc-config';
 
 let isNativePushInitialized = false;
+let lastSyncedNativeToken: string | null = null;
+let lastSyncedNativeUserId: string | null = null;
 
 /** Android notification channel id — must match the backend FCM payload. */
 export const MESSAGE_CHANNEL_ID = 'silenx_messages_channel';
+
 
 /**
  * Create the high-importance Android notification channel BEFORE registering.
@@ -150,10 +153,15 @@ async function syncNativeTokenToBackend(token: string): Promise<boolean> {
   try {
     const authState = useAuthStore.getState();
     const idToken = authState.token;
+    const userId = authState.user?.id;
     
-    if (!idToken) {
+    if (!idToken || !userId) {
       console.warn('[NativePush] No auth token available, skipping backend sync');
       return false;
+    }
+
+    if (lastSyncedNativeToken === token && lastSyncedNativeUserId === userId) {
+      return true;
     }
 
     const response = await fetch(`${API_URL}/api/users/fcm-token`, {
@@ -166,10 +174,12 @@ async function syncNativeTokenToBackend(token: string): Promise<boolean> {
     });
 
     if (response.ok) {
+      lastSyncedNativeToken = token;
+      lastSyncedNativeUserId = userId;
       console.log('[NativePush] Native token synced to backend successfully');
       return true;
     } else {
-      const error = await response.json();
+      const error = await response.json().catch(() => ({}));
       console.warn('[NativePush] Failed to sync native token:', error);
       return false;
     }
