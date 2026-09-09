@@ -39,9 +39,11 @@ export const CryptoProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   useEffect(() => {
     const loadKeys = async () => {
       try {
-        if (hasKeys()) {
-          const privateKey = getPrivateKey();
-          const publicKey = getPublicKey();
+        // Load keys specific to current user - scope by userId to prevent key bleed
+        const userId = user?.id || 'anonymous';
+        if (hasKeys(userId)) {
+          const privateKey = getPrivateKey(userId);
+          const publicKey = getPublicKey(userId);
           if (privateKey && publicKey) {
             setKeyPair({
               privateKey: naclUtil.encodeBase64(privateKey),
@@ -56,7 +58,7 @@ export const CryptoProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       }
     };
     loadKeys();
-  }, []);
+  }, [user]);
 
   // Generate or load keys when user logs in
   const initializeKeys = useCallback(async () => {
@@ -78,17 +80,17 @@ export const CryptoProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     // Upload with short exponential backoff — survives Render cold-start 5xx/429s
     const uploadWithRetry = async (pubKey?: string): Promise<boolean> => {
       for (let attempt = 0; attempt < 3; attempt++) {
-        if (await uploadPublicKey(pubKey)) return true;
+        if (await uploadPublicKey(pubKey, user?.id || 'anonymous')) return true;
         await new Promise((r) => setTimeout(r, 1000 * Math.pow(2, attempt)));
       }
       return false;
     };
 
     try {
-      // Check if we already have keys in storage
-      if (hasKeys()) {
-        const privateKey = getPrivateKey();
-        const publicKey = getPublicKey();
+      // Check if we already have keys in storage (user-scoped)
+      if (hasKeys(user?.id || 'anonymous')) {
+        const privateKey = getPrivateKey(user?.id || 'anonymous');
+        const publicKey = getPublicKey(user?.id || 'anonymous');
         if (privateKey && publicKey) {
           const loadedKeyPair = {
             privateKey: naclUtil.encodeBase64(privateKey),
@@ -104,8 +106,8 @@ export const CryptoProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
       // Generate new key pair
       const newKeyPair = generateKeyPair();
-      storePrivateKey(newKeyPair.privateKey);
-      storePublicKey(newKeyPair.publicKey);
+      storePrivateKey(newKeyPair.privateKey, user?.id || 'anonymous');
+      storePublicKey(newKeyPair.publicKey, user?.id || 'anonymous');
       setKeyPair(newKeyPair);
 
       // Upload to backend
@@ -120,7 +122,7 @@ export const CryptoProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
   // Upload public key to backend.
   // IMPORTANT: resolves the key from explicit parameter, React state OR local storage
-  const uploadPublicKey = useCallback(async (explicitPublicKey?: string): Promise<boolean> => {
+  const uploadPublicKey = useCallback(async (explicitPublicKey?: string, userId?: string): Promise<boolean> => {
     if (!token) return false;
 
     const publicKey =
@@ -128,7 +130,7 @@ export const CryptoProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       keyPair?.publicKey ||
       (() => {
         try {
-          return localStorage.getItem('slienx_public_key');
+          return localStorage.getItem(`slienx_public_key_${userId || 'anonymous'}`);
         } catch {
           return null;
         }
@@ -156,7 +158,7 @@ export const CryptoProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       console.error('[CryptoContext] Error uploading public key:', err);
       return false;
     }
-  }, [keyPair, token]);
+  }, [keyPair, token, user?.id]);
 
   // Register the socket-level "re-upload your key" handler so a peer's
   // request-public-key event triggers our upload even outside login flow.

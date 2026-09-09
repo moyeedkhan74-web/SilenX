@@ -1,0 +1,25 @@
+commit 08d047d7c3fae29a8aaa94c1bdd4992d0f3d2c6e
+Author: Moyeed Khan <moyeedkhan74@gmail.com>
+Date:   Sun Sep 6 19:33:07 2026 +0530
+
+    server issue
+
+ frontend/src/components/ChatView.tsx        |  4 ++
+ frontend/src/components/EncryptionBadge.tsx | 19 ++++++++
+ frontend/src/components/MessageInputBar.tsx | 70 +++++++++++------------------
+ frontend/src/services/socket.ts             | 60 ++++++++++++++++---------
+ frontend/src/store/chatStore.ts             | 45 +++++++++++++++++++
+ 5 files changed, 133 insertions(+), 65 deletions(-)
+
+commit e149cc6beae92f013c50d993e1a2554f0f7b21da
+Author: Moyeed Khan <moyeedkhan74@gmail.com>
+Date:   Fri Sep 4 19:35:57 2026 +0530
+
+    feat: View-once media, upload progress ring, and multi-select batch send with captions
+
+ frontend/src/components/MediaMessage.tsx        |  20 ++-
+ frontend/src/components/MediaProgressRing.tsx   |  43 ++++++
+ frontend/src/components/MessageInputBar.tsx     | 165 +++++++++++++++++++++---
+ frontend/src/components/ViewOnceMediaBubble.tsx | 148 +++++++++++++++++++++
+ frontend/src/types/index.ts                     |   5 +-
+ 5 files changed, 360 insertions(+), 21 deletions(-)

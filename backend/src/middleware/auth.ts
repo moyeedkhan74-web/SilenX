@@ -46,7 +46,7 @@ function resolveDevToken(
   const devDisplayName = decodeURIComponent(parts[3] || 'Google User');
   const devEmail = parts[4] ? decodeURIComponent(parts[4]) : `${devUserId}@gmail.com`;
 
-  let dbUser = users.find((u: any) => u.id === devUserId || (u.email && u.email === devEmail));
+  let dbUser = users.find((u: any) => u.id === devUserId);
 
   if (!dbUser) {
     const newUser = {

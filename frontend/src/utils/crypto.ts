@@ -34,40 +34,50 @@ export function generateKeyPair(): KeyPair {
   };
 }
 
+function getPrivateKeyKey(userId?: string): string {
+  return userId ? `${PRIVATE_KEY_STORAGE}_${userId}` : PRIVATE_KEY_STORAGE;
+}
+
+function getPublicKeyKey(userId?: string): string {
+  return userId ? `${PUBLIC_KEY_STORAGE}_${userId}` : PUBLIC_KEY_STORAGE;
+}
+
 /**
- * Stores the private key in localStorage (in production, use IndexedDB with encryption)
+ * Stores the private key in localStorage (user-scoped when userId is provided)
  */
-export function storePrivateKey(privateKey: string): void {
-  localStorage.setItem(PRIVATE_KEY_STORAGE, privateKey);
+export function storePrivateKey(privateKey: string, userId?: string): void {
+  localStorage.setItem(getPrivateKeyKey(userId), privateKey);
 }
 
 /**
  * Retrieves the stored private key
  */
-export function getPrivateKey(): Uint8Array | null {
-  const b64Key = localStorage.getItem(PRIVATE_KEY_STORAGE);
+export function getPrivateKey(userId?: string): Uint8Array | null {
+  const b64Key = localStorage.getItem(getPrivateKeyKey(userId)) || localStorage.getItem(PRIVATE_KEY_STORAGE);
   if (!b64Key) return null;
   return safeDecodeBase64(b64Key);
 }
 
 /**
- * Stores the public key in localStorage
+ * Stores the public key in localStorage (user-scoped when userId is provided)
  */
-export function storePublicKey(publicKey: string): void {
-  localStorage.setItem(PUBLIC_KEY_STORAGE, publicKey);
+export function storePublicKey(publicKey: string, userId?: string): void {
+  localStorage.setItem(getPublicKeyKey(userId), publicKey);
 }
 
 /**
  * Retrieves the stored public key
  */
-export function getPublicKey(): string | null {
-  return localStorage.getItem(PUBLIC_KEY_STORAGE);
+export function getPublicKey(userId?: string): string | null {
+  return localStorage.getItem(getPublicKeyKey(userId)) || localStorage.getItem(PUBLIC_KEY_STORAGE);
 }
 
 /**
  * Clears stored keys on logout
  */
-export function clearKeys(): void {
+export function clearKeys(userId?: string): void {
+  localStorage.removeItem(getPrivateKeyKey(userId));
+  localStorage.removeItem(getPublicKeyKey(userId));
   localStorage.removeItem(PRIVATE_KEY_STORAGE);
   localStorage.removeItem(PUBLIC_KEY_STORAGE);
   // Clear session keys
@@ -333,8 +343,8 @@ export function removeSessionKey(conversationId: string): void {
 /**
  * Checks if user has keys set up
  */
-export function hasKeys(): boolean {
-  return !!getPrivateKey() && !!getPublicKey();
+export function hasKeys(userId?: string): boolean {
+  return !!getPrivateKey(userId) && !!getPublicKey(userId);
 }
 
 // ─── Key rotation (epoch) support ─────────────────────────────────────────────

@@ -1,0 +1,317 @@
+diff --git a/frontend/src/components/ChatView.tsx b/frontend/src/components/ChatView.tsx
+index b8ce010..053b6dd 100644
+--- a/frontend/src/components/ChatView.tsx
++++ b/frontend/src/components/ChatView.tsx
+@@ -17,6 +17,7 @@ import { GroupDetailsModal } from './GroupDetailsModal';
+ import { MediaMessage } from './MediaMessage';
+ import { MediaViewer } from './MediaViewer';
+ import VoiceNotePlayer from './VoiceNotePlayer';
++import { EncryptionBadge } from './EncryptionBadge';
+ import { useAuthStore } from '../store/authStore';
+ import { useSettingsStore } from '../store/settingsStore';
+ import WallpaperPicker from './WallpaperPicker';
+@@ -898,6 +899,9 @@ export const ChatView: React.FC = () => {
+                                 ) : (
+                                   <Check size={12} strokeWidth={2.2} />
+                                 )}
++                                {isOwn && !isPending && !isRead && !isDelivered && (
++                                  <EncryptionBadge confirmed={msg.encryptedContent != null} />
++                                )}
+                               </span>
+                             </span>
+                           )}
+diff --git a/frontend/src/components/EncryptionBadge.tsx b/frontend/src/components/EncryptionBadge.tsx
+new file mode 100644
+index 0000000..c833235
+--- /dev/null
++++ b/frontend/src/components/EncryptionBadge.tsx
+@@ -0,0 +1,19 @@
++import React from 'react';
++
++interface EncryptionBadgeProps {
++  confirmed: boolean;
++}
++
++export function EncryptionBadge({ confirmed }: EncryptionBadgeProps) {
++  return (
++    <span
++      className="encryption-badge"
++      title={confirmed ? 'End-to-end encrypted · SLX2 cipher' : 'Encrypting…'}
++    >
++      <i
++        className={`ti ti-lock${confirmed ? '' : '-open'}`}
++        style={{ fontSize: 12 }}
++      />
++    </span>
++  );
++}
+\ No newline at end of file
+diff --git a/frontend/src/components/MessageInputBar.tsx b/frontend/src/components/MessageInputBar.tsx
+index f170f11..a8940b1 100644
+--- a/frontend/src/components/MessageInputBar.tsx
++++ b/frontend/src/components/MessageInputBar.tsx
+@@ -3,7 +3,6 @@ import { Send, Smile, X, Paperclip, Mic } from 'lucide-react';
+ import Picker from '@emoji-mart/react';
+ import data from '@emoji-mart/data';
+ import { AttachmentMenu } from './AttachmentMenu';
+-import { API_URL } from '../config/webrtc-config';
+ import VoiceRecorderBar from './VoiceRecorderBar';
+ import { MediaProgressRing } from './MediaProgressRing';
+ import type { ChatMessage } from '../types';
+@@ -138,56 +137,37 @@ export function MessageInputBar({ onSend, onSendRichMessage, replyTo, onCancelRe
+     setVoiceMode(false);
+   }, [onSendRichMessage]);
+ 
+-  // ─── Upload progress ───
+-  const uploadWithProgress = (file: Blob | string, url: string, onProgress: (pct: number) => void, onComplete: (msgId: string) => void) => {
+-    return new Promise<Response>((resolve, reject) => {
+-      const xhr = new XMLHttpRequest();
+-      xhr.open('POST', url);
+-      xhr.upload.onprogress = (e) => {
+-        if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100));
+-      };
+-      xhr.onload = () => {
+-        resolve(new Response(xhr.response, { status: xhr.status }));
+-        onComplete?.(crypto.randomUUID());
+-      };
+-      xhr.onerror = () => reject(new Error('Upload failed'));
+-      xhr.send(file);
+-    });
+-  };
+-
+   // ─── Attachment callbacks ───
+   const handleSendImage = (dataUrl: string) => {
+-    uploadWithProgress(
+-      dataUrl,
+-      `${API_URL}/api/messages/image`,
+-      (pct) => setUploadProgress(pct),
+-      () => {
+-        setUploadProgress(100);
+-        setTimeout(() => setUploadProgress(0), 500);
+-      }
+-    );
++    onSendRichMessage?.({
++      text: '📷 Photo',
++      contentType: 'image',
++      mediaUrl: dataUrl,
++      fileName: `photo_${Date.now()}.jpg`,
++      fileType: 'image/jpeg',
++    });
+   };
++
+   const handleSendCamera = (dataUrl: string) => {
+-    uploadWithProgress(
+-      dataUrl,
+-      `${API_URL}/api/messages/image`,
+-      (pct) => setUploadProgress(pct),
+-      () => {
+-        setUploadProgress(100);
+-        setTimeout(() => setUploadProgress(0), 500);
+-      }
+-    );
++    onSendRichMessage?.({
++      text: '📸 Camera photo',
++      contentType: 'image',
++      mediaUrl: dataUrl,
++      fileName: `camera_${Date.now()}.jpg`,
++      fileType: 'image/jpeg',
++    });
+   };
++
+   const handleSendDocument = (data: { fileName: string; fileSize: string; dataUrl: string; fileType?: string }) => {
+-    uploadWithProgress(
+-      data.dataUrl,
+-      `${API_URL}/api/messages/document`,
+-      (pct) => setUploadProgress(pct),
+-      () => {
+-        setUploadProgress(100);
+-        setTimeout(() => setUploadProgress(0), 500);
+-      }
+-    );
++    const isVideo = data.fileType?.startsWith('video/') || /\.(mp4|webm|mov|mkv)$/i.test(data.fileName);
++    onSendRichMessage?.({
++      text: isVideo ? `🎬 ${data.fileName}` : `📄 ${data.fileName}`,
++      contentType: isVideo ? 'video' : 'file',
++      mediaUrl: data.dataUrl,
++      fileName: data.fileName,
++      fileSize: data.fileSize,
++      fileType: data.fileType || (isVideo ? 'video/mp4' : 'application/octet-stream'),
++    });
+   };
+   const handleSendLocation = (data: { latitude: number; longitude: number; description: string }) => {
+     onSendRichMessage?.({ text: `📍 ${data.description}`, contentType: 'location', locationData: data });
+diff --git a/frontend/src/services/socket.ts b/frontend/src/services/socket.ts
+index fd70976..4f44e56 100644
+--- a/frontend/src/services/socket.ts
++++ b/frontend/src/services/socket.ts
+@@ -61,15 +61,23 @@ const noKeyCache = new Set<string>();
+ // Known non-user virtual sender IDs that will never have a public key
+ const VIRTUAL_SENDER_IDS = new Set(['system', 'bot', 'server', 'admin', '']);
+ 
+-const fetchPublicKeyFromApi = async (userId: string): Promise<string | null> => {
+-  // apiFetch transparently force-refreshes an expired Firebase token on 401
+-  const res = await apiFetch(`${API_URL}/api/users/${userId}/public-key`);
+-  if (!res.ok) {
+-    console.warn(`[Socket] Public key fetch for ${userId} failed — HTTP ${res.status}`);
+-    return null;
++const fetchPublicKeyFromApi = async (userId: string): Promise<{ publicKey: string | null; isNotFound: boolean }> => {
++  try {
++    // apiFetch transparently force-refreshes an expired Firebase token on 401
++    const res = await apiFetch(`${API_URL}/api/users/${userId}/public-key`);
++    if (res.status === 404) {
++      return { publicKey: null, isNotFound: true };
++    }
++    if (!res.ok) {
++      console.warn(`[Socket] Public key fetch for ${userId} failed — HTTP ${res.status}`);
++      return { publicKey: null, isNotFound: false };
++    }
++    const data = await res.json();
++    return { publicKey: data.publicKey || null, isNotFound: !data.publicKey };
++  } catch (err) {
++    console.warn(`[Socket] Network error fetching public key for ${userId}:`, err);
++    return { publicKey: null, isNotFound: false };
+   }
+-  const data = await res.json();
+-  return data.publicKey || null;
+ };
+ 
+ /** Shared PUT /api/users/public-key uploader (token-refresh safe via apiFetch). */
+@@ -111,10 +119,11 @@ const requestPeerPublicKeyUpload = (userId: string): void => {
+     void (async () => {
+       try {
+         const retried = await fetchPublicKeyFromApi(userId);
+-        if (retried) {
++        if (retried.publicKey) {
+           console.info(`[Socket] Recovered public key for ${userId} after peer re-upload`);
+           noKeyCache.delete(userId);
+-          writeCachedPublicKey(userId, retried);
++          writeCachedPublicKey(userId, retried.publicKey);
++          void useChatStore.getState().redecryptMessages();
+         }
+       } catch {
+         // next getPublicKey() call will retry through the normal path
+@@ -137,7 +146,9 @@ export const getPublicKey = async (userId: string): Promise<string | null> => {
+   if (noKeyCache.has(userId)) return null;
+ 
+   try {
+-    let publicKey = await fetchPublicKeyFromApi(userId);
++    let result = await fetchPublicKeyFromApi(userId);
++    let publicKey = result.publicKey;
++
+     // Auto-heal: If this is the current user and local storage has a key, sync to server
+     const currentUserId = useAuthStore.getState().user?.id;
+     if (!publicKey && userId === currentUserId) {
+@@ -150,20 +161,26 @@ export const getPublicKey = async (userId: string): Promise<string | null> => {
+       }
+     }
+ 
+-    // Retry once on empty responses before giving up.
+-    if (!publicKey) {
+-      console.warn(`[Socket] Empty public key for ${userId} — retrying once`);
+-      publicKey = await fetchPublicKeyFromApi(userId);
++    // Retry once on empty/failed responses before deciding whether to cache negative result
++    if (!publicKey && !result.isNotFound) {
++      console.warn(`[Socket] Retrying public key fetch for ${userId} after initial failure/cold-start`);
++      result = await fetchPublicKeyFromApi(userId);
++      publicKey = result.publicKey;
+     }
++
+     if (publicKey) {
+       writeCachedPublicKey(userId, publicKey);
+       return publicKey;
+     }
+-    // Add to negative cache so we don't keep spamming the server
+-    noKeyCache.add(userId);
+-    console.warn(`[Socket] No public key available for ${userId} after retry`);
+-    // Last resort: ask the peer (over the live socket) to re-upload their key —
+-    // covers Render cold-starts where the in-memory store died before MongoDB sync.
++
++    // ONLY populate negative cache if the server definitively confirmed 404/no key.
++    // Network errors/cold-starts (isNotFound: false) must NOT pollute negative cache.
++    if (result.isNotFound) {
++      noKeyCache.add(userId);
++      console.warn(`[Socket] No public key registered for ${userId} (404)`);
++    }
++
++    // Last resort: ask the peer (over the live socket) to re-upload their key
+     requestPeerPublicKeyUpload(userId);
+   } catch (error) {
+     console.error('[Socket] Failed to fetch public key:', error);
+@@ -263,6 +280,8 @@ export const connectSocket = (idToken?: string): Socket => {
+     clearNegativeKeyCache();
+     // Drain any messages queued while offline, then resume heartbeats
+     void processOutbox();
++    // Automatically re-attempt decryption on any messages stuck as '[Encrypted Message]' during cold-start
++    void useChatStore.getState().redecryptMessages();
+     // Start heartbeat pings to keep the server aware we are active
+     if (heartbeatInterval) clearInterval(heartbeatInterval);
+     heartbeatInterval = setInterval(() => {
+@@ -345,6 +364,7 @@ socket.on('receive-message', async (payload: any) => {
+       conversationId,
+       senderId: senderId || 'remote',
+       text: decryptedText,
++      encryptedContent: payload?.encryptedContent ?? payload?.text ?? undefined,
+       isSelf: false,
+       time: messageDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+       createdAt: messageDate.toISOString(),
+diff --git a/frontend/src/store/chatStore.ts b/frontend/src/store/chatStore.ts
+index 0d1df4e..af1eb44 100644
+--- a/frontend/src/store/chatStore.ts
++++ b/frontend/src/store/chatStore.ts
+@@ -51,6 +51,7 @@ interface ChatState {
+   pinConversation: (convId: string) => void;
+   muteConversation: (convId: string) => void;
+   markAsRead: (convId: string) => void;
++  redecryptMessages: (conversationId?: string) => Promise<void>;
+ }
+ 
+ const getStorageKey = (userId?: string | null) => `slienx-chat-state-${userId || 'guest'}`;
+@@ -729,4 +730,48 @@ export const useChatStore = create<ChatState>((set, get) => ({
+       return nextState;
+     });
+   },
++  redecryptMessages: async (conversationId?: string) => {
++    const state = get();
++    const convIds = conversationId ? [conversationId] : Object.keys(state.messages);
++    const currentUserId = useAuthStore.getState().user?.id || '';
++
++    let updatedAny = false;
++    const newMessagesState = { ...state.messages };
++
++    for (const convId of convIds) {
++      const msgs = newMessagesState[convId] || [];
++      if (!msgs.some((m) => (m.text === '[Encrypted Message]' || m.text?.startsWith('SLX2.')) && m.encryptedContent)) continue;
++
++      const conversation = state.conversations.find((c) => c.id === convId);
++      let otherMemberId = conversation?.members?.find((m) => m.id !== currentUserId)?.id;
++
++      const updatedMsgs = await Promise.all(
++        msgs.map(async (msg) => {
++          if ((msg.text === '[Encrypted Message]' || msg.text?.startsWith('SLX2.')) && msg.encryptedContent) {
++            const peerId = otherMemberId || (msg.senderId !== currentUserId ? msg.senderId : currentUserId);
++            try {
++              const plain = await decryptIncoming(convId, msg.encryptedContent, msg.senderId, peerId);
++              if (plain !== null) {
++                updatedAny = true;
++                return { ...msg, text: plain };
++              }
++            } catch (e) {
++              // keep as-is
++            }
++          }
++          return msg;
++        })
++      );
++
++      if (updatedAny) {
++        newMessagesState[convId] = updatedMsgs;
++        void saveOfflineMessages(updatedMsgs);
++      }
++    }
++
++    if (updatedAny) {
++      set({ messages: newMessagesState });
++      persistState({ messages: newMessagesState });
++    }
++  },
+ }));

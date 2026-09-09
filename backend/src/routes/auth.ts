@@ -45,7 +45,7 @@ router.post('/google', googleAuthLimiter, async (req: Request, res: Response) =>
     const devDisplayName = decodeURIComponent(parts[3] || 'Google User');
     const devEmail = parts[4] ? decodeURIComponent(parts[4]) : `${devUserId}@gmail.com`;
 
-    let user = users.find((u: any) => u.id === devUserId || (u.email && u.email === devEmail));
+    let user = users.find((u: any) => u.id === devUserId);
     let changed = false;
 
     if (!user) {
@@ -70,10 +70,6 @@ router.post('/google', googleAuthLimiter, async (req: Request, res: Response) =>
     } else {
       if (devDisplayName && user.displayName !== devDisplayName) {
         user.displayName = devDisplayName;
-        changed = true;
-      }
-      if (devEmail && user.email !== devEmail) {
-        user.email = devEmail;
         changed = true;
       }
     }
@@ -103,7 +99,7 @@ router.post('/google', googleAuthLimiter, async (req: Request, res: Response) =>
   const displayName = (decodedToken as any).name as string | undefined || null;
   const avatarUrl = (decodedToken as any).picture as string | undefined || null;
 
-  let user = users.find((u: any) => u.id === firebaseUid || (email && u.email && u.email.toLowerCase() === email.toLowerCase()));
+  let user = users.find((u: any) => u.id === firebaseUid);
   let changed = false;
 
   if (!user) {
@@ -133,10 +129,6 @@ router.post('/google', googleAuthLimiter, async (req: Request, res: Response) =>
     }
     if (avatarUrl && user.avatarUrl !== avatarUrl) {
       user.avatarUrl = avatarUrl;
-      changed = true;
-    }
-    if (email && user.email !== email) {
-      user.email = email;
       changed = true;
     }
   }

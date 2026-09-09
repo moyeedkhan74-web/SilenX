@@ -6,6 +6,7 @@ import { useAuthStore } from '../../store/authStore';
 import { auth } from '../../config/firebase';
 import { getSocket } from '../../services/socket';
 import { API_URL } from '../../config/webrtc-config';
+import { clearKeys } from '../../utils/crypto';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import '../Sidebar.css';
 
@@ -86,6 +87,7 @@ export const Sidebar: React.FC<SidebarProps> = () => {
     console.log('[Auth] Confirmed sign out. Clearing session.');
     logout();
     auth?.signOut().catch(() => {});
+    clearKeys(currentUser?.id ?? 'anonymous');
     GoogleAuth.signOut().catch(() => {});
     navigate('/login');
   };

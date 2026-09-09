@@ -1,0 +1,5 @@
+
+> build
+> npm --prefix frontend install --legacy-peer-deps && npm --prefix frontend run build && npm --prefix backend install --include=dev && npm --prefix backend run build
+
+Terminate batch job (Y/N)? Terminate batch job (Y/N)? 
