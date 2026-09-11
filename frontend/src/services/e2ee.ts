@@ -368,8 +368,29 @@ async function decryptEpochPayload(
     }
   }
 
-  // 4. Identity-box decryption with the peer's CURRENT and HISTORICAL public keys.
+  // 4. Try deriving shared secrets against peer's HISTORICAL public key versions
   const effectivePeerId = peerId || senderId;
+  if (effectivePeerId && !isGroup(conversationId)) {
+    try {
+      const history = await fetchPublicKeyHistory(effectivePeerId);
+      for (const entry of history.slice(-MAX_FALLBACK_EPOCHS).reverse()) {
+        if (!entry.publicKey) continue;
+        const histSecret = computeSharedSecret(entry.publicKey);
+        if (histSecret) {
+          const plain = decryptWithSymmetricKey(ciphertextBody, histSecret);
+          if (plain !== null) {
+            storeEpochSessionKey(conversationId, epoch || 1, histSecret);
+            console.info(`[E2EE] Decrypted via historical identity key for peer ${effectivePeerId}`);
+            return plain;
+          }
+        }
+      }
+    } catch (err) {
+      console.debug('[E2EE] Historical key secret derivation failed:', err);
+    }
+  }
+
+  // 5. Identity-box decryption with the peer's CURRENT and HISTORICAL public keys (legacy payloads).
   if (effectivePeerId) {
     const currentKey = await getPublicKey(effectivePeerId);
     if (currentKey) {

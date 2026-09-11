@@ -1,5 +1,6 @@
 import nacl from 'tweetnacl';
 import naclUtil from 'tweetnacl-util';
+import { useAuthStore } from '../store/authStore';
 
 const PRIVATE_KEY_STORAGE = 'slienx_private_key';
 const PUBLIC_KEY_STORAGE = 'slienx_public_key';
@@ -34,26 +35,44 @@ export function generateKeyPair(): KeyPair {
   };
 }
 
+function getEffectiveUserId(userId?: string): string | undefined {
+  if (userId && userId !== 'anonymous') return userId;
+  try {
+    const stateUser = useAuthStore.getState ? useAuthStore.getState().user?.id : undefined;
+    return stateUser || (userId !== 'anonymous' ? userId : undefined);
+  } catch {
+    return userId;
+  }
+}
+
 function getPrivateKeyKey(userId?: string): string {
-  return userId ? `${PRIVATE_KEY_STORAGE}_${userId}` : PRIVATE_KEY_STORAGE;
+  const effectiveId = getEffectiveUserId(userId);
+  return effectiveId ? `${PRIVATE_KEY_STORAGE}_${effectiveId}` : PRIVATE_KEY_STORAGE;
 }
 
 function getPublicKeyKey(userId?: string): string {
-  return userId ? `${PUBLIC_KEY_STORAGE}_${userId}` : PUBLIC_KEY_STORAGE;
+  const effectiveId = getEffectiveUserId(userId);
+  return effectiveId ? `${PUBLIC_KEY_STORAGE}_${effectiveId}` : PUBLIC_KEY_STORAGE;
 }
 
 /**
  * Stores the private key in localStorage (user-scoped when userId is provided)
  */
 export function storePrivateKey(privateKey: string, userId?: string): void {
-  localStorage.setItem(getPrivateKeyKey(userId), privateKey);
+  const effectiveId = getEffectiveUserId(userId);
+  if (effectiveId) {
+    localStorage.setItem(`${PRIVATE_KEY_STORAGE}_${effectiveId}`, privateKey);
+  }
+  localStorage.setItem(PRIVATE_KEY_STORAGE, privateKey);
 }
 
 /**
  * Retrieves the stored private key
  */
 export function getPrivateKey(userId?: string): Uint8Array | null {
-  const b64Key = localStorage.getItem(getPrivateKeyKey(userId)) || localStorage.getItem(PRIVATE_KEY_STORAGE);
+  const effectiveId = getEffectiveUserId(userId);
+  const keyName = effectiveId ? `${PRIVATE_KEY_STORAGE}_${effectiveId}` : PRIVATE_KEY_STORAGE;
+  const b64Key = localStorage.getItem(keyName) || localStorage.getItem(PRIVATE_KEY_STORAGE);
   if (!b64Key) return null;
   return safeDecodeBase64(b64Key);
 }
@@ -62,14 +81,20 @@ export function getPrivateKey(userId?: string): Uint8Array | null {
  * Stores the public key in localStorage (user-scoped when userId is provided)
  */
 export function storePublicKey(publicKey: string, userId?: string): void {
-  localStorage.setItem(getPublicKeyKey(userId), publicKey);
+  const effectiveId = getEffectiveUserId(userId);
+  if (effectiveId) {
+    localStorage.setItem(`${PUBLIC_KEY_STORAGE}_${effectiveId}`, publicKey);
+  }
+  localStorage.setItem(PUBLIC_KEY_STORAGE, publicKey);
 }
 
 /**
  * Retrieves the stored public key
  */
 export function getPublicKey(userId?: string): string | null {
-  return localStorage.getItem(getPublicKeyKey(userId)) || localStorage.getItem(PUBLIC_KEY_STORAGE);
+  const effectiveId = getEffectiveUserId(userId);
+  const keyName = effectiveId ? `${PUBLIC_KEY_STORAGE}_${effectiveId}` : PUBLIC_KEY_STORAGE;
+  return localStorage.getItem(keyName) || localStorage.getItem(PUBLIC_KEY_STORAGE);
 }
 
 /**
