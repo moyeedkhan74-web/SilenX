@@ -59,7 +59,8 @@ export function decryptMessage(encryptedMessageBase64: string, senderPublicKeyBa
 
     return naclUtil.encodeUTF8(decryptedUint8);
   } catch (error) {
-    console.error('[Encryption] Failed to decrypt message', error);
+    // Debug log instead of error so candidate-key scanning fallback doesn't clutter devtools
+    console.debug('[Encryption] Failed to decrypt message', error);
     return null;
   }
 }
