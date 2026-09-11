@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { UserPlus, UserCheck, Inbox } from 'lucide-react';
+import { UserPlus, UserCheck, Inbox, Search } from 'lucide-react';
 import { API_URL } from '../config/webrtc-config';
 import { useChatStore } from '../store/chatStore';
 import { useAuthStore } from '../store/authStore';
@@ -29,86 +29,107 @@ export const ContactsPage: React.FC = () => {
   const navigate = useNavigate();
   const [requests, setRequests] = useState<RequestItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isGroupOpen, setIsGroupOpen] = useState(false);
-  const { fetchConversations, createConversation, setActiveConversation } = useChatStore();
-  const currentUser = useAuthStore((s) => s.user);
 
-  const loadRequests = async () => {
-    setIsLoading(true);
+  const { fetchConversations, createConversation, setActiveConversation } = useChatStore();
+  const currentUserId = useAuthStore((s) => s.user?.id);
+  const hasLoadedRef = useRef(false);
+
+  // Debounce search input
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+    }, 200);
+    return () => clearTimeout(handler);
+  }, [searchQuery]);
+
+  const loadRequests = useCallback(async (silent = false) => {
+    // Only toggle the full-screen loading spinner on the very first mount
+    if (!hasLoadedRef.current && !silent) {
+      setIsLoading(true);
+    }
     try {
-      const token = useAuthStore.getState().token;
-      if (!token) {
+      const originatingUserId = useAuthStore.getState().user?.id;
+      const currentToken = useAuthStore.getState().token;
+      if (!currentToken) {
         setIsLoading(false);
         return;
       }
       const res = await fetch(`${API_URL}/api/requests`, {
         headers: {
-          Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${currentToken}`,
         }
       });
       if (res.ok) {
         const data = await res.json();
+        if (useAuthStore.getState().user?.id !== originatingUserId) return;
         setRequests(data);
+        hasLoadedRef.current = true;
       }
     } catch (err) {
       console.error('Failed to load requests:', err);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
+  // Fetch strictly on initial mount or when the authenticated user ID changes
   useEffect(() => {
+    hasLoadedRef.current = false;
+    setRequests([]);
     loadRequests();
-  }, [currentUser]);
+  }, [currentUserId, loadRequests]);
 
   const handleAccept = async (id: string) => {
-    // Optimistic UI: remove from list immediately
+    const currentToken = useAuthStore.getState().token;
+    if (!currentToken) return;
+    // Optimistic UI update
     setRequests((prev) => prev.filter((r) => r.id !== id));
     try {
-      const token = useAuthStore.getState().token;
-      if (!token) return;
       const res = await fetch(`${API_URL}/api/requests/${encodeURIComponent(id)}/accept`, { 
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${currentToken}`,
         }
       });
       if (res.ok) {
         const data = await res.json();
         await fetchConversations();
-        loadRequests();
+        loadRequests(true);
 
-        // Auto-navigate to the new chat immediately
         if (data?.conversation?.id) {
           setActiveConversation(data.conversation.id);
           navigate('/chats');
         }
       } else {
-        // Rollback on server error
-        loadRequests();
+        loadRequests(true);
       }
     } catch (err) {
       console.error('Accept failed:', err);
-      loadRequests();
+      loadRequests(true);
     }
   };
 
   const handleDecline = async (id: string) => {
+    const currentToken = useAuthStore.getState().token;
+    if (!currentToken) return;
+    setRequests((prev) => prev.filter((r) => r.id !== id));
     try {
-      const token = useAuthStore.getState().token;
-      if (!token) return;
       const res = await fetch(`${API_URL}/api/requests/${encodeURIComponent(id)}/decline`, { 
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${currentToken}`,
         }
       });
-      if (res.ok) {
-        loadRequests();
+      if (!res.ok) {
+        loadRequests(true);
       }
     } catch (err) {
       console.error('Decline failed:', err);
+      loadRequests(true);
     }
   };
 
@@ -116,7 +137,8 @@ export const ContactsPage: React.FC = () => {
     if (!window.confirm(`Are you sure you want to remove ${displayName} from your contacts?`)) {
       return;
     }
-    // Optimistic UI update
+    const currentToken = useAuthStore.getState().token;
+    if (!currentToken) return;
     setRequests((prev) =>
       prev.filter(
         (r) =>
@@ -126,37 +148,48 @@ export const ContactsPage: React.FC = () => {
     );
 
     try {
-      const token = useAuthStore.getState().token;
-      if (!token) return;
       await fetch(`${API_URL}/api/requests/friends/${encodeURIComponent(targetUserId)}`, {
         method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { Authorization: `Bearer ${currentToken}` },
       });
-      loadRequests();
+      loadRequests(true);
     } catch (err) {
       console.error('Unfriend failed:', err);
-      loadRequests();
+      loadRequests(true);
     }
   };
 
-  // Filter requests
-  const pendingRequests = requests.filter(
-    (r) => r.status === 'pending' && (r.toUserId === currentUser?.id || r.receiverId === currentUser?.id)
-  );
+  // Filter pending requests with memoization
+  const pendingRequests = useMemo(() => {
+    return requests.filter(
+      (r) => r.status === 'pending' && (r.toUserId === currentUserId || r.receiverId === currentUserId)
+    );
+  }, [requests, currentUserId]);
 
-  const acceptedContacts = requests.filter(
-    (r) => r.status === 'accepted'
-  ).map((r) => {
-    const isSender = (r.senderId || r.fromUserId) === currentUser?.id;
-    return {
-      id: isSender ? (r.receiverId || r.toUserId || '') : (r.senderId || r.fromUserId || ''),
-      displayName: isSender ? (r.toDisplayName || 'Unknown') : (r.fromDisplayName || 'Unknown'),
-      uid: isSender ? (r.toUid || '') : (r.fromUid || ''),
-      avatarUrl: isSender ? ((r as any).toAvatarUrl || null) : ((r as any).fromAvatarUrl || null),
-      status: isSender ? ((r as any).toStatus || 'offline') : ((r as any).fromStatus || 'offline'),
-      lastSeen: isSender ? ((r as any).toLastSeen || '') : ((r as any).fromLastSeen || '')
-    };
-  });
+  // Filter accepted contacts with memoization
+  const acceptedContacts = useMemo(() => {
+    return requests
+      .filter((r) => r.status === 'accepted')
+      .map((r) => {
+        const isSender = (r.senderId || r.fromUserId) === currentUserId;
+        return {
+          id: isSender ? (r.receiverId || r.toUserId || '') : (r.senderId || r.fromUserId || ''),
+          displayName: isSender ? (r.toDisplayName || 'Unknown') : (r.fromDisplayName || 'Unknown'),
+          uid: isSender ? (r.toUid || '') : (r.fromUid || ''),
+          avatarUrl: isSender ? ((r as any).toAvatarUrl || null) : ((r as any).fromAvatarUrl || null),
+          status: isSender ? ((r as any).toStatus || 'offline') : ((r as any).fromStatus || 'offline'),
+          lastSeen: isSender ? ((r as any).toLastSeen || '') : ((r as any).fromLastSeen || '')
+        };
+      });
+  }, [requests, currentUserId]);
+
+  const filteredContacts = useMemo(() => {
+    if (!debouncedSearch.trim()) return acceptedContacts;
+    const q = debouncedSearch.toLowerCase().trim();
+    return acceptedContacts.filter(
+      (c) => c.displayName.toLowerCase().includes(q) || c.uid.toLowerCase().includes(q)
+    );
+  }, [acceptedContacts, debouncedSearch]);
 
   const startChat = async (uid: string) => {
     const newConvo = await createConversation(uid);
@@ -168,7 +201,7 @@ export const ContactsPage: React.FC = () => {
 
   return (
     <div className="contacts-tab" style={{ padding: '24px', overflowY: 'auto', height: '100%', boxSizing: 'border-box' }}>
-      <div className="contacts-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+      <div className="contacts-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '16px' }}>
         <h2>Contacts</h2>
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
           <button 
@@ -187,6 +220,30 @@ export const ContactsPage: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {/* Search Bar */}
+      {requests.length > 0 && (
+        <div style={{ marginBottom: '20px', position: 'relative' }}>
+          <Search size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'rgba(255,255,255,0.4)' }} />
+          <input
+            type="text"
+            placeholder="Search contacts by name or Secure ID..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            style={{
+              width: '100%',
+              padding: '10px 12px 10px 40px',
+              borderRadius: '8px',
+              border: '1px solid rgba(255,255,255,0.15)',
+              background: 'rgba(255,255,255,0.05)',
+              color: '#fff',
+              fontSize: '14px',
+              outline: 'none',
+              boxSizing: 'border-box',
+            }}
+          />
+        </div>
+      )}
 
       {isLoading ? (
         <LoadingSpinner message="Loading your contact directory..." />
@@ -225,10 +282,10 @@ export const ContactsPage: React.FC = () => {
 
           <div className="active-contacts-list">
             <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px', fontSize: '15px' }}>
-              <UserCheck size={16} /> Secure Contacts ({acceptedContacts.length})
+              <UserCheck size={16} /> Secure Contacts ({filteredContacts.length})
             </h3>
-            {acceptedContacts.length > 0 ? (
-              acceptedContacts.map((contact) => (
+            {filteredContacts.length > 0 ? (
+              filteredContacts.map((contact) => (
                 <ContactCard
                   key={contact.id}
                   displayName={contact.displayName}
@@ -265,8 +322,8 @@ export const ContactsPage: React.FC = () => {
               pendingRequests.length === 0 && (
                 <EmptyState
                   icon={<UserPlus size={32} />}
-                  title="No contacts yet"
-                  description="Add secure contacts by scanning their QR code or entering their 16-character secure ID."
+                  title={debouncedSearch.trim() ? "No matching contacts found" : "No contacts yet"}
+                  description={debouncedSearch.trim() ? "Try searching for a different name or Secure ID." : "Add secure contacts by scanning their QR code or entering their 16-character secure ID."}
                   actionButton={
                     <button className="btn btn-primary" onClick={() => setIsAddOpen(true)}>
                       Add New Contact
@@ -284,7 +341,7 @@ export const ContactsPage: React.FC = () => {
         onClose={() => setIsAddOpen(false)}
         onAddComplete={() => {
           setIsAddOpen(false);
-          loadRequests();
+          loadRequests(true);
         }}
       />
 
