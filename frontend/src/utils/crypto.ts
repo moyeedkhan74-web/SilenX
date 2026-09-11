@@ -55,6 +55,30 @@ function getPublicKeyKey(userId?: string): string {
   return effectiveId ? `${PUBLIC_KEY_STORAGE}_${effectiveId}` : PUBLIC_KEY_STORAGE;
 }
 
+function migrateLegacyKeys(effectiveId: string): void {
+  const legacyPrivateKey = localStorage.getItem(PRIVATE_KEY_STORAGE);
+  const legacyPublicKey = localStorage.getItem(PUBLIC_KEY_STORAGE);
+  if (!legacyPrivateKey || !legacyPublicKey) return;
+
+  try {
+    const derivedPublicKey = naclUtil.encodeBase64(
+      nacl.box.keyPair.fromSecretKey(safeDecodeBase64(legacyPrivateKey)).publicKey
+    );
+    if (derivedPublicKey !== legacyPublicKey) return;
+
+    const scopedPrivateKey = `${PRIVATE_KEY_STORAGE}_${effectiveId}`;
+    const scopedPublicKey = `${PUBLIC_KEY_STORAGE}_${effectiveId}`;
+    if (!localStorage.getItem(scopedPrivateKey)) {
+      localStorage.setItem(scopedPrivateKey, legacyPrivateKey);
+    }
+    if (!localStorage.getItem(scopedPublicKey)) {
+      localStorage.setItem(scopedPublicKey, legacyPublicKey);
+    }
+  } catch {
+    // Ignore invalid legacy keys and leave the user without scoped keys.
+  }
+}
+
 /**
  * Stores the private key in localStorage (user-scoped when userId is provided)
  */
@@ -71,8 +95,9 @@ export function storePrivateKey(privateKey: string, userId?: string): void {
  */
 export function getPrivateKey(userId?: string): Uint8Array | null {
   const effectiveId = getEffectiveUserId(userId);
+  if (effectiveId) migrateLegacyKeys(effectiveId);
   const keyName = effectiveId ? `${PRIVATE_KEY_STORAGE}_${effectiveId}` : PRIVATE_KEY_STORAGE;
-  const b64Key = localStorage.getItem(keyName) || localStorage.getItem(PRIVATE_KEY_STORAGE);
+  const b64Key = localStorage.getItem(keyName);
   if (!b64Key) return null;
   return safeDecodeBase64(b64Key);
 }
@@ -93,8 +118,9 @@ export function storePublicKey(publicKey: string, userId?: string): void {
  */
 export function getPublicKey(userId?: string): string | null {
   const effectiveId = getEffectiveUserId(userId);
+  if (effectiveId) migrateLegacyKeys(effectiveId);
   const keyName = effectiveId ? `${PUBLIC_KEY_STORAGE}_${effectiveId}` : PUBLIC_KEY_STORAGE;
-  return localStorage.getItem(keyName) || localStorage.getItem(PUBLIC_KEY_STORAGE);
+  return localStorage.getItem(keyName);
 }
 
 /**

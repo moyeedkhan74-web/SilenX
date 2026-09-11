@@ -44,13 +44,24 @@ function writeCachedPublicKey(userId: string, publicKey: string): void {
   }
 }
 
-/** Drop a cached recipient key so the next fetch gets a fresh one (key rotation). */
-export const clearPublicKeyCache = (userId: string): void => {
-  delete publicKeyCache[userId];
-  try {
-    localStorage.removeItem(PUBKEY_LS_PREFIX + userId);
-  } catch {
-    // ignore
+/** Drop cached recipient keys so the next fetch gets fresh ones (key rotation / reconnect). */
+export const clearPublicKeyCache = (userId?: string): void => {
+  if (userId) {
+    delete publicKeyCache[userId];
+    try {
+      localStorage.removeItem(PUBKEY_LS_PREFIX + userId);
+    } catch {
+      // ignore
+    }
+  } else {
+    Object.keys(publicKeyCache).forEach((k) => delete publicKeyCache[k]);
+    try {
+      Object.keys(localStorage).forEach((k) => {
+        if (k.startsWith(PUBKEY_LS_PREFIX)) localStorage.removeItem(k);
+      });
+    } catch {
+      // ignore
+    }
   }
 };
 
@@ -275,9 +286,10 @@ export const connectSocket = (idToken?: string): Socket => {
 
   socket.on('connect', () => {
     console.log(`[Socket] Connected: ${socket?.id}`);
-    // Clear the negative key cache on every (re)connect so keys uploaded while
-    // offline or after a server restart are picked up immediately.
+    // Clear negative key cache and drop cached peer public keys on reconnect
+    // so keys uploaded while offline or after a server restart are picked up immediately.
     clearNegativeKeyCache();
+    clearPublicKeyCache();
     // Drain any messages queued while offline, then resume heartbeats
     void processOutbox();
     // Automatically re-attempt decryption on any messages stuck as '[Encrypted Message]' during cold-start

@@ -79,6 +79,12 @@ function isGroup(conversationId: string): boolean {
 /**
  * Ensures an epoch-1 session key exists for the conversation, bootstrapped
  * from the authenticated identity-key ECDH with the recipient.
+ *
+ * IMPORTANT: Always re-derives the shared secret from the peer's CURRENT
+ * public key and compares with the cached epoch key. If they differ (peer
+ * regenerated keys, server restart, etc.), the stale cached key is replaced.
+ * This prevents the 'one-directional decryption failure' where the sender
+ * encrypts with a stale shared secret that the receiver cannot open.
  */
 async function ensureBootstrapEpoch(conversationId: string, peerId: string): Promise<void> {
   // Guard: an empty/undefined peer (e.g. self-sent history without a recorded
@@ -86,28 +92,43 @@ async function ensureBootstrapEpoch(conversationId: string, peerId: string): Pro
   if (!peerId || typeof peerId !== 'string' || peerId.trim() === '') return;
   if (isGroup(conversationId)) return;
 
-  const meta = loadConversationMeta(conversationId);
-  if (meta && getEpochSessionKey(conversationId, meta.epoch)) return;
-
   const peerPublicKey = await getPublicKey(peerId);
   if (!peerPublicKey) return;
 
-  // Epoch 1 derives directly from the long-lived identity keys.
-  let secret = getEpochSessionKey(conversationId, 1);
-  if (!secret) {
-    const derived = computeSharedSecret(peerPublicKey);
-    if (!derived) return;
-    secret = derived;
-    storeEpochSessionKey(conversationId, 1, secret);
+  // Derive the shared secret from CURRENT identity keys.
+  const freshDerived = computeSharedSecret(peerPublicKey);
+  if (!freshDerived) return;
+
+  const meta = loadConversationMeta(conversationId);
+  const currentEpoch = meta?.epoch ?? 1;
+  const cached = getEpochSessionKey(conversationId, currentEpoch);
+
+  // If no cached key OR the cached key doesn't match the freshly derived one,
+  // store the fresh key. This catches all key-change scenarios.
+  if (!cached || !uint8ArraysEqual(cached, freshDerived)) {
+    if (cached) {
+      console.info(`[E2EE] Epoch key mismatch detected for ${conversationId} — re-deriving from fresh peer key`);
+    }
+    storeEpochSessionKey(conversationId, currentEpoch, freshDerived);
   }
 
-  if (!loadConversationMeta(conversationId)) {
+  if (!meta) {
     saveConversationMeta(conversationId, {
       epoch: 1,
       createdAt: Date.now(),
       messagesSent: 0,
     });
   }
+}
+
+/** Constant-time comparison of two Uint8Arrays. */
+function uint8ArraysEqual(a: Uint8Array, b: Uint8Array): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) {
+    diff |= a[i] ^ b[i];
+  }
+  return diff === 0;
 }
 
 function rotationDue(meta: { epoch: number; createdAt: number; messagesSent: number }): boolean {
@@ -266,6 +287,11 @@ export async function encryptOutgoingText(
   if (isGroup(conversationId)) return plaintext;
 
   try {
+    // Force peer key cache refresh before encrypting so we always use the
+    // latest peer public key. This prevents stale-secret encryption.
+    if (peerId) {
+      clearPublicKeyCache(peerId);
+    }
     await ensureBootstrapEpoch(conversationId, peerId || '');
 
     const meta = loadConversationMeta(conversationId);
