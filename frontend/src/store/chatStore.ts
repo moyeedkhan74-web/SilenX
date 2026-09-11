@@ -730,11 +730,14 @@ export const useChatStore = create<ChatState>((set, get) => ({
       return nextState;
     });
   },
-  redecryptMessages: async (conversationId?: string) => {
+redecryptMessages: async (conversationId?: string) => {
     const state = get();
     const convIds = conversationId ? [conversationId] : Object.keys(state.messages);
     const currentUserId = useAuthStore.getState().user?.id || '';
-
+    
+    // Track decryption errors to avoid spamming console
+    const sessionDecryptionErrors = new Set<string>();
+    
     let updatedAny = false;
     const newMessagesState = { ...state.messages };
 
@@ -757,9 +760,25 @@ export const useChatStore = create<ChatState>((set, get) => ({
                 convUpdated = true;
                 updatedAny = true;
                 return { ...msg, text: plain };
+              } else {
+                // ALL decryption attempts failed - show specific message instead of generic '[Encrypted Message]'
+                // Suppress repetitive console errors by only logging once per conversation per session
+                const errorKey = `decrypt_failed_${convId}_${msg.senderId}`;
+                if (!sessionDecryptionErrors.has(errorKey)) {
+                  sessionDecryptionErrors.add(errorKey);
+                  console.info(`[ChatStore] Unable to decrypt message from ${msg.senderId} in conversation ${convId} - key mismatch`);
+                }
+                return { ...msg, text: '[Unable to decrypt - key mismatch]' };
               }
             } catch (e) {
               // keep as-is
+              // Suppress repetitive console errors
+              const errorKey = `decrypt_error_${convId}_${msg.senderId}`;
+              if (!sessionDecryptionErrors.has(errorKey)) {
+                sessionDecryptionErrors.add(errorKey);
+                console.error('[ChatStore] Failed to decrypt message:', e);
+              }
+              return msg;
             }
           }
           return msg;
