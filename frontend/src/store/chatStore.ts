@@ -50,6 +50,8 @@ interface ChatState {
   deleteConversation: (convId: string) => Promise<void>;
   pinConversation: (convId: string) => void;
   muteConversation: (convId: string) => void;
+  setDisappearingTimer: (convId: string, timer: number) => void;
+  setChatLocked: (convId: string, locked: boolean) => void;
   markAsRead: (convId: string) => void;
   redecryptMessages: (conversationId?: string) => Promise<void>;
 }
@@ -686,16 +688,36 @@ export const useChatStore = create<ChatState>((set, get) => ({
       return nextState;
     });
   },
-  muteConversation: (convId) => {
-    set((state) => {
-      const nextConvos = state.conversations.map((c) =>
-        c.id === convId ? { ...c, isMuted: !c.isMuted } : c
-      );
-      const nextState = { conversations: nextConvos };
-      persistState(nextState);
-      return nextState;
-    });
-  },
+muteConversation: (convId) => {
+     set((state) => {
+       const nextConvos = state.conversations.map((c) =>
+         c.id === convId ? { ...c, isMuted: !c.isMuted } : c
+       );
+       const nextState = { conversations: nextConvos };
+       persistState(nextState);
+       return nextState;
+     });
+   },
+   setDisappearingTimer: (convId: string, timer: number) => {
+     set((state) => {
+       const nextConvos = state.conversations.map((c) =>
+         c.id === convId ? { ...c, disappearingTimer: timer } : c
+       );
+       const nextState = { conversations: nextConvos };
+       persistState(nextState);
+       return nextState;
+     });
+   },
+   setChatLocked: (convId: string, locked: boolean) => {
+     set((state) => {
+       const nextConvos = state.conversations.map((c) =>
+         c.id === convId ? { ...c, isLocked: locked } : c
+       );
+       const nextState = { conversations: nextConvos };
+       persistState(nextState);
+       return nextState;
+     });
+   },
   markAsRead: (convId) => {
     // 1. Notify server backend via REST API (fire and forget / async)
     const token = useAuthStore.getState().token;

@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Edit2, Camera, Save, Search, VolumeX, Trash2, ImageIcon } from 'lucide-react';
+import { ArrowLeft, Edit2, Camera, Save, Search, VolumeX, Trash2, ImageIcon, Lock, Star } from 'lucide-react';
 import Modal from './ui/Modal';
 import Button from './ui/Button';
 import AvatarDisplay from './shared/AvatarDisplay';
 import { Conversation } from '../types';
 import { useChatStore } from '../store/chatStore';
 import { compressImageToDataUrl } from '../services/backblaze';
+import MediaGalleryModal from './MediaGalleryModal';
 import './GroupDetailsModal.css';
 
 interface GroupDetailsModalProps {
@@ -14,6 +15,13 @@ interface GroupDetailsModalProps {
   conversation: Conversation | null;
   onSearchInChat?: () => void;
 }
+
+const DISAPPEARING_TIMER_OPTIONS = [
+  { value: 0, label: 'Off' },
+  { value: 24 * 60 * 60, label: '24 hours' },
+  { value: 7 * 24 * 60 * 60, label: '7 days' },
+  { value: 90 * 24 * 60 * 60, label: '90 days' },
+];
 
 export const GroupDetailsModal: React.FC<GroupDetailsModalProps> = ({
   isOpen,
@@ -28,10 +36,32 @@ export const GroupDetailsModal: React.FC<GroupDetailsModalProps> = ({
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [selectedDisappearingTimer, setSelectedDisappearingTimer] = useState(0);
+  const [isDisappearingSelectorOpen, setIsDisappearingSelectorOpen] = useState(false);
+  const [isMediaGalleryOpen, setIsMediaGalleryOpen] = useState(false);
 
   const updateGroup = useChatStore((state) => state.updateGroup);
   const muteConversation = useChatStore((state) => state.muteConversation);
   const clearConversation = useChatStore((state) => state.clearConversation);
+  const pinConversation = useChatStore((state) => state.pinConversation);
+  const setDisappearingTimer = useChatStore((state) => state.setDisappearingTimer);
+  const setChatLocked = useChatStore((state) => state.setChatLocked);
+  const messages = useChatStore((s) => s.messages[conversation?.id || ''] || []);
+
+  // Categorize messages for the media gallery badge
+  const mediaMessages = messages.filter(
+    (m) => m.contentType === 'image' || m.contentType === 'video'
+  );
+  const docMessages = messages.filter(
+    (m) => m.contentType === 'file'
+  );
+  const linkMessages = messages.filter(
+    (m) => m.contentType === 'text' && m.text?.match(/https?:\/\/\S+/)
+  ).map((msg) => {
+    // Extract URLs from text
+    const urlMatches = msg.text?.match(/https?:\/\/\S+/g) || [];
+    return urlMatches.map((url) => ({ url, message: msg }));
+  }).flat();
 
   useEffect(() => {
     if (conversation) {
@@ -41,6 +71,7 @@ export const GroupDetailsModal: React.FC<GroupDetailsModalProps> = ({
       setAvatarFile(null);
       setIsEditing(false);
       setError('');
+      setSelectedDisappearingTimer(conversation.disappearingTimer || 0);
     }
   }, [conversation, isOpen]);
 
@@ -61,22 +92,22 @@ export const GroupDetailsModal: React.FC<GroupDetailsModalProps> = ({
       return;
     }
 
-setSaving(true);
-     setError('');
+    setSaving(true);
+    setError('');
 
-     try {
-       let finalAvatarUrl = avatarUrl.trim();
-       if (avatarFile) {
-         try {
-           // For group avatars, use direct Data URL compression to avoid storage dependency
-           finalAvatarUrl = await compressImageToDataUrl(avatarFile);
-         } catch (uploadErr) {
-           console.error(uploadErr);
-           setError('Failed to upload image');
-           setSaving(false);
-           return;
-         }
-       }
+    try {
+      let finalAvatarUrl = avatarUrl.trim();
+      if (avatarFile) {
+        try {
+          // For group avatars, use direct Data URL compression to avoid storage dependency
+          finalAvatarUrl = await compressImageToDataUrl(avatarFile);
+        } catch (uploadErr) {
+          console.error(uploadErr);
+          setError('Failed to upload image');
+          setSaving(false);
+          return;
+        }
+      }
 
       const success = await updateGroup(groupId, {
         name: groupName.trim(),
@@ -95,6 +126,14 @@ setSaving(true);
     } finally {
       setSaving(false);
     }
+  };
+
+  const formatDisappearingTimer = (timer: number) => {
+    if (timer === 0) return 'Off';
+    if (timer === 24 * 60 * 60) return '24 hours';
+    if (timer === 7 * 24 * 60 * 60) return '7 days';
+    if (timer === 90 * 24 * 60 * 60) return '90 days';
+    return `${timer / 60} minutes`; // fallback
   };
 
   return (
@@ -158,15 +197,16 @@ setSaving(true);
                     <label className="btn-icon-inline" style={{ cursor: 'pointer', padding: '6px 10px', background: 'var(--bg-primary)', border: '1px solid var(--border-color)', borderRadius: '6px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                       <ImageIcon size={16} />
                       <span>Upload</span>
-                      <input type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => e.target.files && handleFileSelect(e.target.files[0])} />
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="Or paste image URL"
-                      value={avatarUrl}
-                      onChange={(e) => setAvatarUrl(e.target.value)}
-                    />
-                  </div>
+                      <input type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => e.target.files && handleFileSelect(e.target.files[0])}
+                  />
+                </label>
+                <input
+                  type="text"
+                  placeholder="Or paste image URL"
+                  value={avatarUrl}
+                  onChange={(e) => setAvatarUrl(e.target.value)}
+                />
+              </div>
                 </div>
 
                 <div>
@@ -232,6 +272,22 @@ setSaving(true);
               </div>
             )}
 
+            {/* Media, links, and docs */}
+            <div className="contact-section-card clickable-row" onClick={() => {
+              setIsMediaGalleryOpen(true);
+            }}>
+              <div className="row-left">
+                <ImageIcon size={20} className="row-icon" />
+                <div className="row-text">
+                  <span className="row-title">Media, links, and docs</span>
+                </div>
+              </div>
+              <span className="row-count">
+                {mediaMessages.length + docMessages.length + linkMessages.length} ›
+              </span>
+            </div>
+
+            {/* Mute notifications */}
             <div className="contact-option-row clickable" onClick={() => muteConversation(conversation.id)}>
               <div className="row-left">
                 <VolumeX size={18} className="row-icon" />
@@ -243,15 +299,59 @@ setSaving(true);
               </div>
             </div>
 
-            <div
-              className="contact-option-row clickable"
-              onClick={() => {
-                if (window.confirm('Clear all messages in this group chat?')) {
-                  clearConversation(conversation.id);
-                  onClose();
-                }
-              }}
-            >
+            {/* Disappearing messages */}
+            <div className="contact-option-row clickable-row" onClick={() => {
+              setIsDisappearingSelectorOpen(true);
+            }}>
+              <div className="row-left">
+                <Lock size={20} className="row-icon" />
+                <div className="row-text">
+                  <span className="row-title">Disappearing messages</span>
+                  <span className="row-subtitle">{formatDisappearingTimer(selectedDisappearingTimer)}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Chat lock */}
+            <div className="contact-option-row">
+              <div className="row-left">
+                <Lock size={20} className="row-icon" />
+                <div className="row-text">
+                  <span className="row-title">Chat lock</span>
+                  <span className="row-subtitle">Lock and hide this chat on this device.</span>
+                </div>
+              </div>
+              <label className="toggle">
+                <input
+                  type="checkbox"
+                  checked={conversation.isLocked || false}
+                  onChange={(e) => {
+                    setChatLocked(conversation.id, e.target.checked);
+                  }}
+                />
+                <span className="toggle-slider"></span>
+              </label>
+            </div>
+
+            {/* Add to Favorites */}
+            <div className="contact-option-row clickable-row" onClick={() => {
+              pinConversation(conversation.id);
+            }}>
+              <div className="row-left">
+                <Star size={20} className="row-icon" />
+                <div className="row-text">
+                  <span className="row-title">Add to Favorites</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Clear Chat History */}
+            <div className="contact-option-row clickable" onClick={() => {
+              if (window.confirm('Clear all messages in this group chat?')) {
+                clearConversation(conversation.id);
+                onClose();
+              }
+            }}>
               <div className="row-left">
                 <Trash2 size={18} className="row-icon" style={{ color: 'var(--color-error, #ef4444)' }} />
                 <div className="row-text">
@@ -262,10 +362,42 @@ setSaving(true);
               </div>
             </div>
           </div>
-        </div>
-      </div>
+
+          {/* Disappearing messages selector */}
+          {isDisappearingSelectorOpen && (
+            <div className="disappearing-selector-modal">
+              <div className="disappearing-selector-content">
+                <h3>Disappearing messages</h3>
+                <div className="disappearing-selector-options">
+                  {DISAPPEARING_TIMER_OPTIONS.map((option: { value: number; label: string }) => (
+                    <div
+                      key={option.value}
+                      className={`disappearing-selector-option ${selectedDisappearingTimer === option.value ? 'active' : ''}`}
+                      onClick={() => {
+                        setSelectedDisappearingTimer(option.value);
+                        setDisappearingTimer(conversation.id, option.value);
+                        setIsDisappearingSelectorOpen(false);
+                      }}
+                    >
+                      {option.label}
+                    </div>
+                  ))}
+                </div>
+                <button type="button" className="btn-cancel" onClick={() => setIsDisappearingSelectorOpen(false)}>
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Media Gallery Modal */}
+          <MediaGalleryModal
+            isOpen={isMediaGalleryOpen}
+            onClose={() => setIsMediaGalleryOpen(false)}
+            conversationId={conversation.id}
+          />
+        </div>   // Close group-details-body
+      </div>       // Close group-details-container
     </Modal>
   );
 };
-
-export default GroupDetailsModal;

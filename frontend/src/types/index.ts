@@ -16,19 +16,21 @@ export interface User {
 }
 
 export interface Conversation {
-  id: string;
-  type: ConversationType;
-  name: string | null;
-  avatarUrl: string | null;
-  groupId?: string;
-  description?: string;
-  lastMessage: string | null;
-  lastMessageTime: string | null;
-  unreadCount: number;
-  members: User[];
-  isPinned?: boolean;
-  isMuted?: boolean;
-}
+   id: string;
+   type: ConversationType;
+   name: string | null;
+   avatarUrl: string | null;
+   groupId?: string;
+   description?: string;
+   lastMessage: string | null;
+   lastMessageTime: string | null;
+   unreadCount: number;
+   members: User[];
+   isPinned?: boolean;
+   isMuted?: boolean;
+   disappearingTimer?: number; // in seconds, 0 for off
+   isLocked?: boolean;
+ }
 
 export interface ChatMessage {
   id: string;

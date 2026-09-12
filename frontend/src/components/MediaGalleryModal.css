@@ -1,0 +1,326 @@
+.media-gallery-modal .media-gallery-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.media-gallery-modal .media-gallery-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.media-gallery-modal .media-gallery-header h2 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.media-gallery-modal .media-gallery-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.media-gallery-modal .tab-btn {
+  flex: 1;
+  padding: 12px 16px;
+  background: none;
+  border: none;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: pointer;
+  position: relative;
+}
+
+.media-gallery-modal .tab-btn.active {
+  color: var(--text-primary);
+  border-bottom: 2px solid var(--color-primary);
+}
+
+.media-gallery-modal .media-gallery-content {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.media-gallery-modal .media-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+  gap: 8px;
+  padding: 8px;
+  overflow-y: auto;
+}
+
+.media-gallery-modal .media-item {
+  position: relative;
+  border-radius: 4px;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.media-gallery-modal .media-item:hover {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.media-gallery-modal .media-img {
+  width: 100%;
+  height: 80px;
+  object-fit: cover;
+  display: block;
+}
+
+.media-gallery-modal .video-placeholder {
+  position: relative;
+  width: 100%;
+  height: 80px;
+  background: #000;
+}
+
+.media-gallery-modal .video-placeholder video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.media-gallery-modal .video-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.media-gallery-modal .video-overlay svg {
+  width: 32px;
+  height: 32px;
+}
+
+.media-gallery-modal .docs-list,
+.media-gallery-modal .links-list {
+  padding: 16px;
+  overflow-y: auto;
+}
+
+.media-gallery-modal .doc-item,
+.media-gallery-modal .link-item {
+  display: flex;
+  align-items: center;
+  padding: 12px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.media-gallery-modal .doc-item:last-child,
+.media-gallery-modal .link-item:last-child {
+  border-bottom: none;
+}
+
+.media-gallery-modal .doc-icon,
+.media-gallery-modal .link-icon {
+  flex: 0 0 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.media-gallery-modal .doc-info,
+.media-gallery-modal .link-url {
+  flex: 1;
+}
+
+.media-gallery-modal .doc-name {
+  font-weight: 500;
+  margin-bottom: 4px;
+}
+
+.media-gallery-modal .doc-meta {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.media-gallery-modal .doc-actions,
+.media-gallery-modal .link-actions {
+  flex: 0 0 80px;
+  display: flex;
+  gap: 8px;
+}
+
+.media-gallery-modal .doc-download-btn,
+.media-gallery-modal .link-copy-btn,
+.media-gallery-modal .link-open-btn {
+  padding: 4px 8px;
+  font-size: 12px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.media-gallery-modal .doc-download-btn:hover,
+.media-gallery-modal .link-copy-btn:hover,
+.media-gallery-modal .link-open-btn:hover {
+  background: var(--bg-secondary);
+}
+
+.media-gallery-modal .media-lightbox-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.media-gallery-modal .media-lightbox-content {
+  position: relative;
+  max-width: 90%;
+  max-height: 90vh;
+  background: var(--bg-primary);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.media-gallery-modal .lightbox-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  cursor: pointer;
+  padding: 8px;
+}
+
+.media-gallery-modal .lightbox-media {
+  width: 100%;
+  height: 80%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #000;
+}
+
+.media-gallery-modal .lightbox-img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.media-gallery-modal .lightbox-footer {
+  padding: 12px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-top: 1px solid var(--border-color);
+}
+
+.media-gallery-modal .lightbox-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.media-gallery-modal .lightbox-filename {
+  font-weight: 500;
+}
+
+.media-gallery-modal .lightbox-date {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.media-gallery-modal .lightbox-download-btn {
+  padding: 8px 16px;
+  font-size: 14px;
+  border: none;
+  background: var(--color-primary);
+  color: white;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.media-gallery-modal .lightbox-download-btn:hover {
+  background: var(--color-primary-dark);
+}
+
+/* Disappearing Selector Styles */
+.disappearing-selector-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.disappearing-selector-content {
+  background: var(--bg-primary);
+  border-radius: 12px;
+  width: 90%;
+  max-width: 300px;
+  padding: 24px;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.15);
+}
+
+.disappearing-selector-content h3 {
+  margin-top: 0;
+  margin-bottom: 16px;
+  text-align: center;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.disappearing-selector-options {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.disappearing-selector-option {
+  padding: 12px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  text-align: center;
+  font-weight: 500;
+  border: 1px solid var(--border-color);
+}
+
+.disappearing-selector-option.active {
+  background: var(--color-primary);
+  color: white;
+  border-color: var(--color-primary);
+}
+
+.disappearing-selector-option:hover:not(.active) {
+  background: var(--bg-secondary);
+}
+
+.btn-cancel {
+  width: 100%;
+  padding: 12px;
+  border: none;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.btn-cancel:hover {
+  background: var(--border-color);
+}

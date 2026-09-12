@@ -4,6 +4,7 @@ import AvatarDisplay from './shared/AvatarDisplay';
 import UIDDisplay from './shared/UIDDisplay';
 import QRCodeSection from './shared/QRCodeSection';
 import Modal from './ui/Modal';
+import MediaGalleryModal from './MediaGalleryModal';
 import { useChatStore } from '../store/chatStore';
 import './ContactDetailsModal.css';
 import { formatLastSeen } from '../utils/date';
@@ -27,6 +28,13 @@ interface ContactDetailsModalProps {
   onSearchInChat?: () => void;
 }
 
+const DISAPPEARING_TIMER_OPTIONS = [
+  { value: 0, label: 'Off' },
+  { value: 24 * 60 * 60, label: '24 hours' },
+  { value: 7 * 24 * 60 * 60, label: '7 days' },
+  { value: 90 * 24 * 60 * 60, label: '90 days' },
+];
+
 export const ContactDetailsModal: React.FC<ContactDetailsModalProps> = ({
   isOpen,
   onClose,
@@ -39,11 +47,17 @@ export const ContactDetailsModal: React.FC<ContactDetailsModalProps> = ({
   const [customName, setCustomName] = useState('');
   const [isEditingName, setIsEditingName] = useState(false);
   const [showQr, setShowQr] = useState(false);
-  const [isMuted, setIsMuted] = useState(false);
-  const [isChatLocked, setIsChatLocked] = useState(false);
+  const [selectedDisappearingTimer, setSelectedDisappearingTimer] = useState(0);
+  const [isDisappearingSelectorOpen, setIsDisappearingSelectorOpen] = useState(false);
+  const [isMediaGalleryOpen, setIsMediaGalleryOpen] = useState(false);
 
+  const conversation = useChatStore((s) => s.conversations.find((c) => c.id === conversationId));
   const messages = useChatStore((s) => s.messages[conversationId] || []);
   const clearConversation = useChatStore((s) => s.clearConversation);
+  const muteConversation = useChatStore((s) => s.muteConversation);
+  const pinConversation = useChatStore((s) => s.pinConversation);
+  const setDisappearingTimer = useChatStore((s) => s.setDisappearingTimer);
+  const setChatLocked = useChatStore((s) => s.setChatLocked);
 
   // Load custom nickname from localStorage if set
   useEffect(() => {
@@ -64,6 +78,13 @@ export const ContactDetailsModal: React.FC<ContactDetailsModalProps> = ({
       setCustomName(user.displayName);
     }
   }, [user]);
+
+  // Update local state when conversation updates
+  useEffect(() => {
+    if (conversation) {
+      setSelectedDisappearingTimer(conversation.disappearingTimer || 0);
+    }
+  }, [conversation]);
 
   if (!user) return null;
 
@@ -98,6 +119,7 @@ export const ContactDetailsModal: React.FC<ContactDetailsModalProps> = ({
   const handleBlockClick = () => {
     const confirmed = window.confirm(`Block ${displayNameToUse} on this device?`);
     if (confirmed) {
+      // TODO: Implement block user in authStore
       alert(`${displayNameToUse} has been blocked.`);
       onClose();
     }
@@ -105,6 +127,14 @@ export const ContactDetailsModal: React.FC<ContactDetailsModalProps> = ({
 
   // Count media files in messages
   const mediaMessages = messages.filter((m) => m.contentType === 'image' || m.contentType === 'video' || m.contentType === 'file');
+
+  const formatDisappearingTimer = (timer: number) => {
+    if (timer === 0) return 'Off';
+    if (timer === 24 * 60 * 60) return '24 hours';
+    if (timer === 7 * 24 * 60 * 60) return '7 days';
+    if (timer === 90 * 24 * 60 * 60) return '90 days';
+    return `${timer / 60} minutes`; // fallback
+  };
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} className="contact-details-modal dark">
@@ -205,7 +235,9 @@ export const ContactDetailsModal: React.FC<ContactDetailsModalProps> = ({
           </div>
 
           {/* Media, links, and docs */}
-          <div className="contact-section-card clickable-row">
+          <div className="contact-section-card clickable-row" onClick={() => {
+            setIsMediaGalleryOpen(true);
+          }}>
             <div className="row-left">
               <ImageIcon size={20} className="row-icon" />
               <div className="row-text">
@@ -228,20 +260,24 @@ export const ContactDetailsModal: React.FC<ContactDetailsModalProps> = ({
               <label className="toggle">
                 <input
                   type="checkbox"
-                  checked={isMuted}
-                  onChange={(e) => setIsMuted(e.target.checked)}
+                  checked={conversation?.isMuted || false}
+                  onChange={() => {
+                    muteConversation(conversationId);
+                  }}
                 />
                 <span className="toggle-slider"></span>
               </label>
             </div>
 
             {/* Disappearing messages */}
-            <div className="contact-option-row">
+            <div className="contact-option-row clickable-row" onClick={() => {
+              setIsDisappearingSelectorOpen(true);
+            }}>
               <div className="row-left">
                 <Lock size={20} className="row-icon" />
                 <div className="row-text">
                   <span className="row-title">Disappearing messages</span>
-                  <span className="row-subtitle">Off</span>
+                  <span className="row-subtitle">{formatDisappearingTimer(selectedDisappearingTimer)}</span>
                 </div>
               </div>
             </div>
@@ -258,8 +294,10 @@ export const ContactDetailsModal: React.FC<ContactDetailsModalProps> = ({
               <label className="toggle">
                 <input
                   type="checkbox"
-                  checked={isChatLocked}
-                  onChange={(e) => setIsChatLocked(e.target.checked)}
+                  checked={conversation?.isLocked || false}
+                  onChange={(e) => {
+                    setChatLocked(conversationId, e.target.checked);
+                  }}
                 />
                 <span className="toggle-slider"></span>
               </label>
@@ -277,7 +315,9 @@ export const ContactDetailsModal: React.FC<ContactDetailsModalProps> = ({
             </div>
 
             {/* Add to Favorites */}
-            <div className="contact-option-row clickable">
+            <div className="contact-option-row clickable-row" onClick={() => {
+              pinConversation(conversationId);
+            }}>
               <div className="row-left">
                 <Star size={20} className="row-icon" />
                 <div className="row-text">
@@ -286,6 +326,40 @@ export const ContactDetailsModal: React.FC<ContactDetailsModalProps> = ({
               </div>
             </div>
           </div>
+
+          {/* Disappearing messages selector */}
+          {isDisappearingSelectorOpen && (
+            <div className="disappearing-selector-modal">
+              <div className="disappearing-selector-content">
+                <h3>Disappearing messages</h3>
+                <div className="disappearing-selector-options">
+                  {DISAPPEARING_TIMER_OPTIONS.map((option: { value: number; label: string }) => (
+                    <div
+                      key={option.value}
+                      className={`disappearing-selector-option ${selectedDisappearingTimer === option.value ? 'active' : ''}`}
+                      onClick={() => {
+                        setSelectedDisappearingTimer(option.value);
+                        setDisappearingTimer(conversationId, option.value);
+                        setIsDisappearingSelectorOpen(false);
+                      }}
+                    >
+                      {option.label}
+                    </div>
+                  ))}
+                </div>
+                <button type="button" className="btn-cancel" onClick={() => setIsDisappearingSelectorOpen(false)}>
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Media Gallery Modal */}
+          <MediaGalleryModal
+            isOpen={isMediaGalleryOpen}
+            onClose={() => setIsMediaGalleryOpen(false)}
+            conversationId={conversationId}
+          />
 
           {/* Danger Actions */}
           <div className="contact-section-card options-group danger-group">
@@ -304,5 +378,3 @@ export const ContactDetailsModal: React.FC<ContactDetailsModalProps> = ({
     </Modal>
   );
 };
-
-export default ContactDetailsModal;
