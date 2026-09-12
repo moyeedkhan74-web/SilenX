@@ -9,6 +9,7 @@ import QRCodeSection from './shared/QRCodeSection';
 import { API_URL } from '../config/webrtc-config';
 import { useAuthStore } from '../store/authStore';
 import { compressImageToDataUrl } from '../services/backblaze';
+import ImageCropperModal from './ImageCropperModal';
 import './EditProfileModal.css';
 
 interface Props {
@@ -24,6 +25,7 @@ export const EditProfileModal: React.FC<Props> = ({ isOpen, onClose, profile, on
   const [displayName, setDisplayName] = useState('');
   const [avatarUrl, setAvatarUrl] = useState('');
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [cropperSrc, setCropperSrc] = useState<string | null>(null);
   const [bio, setBio] = useState('');
   const [saving, setSaving] = useState(false);
   const [displayNameError, setDisplayNameError] = useState('');
@@ -42,6 +44,7 @@ export const EditProfileModal: React.FC<Props> = ({ isOpen, onClose, profile, on
       setBio(activeUser?.bio !== undefined && activeUser?.bio !== null ? activeUser.bio : DEFAULT_ENHANCED_BIO);
       setDisplayNameError('');
       setAvatarFile(null);
+      setCropperSrc(null);
     }
   }, [isOpen]);
 
@@ -56,7 +59,7 @@ export const EditProfileModal: React.FC<Props> = ({ isOpen, onClose, profile, on
   const handleFileSelect = (f: File) => {
     setAvatarFile(f);
     const reader = new FileReader();
-    reader.onload = () => setAvatarUrl(String(reader.result));
+    reader.onload = () => setCropperSrc(String(reader.result));
     reader.readAsDataURL(f);
   };
 
@@ -311,6 +314,17 @@ const res = await fetch(`${API_URL}/api/users/me`, {
           </div>
         </div>
       </div>
+
+      <ImageCropperModal
+        imageSrc={cropperSrc || ''}
+        isOpen={!!cropperSrc}
+        aspectRatio="1:1"
+        onCropComplete={(croppedUrl) => {
+          setAvatarUrl(croppedUrl);
+          setCropperSrc(null);
+        }}
+        onClose={() => setCropperSrc(null)}
+      />
     </Modal>
   );
 };

@@ -1,5 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { X, Check, RotateCw, ZoomIn, ZoomOut } from 'lucide-react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { X, Check, RotateCw, ZoomIn, ZoomOut, Move } from 'lucide-react';
 
 export interface ImageCropperModalProps {
   imageSrc: string;
@@ -12,27 +12,28 @@ export interface ImageCropperModalProps {
 export const ImageCropperModal: React.FC<ImageCropperModalProps> = ({
   imageSrc,
   isOpen,
-  aspectRatio = 'free',
+  aspectRatio = '1:1',
   onCropComplete,
   onClose,
 }) => {
   const [zoom, setZoom] = useState(1);
   const [rotation, setRotation] = useState(0);
+  const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStart = useRef({ x: 0, y: 0 });
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const imgRef = useRef<HTMLImageElement | null>(null);
 
+  // Reset state when modal opens or image change
   useEffect(() => {
-    if (!isOpen || !imageSrc) return;
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => {
-      imgRef.current = img;
-      drawCanvas();
-    };
-    img.src = imageSrc;
-  }, [imageSrc, isOpen, zoom, rotation]);
+    if (isOpen) {
+      setZoom(1);
+      setRotation(0);
+      setOffset({ x: 0, y: 0 });
+    }
+  }, [isOpen, imageSrc]);
 
-  const drawCanvas = () => {
+  const drawCanvas = useCallback(() => {
     const canvas = canvasRef.current;
     const img = imgRef.current;
     if (!canvas || !img) return;
@@ -40,23 +41,15 @@ export const ImageCropperModal: React.FC<ImageCropperModalProps> = ({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Set canvas dimensions
-    let targetWidth = 500;
-    let targetHeight = 500;
+    let targetWidth = 400;
+    let targetHeight = 400;
 
-    if (aspectRatio === '1:1') {
-      targetWidth = 400;
-      targetHeight = 400;
-    } else if (aspectRatio === '16:9') {
+    if (aspectRatio === '16:9') {
       targetWidth = 533;
       targetHeight = 300;
     } else if (aspectRatio === '4:3') {
       targetWidth = 480;
       targetHeight = 360;
-    } else {
-      const scale = Math.min(500 / img.width, 500 / img.height, 1);
-      targetWidth = Math.round(img.width * scale);
-      targetHeight = Math.round(img.height * scale);
     }
 
     canvas.width = targetWidth;
@@ -65,8 +58,8 @@ export const ImageCropperModal: React.FC<ImageCropperModalProps> = ({
     ctx.clearRect(0, 0, targetWidth, targetHeight);
     ctx.save();
 
-    // Center rotation & zoom
-    ctx.translate(targetWidth / 2, targetHeight / 2);
+    // Center point for zoom, pan & rotate
+    ctx.translate(targetWidth / 2 + offset.x, targetHeight / 2 + offset.y);
     ctx.rotate((rotation * Math.PI) / 180);
     ctx.scale(zoom, zoom);
 
@@ -79,6 +72,39 @@ export const ImageCropperModal: React.FC<ImageCropperModalProps> = ({
     );
 
     ctx.restore();
+  }, [aspectRatio, offset, rotation, zoom]);
+
+  useEffect(() => {
+    if (!isOpen || !imageSrc) return;
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      imgRef.current = img;
+      drawCanvas();
+    };
+    img.src = imageSrc;
+  }, [imageSrc, isOpen, drawCanvas]);
+
+  // Handle Drag / Pan
+  const handleMouseDown = (e: React.MouseEvent | React.TouchEvent) => {
+    setIsDragging(true);
+    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+    dragStart.current = { x: clientX - offset.x, y: clientY - offset.y };
+  };
+
+  const handleMouseMove = (e: React.MouseEvent | React.TouchEvent) => {
+    if (!isDragging) return;
+    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+    setOffset({
+      x: clientX - dragStart.current.x,
+      y: clientY - dragStart.current.y,
+    });
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
   };
 
   const handleCropSave = () => {
@@ -97,8 +123,8 @@ export const ImageCropperModal: React.FC<ImageCropperModalProps> = ({
         position: 'fixed',
         inset: 0,
         backgroundColor: 'rgba(0,0,0,0.85)',
-        backdropFilter: 'blur(10px)',
-        zIndex: 9999,
+        backdropFilter: 'blur(12px)',
+        zIndex: 10000,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -107,141 +133,161 @@ export const ImageCropperModal: React.FC<ImageCropperModalProps> = ({
     >
       <div
         style={{
-          backgroundColor: '#18181b',
-          border: '1px solid rgba(255,255,255,0.15)',
-          borderRadius: '16px',
+          backgroundColor: '#111b21',
+          border: '1px solid rgba(255,255,255,0.12)',
+          borderRadius: '20px',
           width: '100%',
-          maxWidth: '560px',
+          maxWidth: '480px',
           overflow: 'hidden',
-          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.7)',
+          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.8)',
           display: 'flex',
           flexDirection: 'column',
         }}
       >
-        {/* Header */}
+        {/* Modal Header */}
         <div
           style={{
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
             padding: '16px 20px',
-            borderBottom: '1px solid rgba(255,255,255,0.1)',
+            borderBottom: '1px solid rgba(255,255,255,0.08)',
           }}
         >
-          <h3 style={{ margin: 0, color: '#fff', fontSize: '18px', fontWeight: 600 }}>
-            {aspectRatio === '1:1' ? 'Crop Profile Avatar' : 'Edit & Crop Media'}
-          </h3>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Move size={18} color="var(--color-accent, #00a884)" />
+            <h3 style={{ margin: 0, color: '#e9edef', fontSize: '17px', fontWeight: 600 }}>
+              Arrange Profile Picture
+            </h3>
+          </div>
           <button
             type="button"
             onClick={onClose}
             style={{
-              background: 'none',
+              background: 'rgba(255,255,255,0.08)',
               border: 'none',
-              color: '#a1a1aa',
+              color: '#8696a0',
               cursor: 'pointer',
-              padding: '4px',
+              padding: '6px',
               borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
             }}
           >
-            <X size={20} />
+            <X size={18} />
           </button>
         </div>
 
-        {/* Canvas Workspace */}
+        {/* Interactive Canvas Workspace */}
         <div
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          onTouchStart={handleMouseDown}
+          onTouchMove={handleMouseMove}
+          onTouchEnd={handleMouseUp}
           style={{
             padding: '24px',
             display: 'flex',
+            flexDirection: 'column',
             justifyContent: 'center',
             alignItems: 'center',
-            backgroundColor: '#09090b',
-            minHeight: '320px',
+            backgroundColor: '#0b141a',
+            position: 'relative',
+            cursor: isDragging ? 'grabbing' : 'grab',
+            userSelect: 'none',
+            touchAction: 'none',
           }}
         >
-          <canvas
-            ref={canvasRef}
+          <div
             style={{
-              maxHeight: '360px',
-              maxWidth: '100%',
-              borderRadius: aspectRatio === '1:1' ? '50%' : '8px',
-              boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
-              border: '2px solid rgba(255,255,255,0.2)',
+              position: 'relative',
+              width: '280px',
+              height: '280px',
+              borderRadius: aspectRatio === '1:1' ? '50%' : '12px',
+              overflow: 'hidden',
+              boxShadow: '0 0 0 9999px rgba(0, 0, 0, 0.65), 0 0 20px rgba(0, 168, 132, 0.4)',
+              border: '2px solid var(--color-accent, #00a884)',
             }}
-          />
+          >
+            <canvas
+              ref={canvasRef}
+              style={{
+                width: '100%',
+                height: '100%',
+                display: 'block',
+              }}
+            />
+          </div>
+          <p style={{ margin: '12px 0 0 0', fontSize: '12px', color: '#8696a0' }}>
+            Drag image to center • Pinch / slider to zoom
+          </p>
         </div>
 
-        {/* Controls */}
+        {/* Adjustments Bar */}
         <div
           style={{
             padding: '16px 20px',
             display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
+            flexDirection: 'column',
             gap: '16px',
-            borderTop: '1px solid rgba(255,255,255,0.1)',
-            backgroundColor: '#18181b',
+            borderTop: '1px solid rgba(255,255,255,0.08)',
+            backgroundColor: '#111b21',
           }}
         >
+          {/* Zoom Slider */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <button
-              type="button"
-              onClick={() => setZoom((z) => Math.max(0.5, z - 0.1))}
-              title="Zoom out"
+            <ZoomOut size={16} color="#8696a0" />
+            <input
+              type="range"
+              min="0.5"
+              max="3"
+              step="0.05"
+              value={zoom}
+              onChange={(e) => setZoom(parseFloat(e.target.value))}
               style={{
-                background: 'rgba(255,255,255,0.1)',
-                border: 'none',
-                color: '#fff',
-                padding: '8px',
-                borderRadius: '8px',
+                flex: 1,
+                accentColor: 'var(--color-accent, #00a884)',
                 cursor: 'pointer',
               }}
-            >
-              <ZoomOut size={18} />
-            </button>
-            <button
-              type="button"
-              onClick={() => setZoom((z) => Math.min(3, z + 0.1))}
-              title="Zoom in"
-              style={{
-                background: 'rgba(255,255,255,0.1)',
-                border: 'none',
-                color: '#fff',
-                padding: '8px',
-                borderRadius: '8px',
-                cursor: 'pointer',
-              }}
-            >
-              <ZoomIn size={18} />
-            </button>
+            />
+            <ZoomIn size={16} color="#8696a0" />
             <button
               type="button"
               onClick={() => setRotation((r) => (r + 90) % 360)}
-              title="Rotate"
+              title="Rotate 90°"
               style={{
-                background: 'rgba(255,255,255,0.1)',
+                background: 'rgba(255,255,255,0.08)',
                 border: 'none',
-                color: '#fff',
+                color: '#e9edef',
                 padding: '8px',
                 borderRadius: '8px',
                 cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginLeft: '8px',
               }}
             >
-              <RotateCw size={18} />
+              <RotateCw size={16} />
             </button>
           </div>
 
-          <div style={{ display: 'flex', gap: '12px' }}>
+          {/* Action Buttons */}
+          <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
             <button
               type="button"
               onClick={onClose}
               style={{
-                padding: '8px 16px',
-                borderRadius: '8px',
-                border: '1px solid rgba(255,255,255,0.2)',
+                padding: '10px 20px',
+                borderRadius: '24px',
+                border: '1px solid rgba(255,255,255,0.15)',
                 background: 'transparent',
-                color: '#ccc',
+                color: '#8696a0',
                 cursor: 'pointer',
-                fontWeight: 500,
+                fontWeight: 600,
+                fontSize: '14px',
               }}
             >
               Cancel
@@ -250,19 +296,21 @@ export const ImageCropperModal: React.FC<ImageCropperModalProps> = ({
               type="button"
               onClick={handleCropSave}
               style={{
-                padding: '8px 20px',
-                borderRadius: '8px',
+                padding: '10px 24px',
+                borderRadius: '24px',
                 border: 'none',
-                background: 'var(--color-accent, #6366f1)',
-                color: '#fff',
+                background: 'var(--color-accent, #00a884)',
+                color: '#111b21',
                 cursor: 'pointer',
-                fontWeight: 600,
+                fontWeight: 700,
+                fontSize: '14px',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '6px',
+                boxShadow: '0 4px 12px rgba(0, 168, 132, 0.3)',
               }}
             >
-              <Check size={18} /> Save & Attach
+              <Check size={18} /> Apply Photo
             </button>
           </div>
         </div>
