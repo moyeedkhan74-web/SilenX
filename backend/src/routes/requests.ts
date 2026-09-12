@@ -82,7 +82,7 @@ router.post('/', (req: AuthenticatedRequest, res: Response) => {
 // GET /api/requests — list requests for the authenticated user (incoming pending and all mutual accepted)
 router.get('/', (req: AuthenticatedRequest, res: Response) => {
   const currentUserId = req.currentUser!.dbId;
-  const list = friendRequests.filter((r: any) => {
+  const rawList = friendRequests.filter((r: any) => {
     const isReceiver = r.toUserId === currentUserId || r.receiverId === currentUserId;
     const isSender = r.fromUserId === currentUserId || r.senderId === currentUserId;
     if (r.status === 'accepted') {
@@ -90,6 +90,21 @@ router.get('/', (req: AuthenticatedRequest, res: Response) => {
     }
     return isReceiver; // only show incoming pending requests
   });
+
+  // Deduplicate accepted requests so there's at most 1 accepted record per peer
+  const seenPeers = new Set<string>();
+  const list: typeof rawList = [];
+
+  for (const r of rawList) {
+    if (r.status === 'accepted') {
+      const sId = (r as any).senderId || (r as any).fromUserId;
+      const rId = (r as any).receiverId || (r as any).toUserId;
+      const peerId = sId === currentUserId ? rId : sId;
+      if (seenPeers.has(peerId)) continue;
+      seenPeers.add(peerId);
+    }
+    list.push(r);
+  }
 
   const enriched = list.map((r: any) => {
     const senderId = r.senderId || r.fromUserId;
@@ -103,6 +118,10 @@ router.get('/', (req: AuthenticatedRequest, res: Response) => {
 
     return {
       ...r,
+      senderId,
+      receiverId,
+      fromUserId: senderId,
+      toUserId: receiverId,
       fromDisplayName: sender?.displayName || r.fromDisplayName || 'Unknown User',
       fromUid: sender?.uid || r.fromUid || 'SEC_UNKNOWN',
       fromAvatarUrl: sender?.avatarUrl || r.fromAvatarUrl || null,
@@ -132,7 +151,7 @@ function findDirectConversationBetween(userA: string, userB: string) {
     const memberIds = conversationMembers
       .filter((member) => member.conversationId === conversation.id)
       .map((member) => member.userId);
-    return memberIds.includes(userA) && memberIds.includes(userB);
+    return memberIds.length === 2 && memberIds.includes(userA) && memberIds.includes(userB);
   });
 }
 
@@ -141,7 +160,7 @@ function existingFriendRequest(userA: string, userB: string) {
     const senderId = (request as any).senderId || (request as any).fromUserId;
     const receiverId = (request as any).receiverId || (request as any).toUserId;
     return (
-      request.status === 'pending' &&
+      (request.status === 'pending' || request.status === 'accepted') &&
       ((senderId === userA && receiverId === userB) || (senderId === userB && receiverId === userA))
     );
   });
@@ -237,12 +256,17 @@ router.post('/:id/accept', (req: AuthenticatedRequest, res: Response) => {
   reqObj.status = 'accepted';
   (reqObj as any).updatedAt = new Date();
 
-  const sender = users.find(u => u.id === (reqObj as any).senderId);
-  const receiver = users.find(u => u.id === (reqObj as any).receiverId);
+  const sender = users.find(u => u.id === senderId);
+  const receiver = users.find(u => u.id === receiverId);
   if (!sender || !receiver) {
     res.status(500).json({ message: 'Request participant(s) not found' });
     return;
   }
+
+  (reqObj as any).senderId = senderId;
+  (reqObj as any).receiverId = receiverId;
+  (reqObj as any).fromUserId = senderId;
+  (reqObj as any).toUserId = receiverId;
 
   const senderSocketId = getSocketIdForUser(senderId);
   // NOTE: We emit 'request:accepted' AFTER conversation creation so we can include the full convo payload.
@@ -409,17 +433,14 @@ router.delete('/friends/:targetUserId', (req: AuthenticatedRequest, res: Respons
     friends.splice(friendIndex, 1);
   }
 
-  // Remove or update associated friend requests
-  const requestIndex = friendRequests.findIndex(
-    (r: any) =>
-      ((r.senderId === currentUserId || r.fromUserId === currentUserId) &&
-        (r.receiverId === targetUserId || r.toUserId === targetUserId)) ||
-      ((r.senderId === targetUserId || r.fromUserId === targetUserId) &&
-        (r.receiverId === currentUserId || r.toUserId === currentUserId))
-  );
-
-  if (requestIndex !== -1) {
-    friendRequests.splice(requestIndex, 1);
+  // Remove or update associated friend requests (purge all duplicate/legacy request records)
+  for (let i = friendRequests.length - 1; i >= 0; i--) {
+    const r = friendRequests[i] as any;
+    const sId = r.senderId || r.fromUserId;
+    const rId = r.receiverId || r.toUserId;
+    if ((sId === currentUserId && rId === targetUserId) || (sId === targetUserId && rId === currentUserId)) {
+      friendRequests.splice(i, 1);
+    }
   }
 
   saveDb();

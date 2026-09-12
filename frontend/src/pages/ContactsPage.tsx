@@ -166,21 +166,40 @@ export const ContactsPage: React.FC = () => {
     );
   }, [requests, currentUserId]);
 
-  // Filter accepted contacts with memoization
+  // Filter accepted contacts with memoization and strict peer deduplication
   const acceptedContacts = useMemo(() => {
-    return requests
-      .filter((r) => r.status === 'accepted')
-      .map((r) => {
-        const isSender = (r.senderId || r.fromUserId) === currentUserId;
-        return {
-          id: isSender ? (r.receiverId || r.toUserId || '') : (r.senderId || r.fromUserId || ''),
-          displayName: isSender ? (r.toDisplayName || 'Unknown') : (r.fromDisplayName || 'Unknown'),
-          uid: isSender ? (r.toUid || '') : (r.fromUid || ''),
-          avatarUrl: isSender ? ((r as any).toAvatarUrl || null) : ((r as any).fromAvatarUrl || null),
-          status: isSender ? ((r as any).toStatus || 'offline') : ((r as any).fromStatus || 'offline'),
-          lastSeen: isSender ? ((r as any).toLastSeen || '') : ((r as any).fromLastSeen || '')
-        };
+    const seenPeerIds = new Set<string>();
+    const result: Array<{
+      id: string;
+      displayName: string;
+      uid: string;
+      avatarUrl: string | null;
+      status: string;
+      lastSeen: string;
+    }> = [];
+
+    for (const r of requests) {
+      if (r.status !== 'accepted') continue;
+      const isSender = (r.senderId || r.fromUserId) === currentUserId;
+      const contactId = isSender ? (r.receiverId || r.toUserId || '') : (r.senderId || r.fromUserId || '');
+      const contactUid = isSender ? (r.toUid || '') : (r.fromUid || '');
+
+      if (!contactId || contactId === currentUserId || seenPeerIds.has(contactId)) {
+        continue;
+      }
+      seenPeerIds.add(contactId);
+
+      result.push({
+        id: contactId,
+        displayName: isSender ? (r.toDisplayName || 'Unknown') : (r.fromDisplayName || 'Unknown'),
+        uid: contactUid,
+        avatarUrl: isSender ? ((r as any).toAvatarUrl || null) : ((r as any).fromAvatarUrl || null),
+        status: isSender ? ((r as any).toStatus || 'offline') : ((r as any).fromStatus || 'offline'),
+        lastSeen: isSender ? ((r as any).toLastSeen || '') : ((r as any).fromLastSeen || '')
       });
+    }
+
+    return result;
   }, [requests, currentUserId]);
 
   const filteredContacts = useMemo(() => {

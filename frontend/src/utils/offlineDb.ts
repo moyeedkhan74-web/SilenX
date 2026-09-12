@@ -130,10 +130,12 @@ export async function saveConversationsCache(conversations: Conversation[]): Pro
   }
 }
 
-export async function getConversationsCache(): Promise<Conversation[]> {
+export async function getConversationsCache(userId?: string): Promise<Conversation[]> {
   try {
     const db = await getDb();
-    return await db.getAll('conversations');
+    const all: Conversation[] = await db.getAll('conversations');
+    if (!userId) return all;
+    return all.filter((c) => c.members?.some((m) => m.id === userId));
   } catch (error) {
     console.error('[OfflineDb] Error reading conversations cache:', error);
     return [];

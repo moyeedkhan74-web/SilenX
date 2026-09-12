@@ -67,7 +67,22 @@ export const useAuthStore = create<AuthState>()(
       setUser: (user) => set({ user }),
       setToken: (token) => set({ token }),
       login: (user, token) => set({ user, token, isAuthenticated: true, initialized: true }),
-      logout: () => set({ user: null, token: null, isAuthenticated: false }),
+      logout: () => {
+        try {
+          // Reset chat store in-memory state on logout to prevent cross-account merging
+          const { useChatStore } = require('./chatStore');
+          useChatStore.setState({
+            conversations: [],
+            activeConversationId: null,
+            messages: {},
+            activeMediaMessage: null,
+            isLoading: false,
+          });
+        } catch {
+          // ignore if circular reference in module init
+        }
+        set({ user: null, token: null, isAuthenticated: false });
+      },
       setInitialized: (value) => set({ initialized: value }),
     }),
     {

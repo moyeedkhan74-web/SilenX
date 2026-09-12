@@ -101,40 +101,36 @@ router.post('/', (req: AuthenticatedRequest, res: Response) => {
 
   // Return existing direct conversation if it exists
   if (type === 'direct') {
-    const existingMemberRel = conversationMembers.find(
-      m =>
-        m.userId === recipient.id &&
-        conversationMembers.some(
-          selfM => selfM.conversationId === m.conversationId && selfM.userId === currentUserId
-        )
-    );
+    const existingConvo = conversations.find(c => {
+      if (c.type !== 'direct') return false;
+      const members = conversationMembers.filter(m => m.conversationId === c.id);
+      const memberIds = members.map(m => m.userId);
+      return memberIds.length === 2 && memberIds.includes(currentUserId) && memberIds.includes(recipient.id);
+    });
 
-    if (existingMemberRel) {
-      const existingConvo = conversations.find(c => c.id === existingMemberRel.conversationId);
-      if (existingConvo) {
-        const memberRels = conversationMembers.filter(m => m.conversationId === existingConvo.id);
-        const detailedMembers = memberRels
-          .map(mr => users.find(u => u.id === mr.userId))
-          .filter((u): u is typeof users[0] => !!u)
-          .map(mapMemberPublic);
+    if (existingConvo) {
+      const memberRels = conversationMembers.filter(m => m.conversationId === existingConvo.id);
+      const detailedMembers = memberRels
+        .map(mr => users.find(u => u.id === mr.userId))
+        .filter((u): u is typeof users[0] => !!u)
+        .map(mapMemberPublic);
 
-        const convoMessages = messages.filter(m => m.conversationId === existingConvo.id);
-        const lastMessage = convoMessages[convoMessages.length - 1];
+      const convoMessages = messages.filter(m => m.conversationId === existingConvo.id);
+      const lastMessage = convoMessages[convoMessages.length - 1];
 
-        res.status(200).json({
-          id: existingConvo.id,
-          type: existingConvo.type,
-          name: existingConvo.name,
-          avatarUrl: existingConvo.avatarUrl,
-          lastMessage: lastMessage ? lastMessage.encryptedContent : null,
-          lastMessageTime: lastMessage
-            ? lastMessage.createdAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-            : '',
-          unreadCount: 0,
-          members: detailedMembers,
-        });
-        return;
-      }
+      res.status(200).json({
+        id: existingConvo.id,
+        type: existingConvo.type,
+        name: existingConvo.name,
+        avatarUrl: existingConvo.avatarUrl,
+        lastMessage: lastMessage ? lastMessage.encryptedContent : null,
+        lastMessageTime: lastMessage
+          ? lastMessage.createdAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          : '',
+        unreadCount: 0,
+        members: detailedMembers,
+      });
+      return;
     }
   }
 

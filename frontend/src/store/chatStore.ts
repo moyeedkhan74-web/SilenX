@@ -107,8 +107,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
    */
   hydrateFromIndexedDB: async () => {
     try {
+      const currentUserId = useAuthStore.getState().user?.id;
+      if (!currentUserId) return;
+
       const [cachedConversations, cachedMessages] = await Promise.all([
-        getConversationsCache(),
+        getConversationsCache(currentUserId),
         getAllOfflineMessages(),
       ]);
 
