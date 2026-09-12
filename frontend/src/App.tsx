@@ -188,7 +188,7 @@ useEffect(() => {
               triggerPushInitialization();
             } catch (error) {
               console.warn('[App] Backend startup slow or unavailable, preserving existing session:', error);
-              // âš ï¸ DO NOT sign out here â€” backend may be cold-starting (Render free tier).
+              // WARNING: DO NOT sign out here — backend may be cold-starting (Render free tier).
               // If the user already has a valid session in the store, keep it alive.
               const currentStore = useAuthStore.getState();
               if (currentStore.user && currentStore.token) {
@@ -202,7 +202,7 @@ useEffect(() => {
                 }
                 triggerPushInitialization();
               } else {
-                // No stored session at all â€” only then log out
+                // No stored session at all — only then log out
                 logout();
               }
             }
@@ -233,7 +233,7 @@ useEffect(() => {
       }
     );
 
-    // ðŸ†• Add onIdTokenChanged listener for automatic token refresh
+    // Add onIdTokenChanged listener for automatic token refresh
     const unsubToken = onIdTokenChanged(auth, async (user) => {
       if (user) {
         try {

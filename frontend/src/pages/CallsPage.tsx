@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState, useCallback, useRef } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { Phone, PhoneIncoming, PhoneMissed, PhoneOutgoing, Video, RefreshCw, MoreVertical, Trash2 } from 'lucide-react';
 import { Avatar } from '../components/Avatar';
 import { useAuthStore } from '../store/authStore';
@@ -428,7 +428,10 @@ const CallsPage: React.FC = () => {
               </div>
             )}
           </div>
-          <h1>ðŸ“ž Calls</h1>
+          <h1 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Phone size={22} style={{ color: 'var(--color-primary)' }} />
+            Calls
+          </h1>
         </div>
         <button type="button" className="calls-refresh-btn" onClick={fetchLogs} title="Refresh">
           <RefreshCw size={16} />
@@ -436,7 +439,7 @@ const CallsPage: React.FC = () => {
       </div>
 
       {loading ? (
-        <div className="calls-loading">Loading call historyâ€¦</div>
+        <div className="calls-loading">Loading call history...</div>
       ) : error ? (
         <div className="calls-error">
           <p>{error}</p>
