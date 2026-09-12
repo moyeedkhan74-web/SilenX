@@ -180,9 +180,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
             }
           })
         );
-        set({ conversations: data });
-        persistState({ conversations: data });
-        void saveConversationsCache(data);
+        const activeId = get().activeConversationId;
+        const cleanedConvos = data.map((c) =>
+          c.id === activeId ? { ...c, unreadCount: 0 } : c
+        );
+        set({ conversations: cleanedConvos });
+        persistState({ conversations: cleanedConvos });
+        void saveConversationsCache(cleanedConvos);
       }
     } catch (err) {
       console.error('Failed to fetch conversations from server:', err);

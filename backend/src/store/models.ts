@@ -109,6 +109,8 @@ const MessageSchema = new Schema({
   createdAt: { type: Date, required: true, default: Date.now, index: true },
   editedAt: { type: Date, default: null },
   deletedAt: { type: Date, default: null },
+  isRead: { type: Boolean, default: false },
+  deliveryStatus: { type: String, default: 'sent' },
   // Native MongoDB TTL index: the document is auto-deleted once `expireAt`
   // passes. Documents keep `expireAt: null` until the pruner schedules them,
   // and null dates are ignored by the TTL monitor — safe default.
