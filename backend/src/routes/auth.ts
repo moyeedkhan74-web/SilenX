@@ -67,12 +67,9 @@ router.post('/google', googleAuthLimiter, async (req: Request, res: Response) =>
       } as any;
       users.push(user as any);
       changed = true;
-    } else {
-      if (devDisplayName && user.displayName !== devDisplayName) {
-        user.displayName = devDisplayName;
-        changed = true;
-      }
-    }
+} else {
+       // Keep existing user's custom profile fields (displayName, bio, avatarUrl) preserved
+     }
 
     if (changed) saveDb();
     res.status(200).json({ user });

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 const COLORS = [
   'var(--avatar-color-1)', 'var(--avatar-color-2)', 'var(--avatar-color-3)',
@@ -35,6 +35,11 @@ export const AvatarDisplay: React.FC<AvatarDisplayProps> = ({
   const isOnline = online !== undefined ? online : status === 'online';
   const initials = name ? name.charAt(0).toUpperCase() : '?';
   const bg = hashColor(name);
+
+  useEffect(() => {
+    setImgError(false);
+    setImgLoaded(false);
+  }, [avatarUrl]);
 
   const showImg = avatarUrl && !imgError;
 

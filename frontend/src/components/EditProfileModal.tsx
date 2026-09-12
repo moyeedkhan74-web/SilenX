@@ -104,27 +104,21 @@ export const EditProfileModal: React.FC<Props> = ({ isOpen, onClose, profile, on
       };
       
       const token = useAuthStore.getState().token;
-      const res = await fetch(`${API_URL}/api/users/me`, {
-        method: 'PUT',
-        headers: { 
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(payload),
-      });
-      if (res.ok) {
-        const updatedUser = await res.json();
-        // Immediately sync updated user object to local authStore
-        const currentStoreUser = useAuthStore.getState().user;
-        if (currentStoreUser) {
-          useAuthStore.getState().setUser({
-            ...currentStoreUser,
-            ...updatedUser
-          });
-        }
-        onSaved();
-        onClose();
-      } else {
+const res = await fetch(`${API_URL}/api/users/me`, {
+         method: 'PUT',
+         headers: { 
+           'Content-Type': 'application/json',
+           Authorization: `Bearer ${token}`,
+         },
+         body: JSON.stringify(payload),
+       });
+       if (res.ok) {
+         const updatedUser = await res.json();
+         // Immediately sync updated user object to local authStore
+         useAuthStore.getState().setUser(updatedUser);
+         onSaved();
+         onClose();
+       } else {
         const body = await res.json().catch(() => ({}));
         alert(body.message || 'Failed to save profile');
       }
