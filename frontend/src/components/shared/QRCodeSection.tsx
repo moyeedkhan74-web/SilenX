@@ -67,6 +67,14 @@ export const QRCodeSection: React.FC<QRCodeSectionProps> = ({
           includeMargin={true}
           bgColor={qrBgColor}
           fgColor={qrFgColor}
+          imageSettings={{
+            src: '/silenX-logo.png',
+            x: undefined,
+            y: undefined,
+            height: Math.round(size * 0.22),
+            width: Math.round(size * 0.22),
+            excavate: true,
+          }}
         />
       </div>
 
