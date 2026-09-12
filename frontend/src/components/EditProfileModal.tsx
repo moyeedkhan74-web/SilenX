@@ -35,18 +35,15 @@ export const EditProfileModal: React.FC<Props> = ({ isOpen, onClose, profile, on
   const email = profile?.email || currentUser?.email || '';
 
   useEffect(() => {
-    if (profile) {
-      setDisplayName(profile.displayName || '');
-      setAvatarUrl(profile.avatarUrl || '');
-      setBio(profile.bio && profile.bio.trim() ? profile.bio : DEFAULT_ENHANCED_BIO);
-    } else if (currentUser) {
-      setDisplayName(currentUser.displayName || '');
-      setAvatarUrl(currentUser.avatarUrl || '');
-      setBio(currentUser.bio && currentUser.bio.trim() ? currentUser.bio : DEFAULT_ENHANCED_BIO);
+    if (isOpen) {
+      const activeUser = profile || currentUser;
+      setDisplayName(activeUser?.displayName || '');
+      setAvatarUrl(activeUser?.avatarUrl || '');
+      setBio(activeUser?.bio !== undefined && activeUser?.bio !== null ? activeUser.bio : DEFAULT_ENHANCED_BIO);
+      setDisplayNameError('');
+      setAvatarFile(null);
     }
-    setDisplayNameError('');
-    setAvatarFile(null);
-  }, [profile, currentUser, isOpen]);
+  }, [isOpen]);
 
   const onDrop = (e: React.DragEvent) => {
     e.preventDefault();
@@ -103,7 +100,7 @@ export const EditProfileModal: React.FC<Props> = ({ isOpen, onClose, profile, on
       const payload: any = {
         displayName: displayName.trim(),
         avatarUrl: finalAvatarUrl,
-        bio: bio.trim() || DEFAULT_ENHANCED_BIO,
+        bio: bio.trim(),
       };
       
       const token = useAuthStore.getState().token;
@@ -116,6 +113,15 @@ export const EditProfileModal: React.FC<Props> = ({ isOpen, onClose, profile, on
         body: JSON.stringify(payload),
       });
       if (res.ok) {
+        const updatedUser = await res.json();
+        // Immediately sync updated user object to local authStore
+        const currentStoreUser = useAuthStore.getState().user;
+        if (currentStoreUser) {
+          useAuthStore.getState().setUser({
+            ...currentStoreUser,
+            ...updatedUser
+          });
+        }
         onSaved();
         onClose();
       } else {

@@ -122,15 +122,7 @@ router.post('/google', googleAuthLimiter, async (req: Request, res: Response) =>
     users.push(user as any);
     changed = true;
   } else {
-    // Sync mutable profile fields from token claims
-    if (displayName && user.displayName !== displayName) {
-      user.displayName = displayName;
-      changed = true;
-    }
-    if (avatarUrl && user.avatarUrl !== avatarUrl) {
-      user.avatarUrl = avatarUrl;
-      changed = true;
-    }
+    // Keep existing user's custom profile fields (displayName, bio, avatarUrl) preserved
   }
 
   if (changed) saveDb();
