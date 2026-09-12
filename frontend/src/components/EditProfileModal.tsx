@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Save, Upload, Trash2, Mail, Copy, Check, Sparkles } from 'lucide-react';
+import { Save, Upload, Trash2, Mail, Copy, Check } from 'lucide-react';
 import Modal from './ui/Modal';
 import Input from './ui/Input';
 import Button from './ui/Button';
@@ -76,10 +76,6 @@ export const EditProfileModal: React.FC<Props> = ({ isOpen, onClose, profile, on
     navigator.clipboard.writeText(textToCopy);
     setCopiedBio(true);
     setTimeout(() => setCopiedBio(false), 2000);
-  };
-
-  const handleSetDefaultBio = () => {
-    setBio(DEFAULT_ENHANCED_BIO);
   };
 
   const handleSave = async () => {
@@ -164,44 +160,24 @@ export const EditProfileModal: React.FC<Props> = ({ isOpen, onClose, profile, on
               <label className="input-label" style={{ fontWeight: 500, fontSize: '13px', color: 'var(--text-secondary)' }}>
                 Bio
               </label>
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <button
-                  type="button"
-                  onClick={handleSetDefaultBio}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                    background: 'transparent',
-                    border: 'none',
-                    color: 'var(--color-primary)',
-                    fontSize: '12px',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                  }}
-                  title="Use default SilenX bio"
-                >
-                  <Sparkles size={12} /> Default Tagline
-                </button>
-                <button
-                  type="button"
-                  onClick={handleCopyBio}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                    background: 'transparent',
-                    border: 'none',
-                    color: copiedBio ? '#22c55e' : 'var(--text-secondary)',
-                    fontSize: '12px',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                  }}
-                >
-                  {copiedBio ? <Check size={12} /> : <Copy size={12} />}
-                  {copiedBio ? 'Copied!' : 'Copy Bio'}
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={handleCopyBio}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  background: 'transparent',
+                  border: 'none',
+                  color: copiedBio ? '#22c55e' : 'var(--text-secondary)',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                {copiedBio ? <Check size={12} /> : <Copy size={12} />}
+                {copiedBio ? 'Copied!' : 'Copy Bio'}
+              </button>
             </div>
             <textarea 
               value={bio} 

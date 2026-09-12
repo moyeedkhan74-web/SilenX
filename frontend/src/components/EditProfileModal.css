@@ -1,27 +1,29 @@
-.edit-profile-modal {
-  width: 780px;
-  max-width: 92vw;
-  max-height: 88vh;
-  overflow-y: auto;
-  border-radius: 20px;
-  padding: 28px;
-  background: var(--bg-primary);
-  border: 1px solid var(--border-color);
-  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.25);
-  box-sizing: border-box;
+/* Modal framing overrides for Edit Profile */
+.modal-content.edit-profile-modal {
+  max-width: 820px !important;
+  width: 90vw !important;
+  max-height: 86vh !important;
+  padding: 24px 28px !important;
+  border-radius: 20px !important;
+  background: var(--bg-primary) !important;
+  border: 1px solid var(--border-color) !important;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35) !important;
+  overflow-y: auto !important;
+  box-sizing: border-box !important;
   color: var(--text-primary);
 }
 
 .edit-profile-modal.dark {
-  background: var(--bg-primary);
+  background: var(--bg-primary) !important;
   color: var(--text-primary);
 }
 
 .editor-grid {
   display: grid;
   grid-template-columns: 1fr 280px;
-  gap: 28px;
-  align-items: start;
+  gap: 24px;
+  align-items: flex-start;
+  width: 100%;
 }
 
 .editor-form {
@@ -32,12 +34,17 @@
 .editor-preview {
   display: flex;
   flex-direction: column;
-  position: sticky;
-  top: 0;
+}
+
+.preview-card {
+  background: var(--bg-secondary) !important;
+  padding: 16px 18px !important;
+  border-radius: 16px !important;
+  border: 1px solid var(--border-color) !important;
 }
 
 .avatar-uploader-clean {
-  transition: border-color 0.2s, background-color 0.2s;
+  transition: border-color 0.2s ease, background-color 0.2s ease;
 }
 
 .avatar-uploader-clean:hover {
@@ -50,17 +57,18 @@
   justify-content: flex-end;
   align-items: center;
   gap: 12px;
-  margin-top: 24px;
+  margin-top: 20px;
   padding-top: 16px;
   border-top: 1px solid var(--border-color);
 }
 
-/* Responsive vertical layout for Tablet & Mobile */
-@media (max-width: 800px) {
-  .edit-profile-modal {
-    width: 95vw;
-    padding: 20px;
-    max-height: 92vh;
+/* Tablet & Mobile responsive single column vertical layout */
+@media (max-width: 780px) {
+  .modal-content.edit-profile-modal {
+    width: 95vw !important;
+    max-width: 95vw !important;
+    padding: 18px 16px !important;
+    max-height: 92vh !important;
   }
   
   .editor-grid {
@@ -70,7 +78,6 @@
   }
 
   .editor-preview {
-    position: static;
     width: 100%;
   }
 }
