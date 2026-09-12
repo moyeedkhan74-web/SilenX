@@ -81,73 +81,82 @@ async function b2Authorize(): Promise<{ uploadUrl: string; authToken: string }> 
 }
 
 export async function uploadToBackblaze(file: File, prefix = 'uploads'): Promise<BackblazeUploadResult> {
-  const fileName = `${prefix}/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+   const fileName = `${prefix}/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
 
-  // Strategy 1: Try server-side media upload endpoint
-  try {
-    const formData = new FormData();
-    formData.append('file', file);
+   // For avatar uploads, skip server/B2 and go straight to Data URL for guaranteed persistence
+   if (prefix === 'avatars' || prefix === 'group-avatars') {
+     const dataUrl = await compressImageToDataUrl(file);
+     return {
+       fileName,
+       url: dataUrl,
+     };
+   }
 
-    const token = useAuthStore.getState().token;
-    const headers: Record<string, string> = {};
-    if (token) {
-      headers.Authorization = `Bearer ${token}`;
-    }
+   // Strategy 1: Try server-side media upload endpoint (for non-avatars only)
+   try {
+     const formData = new FormData();
+     formData.append('file', file);
 
-    const serverRes = await fetch(`${API_URL}/api/media/upload`, {
-      method: 'POST',
-      headers,
-      body: formData,
-    });
+     const token = useAuthStore.getState().token;
+     const headers: Record<string, string> = {};
+     if (token) {
+       headers.Authorization = `Bearer ${token}`;
+     }
 
-    if (serverRes.ok) {
-      const data = await serverRes.json();
-      if (data.url) {
-        return {
-          fileName: data.fileName || fileName,
-          url: data.url,
-        };
-      }
-    }
-  } catch (serverErr) {
-    console.warn('[Storage] Server media upload endpoint unavailable, trying fallback:', serverErr);
-  }
+     const serverRes = await fetch(`${API_URL}/api/media/upload`, {
+       method: 'POST',
+       headers,
+       body: formData,
+     });
 
-  // Strategy 2: Direct client-side Backblaze upload (if configured)
-  if (B2_API_URL && B2_KEY_ID && B2_APP_KEY && B2_BUCKET_ID) {
-    try {
-      const { uploadUrl, authToken } = await b2Authorize();
-      const contentType = file.type || 'application/octet-stream';
+     if (serverRes.ok) {
+       const data = await serverRes.json();
+       if (data.url) {
+         return {
+           fileName: data.fileName || fileName,
+           url: data.url,
+         };
+       }
+     }
+   } catch (serverErr) {
+     console.warn('[Storage] Server media upload endpoint unavailable, trying fallback:', serverErr);
+   }
 
-      const response = await fetch(`${uploadUrl}/b2_upload_file`, {
-        method: 'POST',
-        headers: {
-          Authorization: authToken,
-          'X-Bz-File-Name': fileName,
-          'Content-Type': contentType,
-          'X-Bz-Content-Sha1': 'do_not_verify',
-          'X-Bz-File-Mode': 'upload',
-        },
-        body: file,
-      });
+   // Strategy 2: Direct client-side Backblaze upload (if configured)
+   if (B2_API_URL && B2_KEY_ID && B2_APP_KEY && B2_BUCKET_ID) {
+     try {
+       const { uploadUrl, authToken } = await b2Authorize();
+       const contentType = file.type || 'application/octet-stream';
 
-      if (response.ok) {
-        await response.json();
-        const publicUrl = `https://f005.backblazeb2.com/file/${B2_BUCKET_NAME}/${fileName}`;
-        return {
-          fileName,
-          url: publicUrl,
-        };
-      }
-    } catch (b2Err) {
-      console.warn('[Storage] Client-side B2 upload failed, using Data URL fallback:', b2Err);
-    }
-  }
+       const response = await fetch(`${uploadUrl}/b2_upload_file`, {
+         method: 'POST',
+         headers: {
+           Authorization: authToken,
+           'X-Bz-File-Name': fileName,
+           'Content-Type': contentType,
+           'X-Bz-Content-Sha1': 'do_not_verify',
+           'X-Bz-File-Mode': 'upload',
+         },
+         body: file,
+       });
 
-  // Strategy 3: Guaranteed zero-failure Data URL fallback
-  const dataUrl = await compressImageToDataUrl(file);
-  return {
-    fileName,
-    url: dataUrl,
-  };
-}
+       if (response.ok) {
+         await response.json();
+         const publicUrl = `https://f005.backblazeb2.com/file/${B2_BUCKET_NAME}/${fileName}`;
+         return {
+           fileName,
+           url: publicUrl,
+         };
+       }
+     } catch (b2Err) {
+       console.warn('[Storage] Client-side B2 upload failed, using Data URL fallback:', b2Err);
+     }
+   }
+
+   // Strategy 3: Guaranteed zero-failure Data URL fallback
+   const dataUrl = await compressImageToDataUrl(file);
+   return {
+     fileName,
+     url: dataUrl,
+   };
+ }

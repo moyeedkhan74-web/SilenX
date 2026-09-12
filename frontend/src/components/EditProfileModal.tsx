@@ -8,7 +8,7 @@ import UIDDisplay from './shared/UIDDisplay';
 import QRCodeSection from './shared/QRCodeSection';
 import { API_URL } from '../config/webrtc-config';
 import { useAuthStore } from '../store/authStore';
-import { uploadToBackblaze } from '../services/backblaze';
+import { compressImageToDataUrl } from '../services/backblaze';
 import './EditProfileModal.css';
 
 interface Props {
@@ -81,21 +81,21 @@ export const EditProfileModal: React.FC<Props> = ({ isOpen, onClose, profile, on
       return;
     }
     
-    setSaving(true);
-    try {
-      let finalAvatarUrl = avatarUrl;
-
-      if (avatarFile) {
-        try {
-          const uploaded = await uploadToBackblaze(avatarFile, 'avatars');
-          finalAvatarUrl = uploaded.url;
-        } catch (uploadError) {
-          console.error(uploadError);
-          alert('Avatar upload failed. Please try again.');
-          setSaving(false);
-          return;
-        }
-      }
+setSaving(true);
+     try {
+       let finalAvatarUrl = avatarUrl;
+ 
+       if (avatarFile) {
+         try {
+           // For avatars, use direct Data URL compression to avoid storage dependency
+           finalAvatarUrl = await compressImageToDataUrl(avatarFile);
+         } catch (uploadError) {
+           console.error(uploadError);
+           alert('Avatar upload failed. Please try again.');
+           setSaving(false);
+           return;
+         }
+       }
 
       const payload: any = {
         displayName: displayName.trim(),

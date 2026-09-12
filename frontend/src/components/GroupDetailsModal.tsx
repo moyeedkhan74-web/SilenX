@@ -5,7 +5,7 @@ import Button from './ui/Button';
 import AvatarDisplay from './shared/AvatarDisplay';
 import { Conversation } from '../types';
 import { useChatStore } from '../store/chatStore';
-import { uploadToBackblaze } from '../services/backblaze';
+import { compressImageToDataUrl } from '../services/backblaze';
 import './GroupDetailsModal.css';
 
 interface GroupDetailsModalProps {
@@ -61,22 +61,22 @@ export const GroupDetailsModal: React.FC<GroupDetailsModalProps> = ({
       return;
     }
 
-    setSaving(true);
-    setError('');
+setSaving(true);
+     setError('');
 
-    try {
-      let finalAvatarUrl = avatarUrl.trim();
-      if (avatarFile) {
-        try {
-          const uploaded = await uploadToBackblaze(avatarFile, 'group-avatars');
-          finalAvatarUrl = uploaded.url;
-        } catch (uploadErr) {
-          console.error(uploadErr);
-          setError('Failed to upload image');
-          setSaving(false);
-          return;
-        }
-      }
+     try {
+       let finalAvatarUrl = avatarUrl.trim();
+       if (avatarFile) {
+         try {
+           // For group avatars, use direct Data URL compression to avoid storage dependency
+           finalAvatarUrl = await compressImageToDataUrl(avatarFile);
+         } catch (uploadErr) {
+           console.error(uploadErr);
+           setError('Failed to upload image');
+           setSaving(false);
+           return;
+         }
+       }
 
       const success = await updateGroup(groupId, {
         name: groupName.trim(),
