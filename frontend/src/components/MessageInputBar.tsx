@@ -5,6 +5,7 @@ import data from '@emoji-mart/data';
 import { AttachmentMenu } from './AttachmentMenu';
 import VoiceRecorderBar from './VoiceRecorderBar';
 import { MediaProgressRing } from './MediaProgressRing';
+import { FilePreviewModal } from './FilePreviewModal';
 import type { ChatMessage } from '../types';
 
 interface ReplyTo {
@@ -40,9 +41,8 @@ export function MessageInputBar({ onSend, onSendRichMessage, replyTo, onCancelRe
   const [gifResults, setGifResults] = useState<GiphyGifResult[]>([]);
   const [gifLoading, setGifLoading] = useState(false);
   const [gifError, setGifError] = useState('');
-  const [uploadProgress, setUploadProgress] = useState<number>(0); // used for upload progress tracking in pending_sync state
-  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-  const [caption, setCaption] = useState('');
+  const [uploadProgress, setUploadProgress] = useState<number>(0);
+  const [stagedFiles, setStagedFiles] = useState<File[]>([]);
   const textRef = useRef<HTMLTextAreaElement>(null);
   const giphyRequestId = useRef(0);
 
@@ -58,6 +58,15 @@ export function MessageInputBar({ onSend, onSendRichMessage, replyTo, onCancelRe
       textRef.current?.focus();
     }
   }, [replyTo]);
+
+  // Handle clipboard paste of images/files
+  const handlePaste = (e: React.ClipboardEvent) => {
+    if (e.clipboardData.files && e.clipboardData.files.length > 0) {
+      e.preventDefault();
+      const pasted = Array.from(e.clipboardData.files);
+      setStagedFiles((prev) => [...prev, ...pasted]);
+    }
+  };
 
   const searchGifs = useCallback(async (query: string) => {
     const apiKey = (import.meta.env.VITE_GIPHY_API_KEY as string | undefined)?.trim() || 'FJc0d6OAjgypqFa3I1rCIQuiGieP8qVs';
@@ -124,7 +133,7 @@ export function MessageInputBar({ onSend, onSendRichMessage, replyTo, onCancelRe
     onCancelReply?.();
   };
 
-  // ─── Voice notes (full recorder UI lives in VoiceRecorderBar) ───
+  // ─── Voice notes ───
   const handleSendVoiceNote = useCallback((mediaUrl: string, durationSeconds: number) => {
     const mm = Math.floor(durationSeconds / 60);
     const ss = Math.floor(durationSeconds % 60);
@@ -202,57 +211,40 @@ export function MessageInputBar({ onSend, onSendRichMessage, replyTo, onCancelRe
     setAttachOpen(false);
   };
 
-  // ─── Multi-select file browsing ───
-  const handleFileSelect = (files: FileList) => {
-    const newFiles = Array.from(files).slice(0, 10); // cap batch size to 10
-    setSelectedFiles((prev) => {
-      // Combine with existing, dedupe by name
-      const combined = [...prev, ...newFiles];
-      const deduped = combined.filter(
-        (file, index) => combined.findIndex((f) => f.name === file.name) === index
-      );
-      setCaption(''); // reset caption on new selection
-      return deduped.slice(0, 10);
-    });
-  };
-
-  const sendBatch = async () => {
-    if (selectedFiles.length === 0) {
-      return;
-    }
-
+  // Dispatch files from FilePreviewModal
+  const handleSendStagedFiles = async ({ files, caption, isViewOnce }: { files: File[]; caption: string; isViewOnce: boolean }) => {
+    if (files.length === 0) return;
     const mediaGroupId = crypto.randomUUID();
-    const batchCaption = caption.trim();
+    setStagedFiles([]);
 
-    // Send each file with the same mediaGroupId and optional caption on first item
-    for (let index = 0; index < selectedFiles.length; index++) {
-      const file = selectedFiles[index];
-      const fileReader = new FileReader();
-      const dataUrlPromise = new Promise<string>((resolve) => {
-        fileReader.onloadend = () => resolve(fileReader.result as string);
-        fileReader.readAsDataURL(file);
+    for (let index = 0; index < files.length; index++) {
+      const file = files[index];
+      const dataUrl = await new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.readAsDataURL(file);
       });
 
-      const dataUrl = await dataUrlPromise;
-
-      const isImage = file.type.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp)$/i.test(file.name);
+      const isImage = file.type.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(file.name);
       const isVideo = file.type.startsWith('video/') || /\.(mp4|webm|mov|mkv)$/i.test(file.name);
-      const validContentType: ChatMessage['contentType'] = isImage ? 'image' : isVideo ? 'video' : 'file';
-      const mimeType = file.type || (isImage ? 'image/jpeg' : isVideo ? 'video/mp4' : 'application/octet-stream');
+      const isVoice = file.type.startsWith('audio/') || /\.(mp3|wav|ogg|m4a)$/i.test(file.name);
+
+      let contentType: ChatMessage['contentType'] = isImage ? 'image' : isVideo ? 'video' : isVoice ? 'voice-note' : 'file';
+      if (isViewOnce && (isImage || isVideo)) {
+        contentType = 'view-once';
+      }
 
       onSendRichMessage?.({
-        text: index === 0 && batchCaption ? batchCaption : file.name,
-        contentType: validContentType,
+        text: index === 0 && caption ? caption : file.name,
+        contentType,
         mediaUrl: dataUrl,
         fileName: file.name,
         fileSize: (file.size / 1024 / 1024).toFixed(1) + ' MB',
-        fileType: mimeType,
+        fileType: file.type || 'application/octet-stream',
         mediaGroupId,
+        isViewOnce,
       });
     }
-
-    setSelectedFiles([]);
-    setCaption('');
   };
 
   return (
@@ -367,41 +359,31 @@ export function MessageInputBar({ onSend, onSendRichMessage, replyTo, onCancelRe
         onSendDocument={handleSendDocument}
         onSendPoll={handleSendPoll}
         onSendEvent={handleSendEvent}
+        onSelectFiles={(files) => setStagedFiles((prev) => [...prev, ...files])}
       />
 
       <input
         id="file-input"
         type="file"
         multiple
-        accept="image/*,video/*,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.presentationml.presentation"
+        accept="image/*,video/*,audio/*,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/zip"
         style={{ display: 'none' }}
-        onChange={(e) => handleFileSelect(e.target.files as FileList)}
+        onChange={(e) => {
+          if (e.target.files?.length) {
+            setStagedFiles((prev) => [...prev, ...Array.from(e.target.files!)]);
+            e.target.value = '';
+          }
+        }}
       />
 
-      {selectedFiles.length > 0 && (
-        <div className="media-preview-panel">
-          <div className="media-preview-grid">
-            {selectedFiles.map((f, i) => (
-              <img
-                key={i}
-                src={URL.createObjectURL(f)}
-                className="media-preview-thumb"
-                alt={f.name}
-              />
-            ))}
-          </div>
-          <div className="media-preview-caption">
-            <input
-              type="text"
-              placeholder="Add a caption"
-              value={caption}
-              onChange={(e) => setCaption(e.target.value)}
-              className="media-caption-input"
-            />
-          </div>
-          <button onClick={sendBatch}>Send {selectedFiles.length}</button>
-        </div>
-      )}
+      <FilePreviewModal
+        isOpen={stagedFiles.length > 0}
+        onClose={() => setStagedFiles([])}
+        files={stagedFiles}
+        onRemoveFile={(idx) => setStagedFiles((prev) => prev.filter((_, i) => i !== idx))}
+        onAddFiles={(newFiles) => setStagedFiles((prev) => [...prev, ...newFiles])}
+        onSend={handleSendStagedFiles}
+      />
 
       <div className="input-row">
         {voiceMode ? (
@@ -419,6 +401,7 @@ export function MessageInputBar({ onSend, onSendRichMessage, replyTo, onCancelRe
               <textarea
                 ref={textRef}
                 value={text}
+                onPaste={handlePaste}
                 onChange={(event) => {
                   setText(event.target.value);
                   onTypingChange?.(event.target.value.trim().length > 0);
@@ -430,7 +413,7 @@ export function MessageInputBar({ onSend, onSendRichMessage, replyTo, onCancelRe
                     handleSend();
                   }
                 }}
-                placeholder="Type a secure message..."
+                placeholder="Type a secure message (or paste files)..."
                 rows={1}
                 className="msg-textarea"
               />
@@ -444,12 +427,6 @@ export function MessageInputBar({ onSend, onSendRichMessage, replyTo, onCancelRe
             >
               <Paperclip size={22} />
             </button>
-
-            {selectedFiles.length > 0 && (
-              <div className="selected-files-badge">
-                {selectedFiles.length} selected
-              </div>
-            )}
 
             {text.trim() ? (
               <button className="send-btn active" onClick={handleSend} type="button">

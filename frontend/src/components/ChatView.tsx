@@ -18,6 +18,7 @@ import { MediaMessage } from './MediaMessage';
 import { MediaViewer } from './MediaViewer';
 import VoiceNotePlayer from './VoiceNotePlayer';
 import { EncryptionBadge } from './EncryptionBadge';
+import { FilePreviewModal } from './FilePreviewModal';
 import { useAuthStore } from '../store/authStore';
 import { useSettingsStore } from '../store/settingsStore';
 import WallpaperPicker from './WallpaperPicker';
@@ -42,6 +43,8 @@ export const ChatView: React.FC = () => {
   const [contactDetailsOpen, setContactDetailsOpen] = useState(false);
   const [groupDetailsOpen, setGroupDetailsOpen] = useState(false);
   const [wallpaperPickerOpen, setWallpaperPickerOpen] = useState(false);
+  const [isDraggingOver, setIsDraggingOver] = useState(false);
+  const [droppedFiles, setDroppedFiles] = useState<File[]>([]);
   const typingTimers = useRef<Record<string, NodeJS.Timeout>>({}); 
   const closeTimer = useRef<number | null>(null);
 
@@ -585,7 +588,33 @@ export const ChatView: React.FC = () => {
     : (status === 'online' ? 'Online' : formattedLastSeen === 'Offline' ? 'Offline' : `Last seen ${formattedLastSeen}`);
 
   return (
-    <div className="chatview">
+    <div
+      className="chatview"
+      onDragOver={(e) => {
+        e.preventDefault();
+        setIsDraggingOver(true);
+      }}
+      onDragLeave={(e) => {
+        if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+        setIsDraggingOver(false);
+      }}
+      onDrop={(e) => {
+        e.preventDefault();
+        setIsDraggingOver(false);
+        if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+          setDroppedFiles(Array.from(e.dataTransfer.files));
+        }
+      }}
+    >
+      {isDraggingOver && (
+        <div className="chat-drag-overlay">
+          <div className="chat-drag-icon">
+            <ImageIcon size={36} />
+          </div>
+          <div className="chat-drag-text">Drop files to preview and send</div>
+          <div className="chat-drag-subtext">Images, videos, documents, or audio clips</div>
+        </div>
+      )}
       <header className="chatview-header">
         <div className="chatview-header-info">
           {isMobile && (
@@ -1082,6 +1111,45 @@ export const ChatView: React.FC = () => {
       <WallpaperPicker
         isOpen={wallpaperPickerOpen}
         onClose={() => setWallpaperPickerOpen(false)}
+      />
+      <FilePreviewModal
+        isOpen={droppedFiles.length > 0}
+        onClose={() => setDroppedFiles([])}
+        files={droppedFiles}
+        onRemoveFile={(idx) => setDroppedFiles((prev) => prev.filter((_, i) => i !== idx))}
+        onAddFiles={(newFiles) => setDroppedFiles((prev) => [...prev, ...newFiles])}
+        onSend={async ({ files, caption, isViewOnce }) => {
+          setDroppedFiles([]);
+          const mediaGroupId = crypto.randomUUID();
+          for (let index = 0; index < files.length; index++) {
+            const file = files[index];
+            const dataUrl = await new Promise<string>((resolve) => {
+              const reader = new FileReader();
+              reader.onloadend = () => resolve(reader.result as string);
+              reader.readAsDataURL(file);
+            });
+
+            const isImage = file.type.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(file.name);
+            const isVideo = file.type.startsWith('video/') || /\.(mp4|webm|mov|mkv)$/i.test(file.name);
+            const isVoice = file.type.startsWith('audio/') || /\.(mp3|wav|ogg|m4a)$/i.test(file.name);
+
+            let contentType: ChatMessage['contentType'] = isImage ? 'image' : isVideo ? 'video' : isVoice ? 'voice-note' : 'file';
+            if (isViewOnce && (isImage || isVideo)) {
+              contentType = 'view-once';
+            }
+
+            handleSendRichMessage({
+              text: index === 0 && caption ? caption : file.name,
+              contentType,
+              mediaUrl: dataUrl,
+              fileName: file.name,
+              fileSize: (file.size / 1024 / 1024).toFixed(1) + ' MB',
+              fileType: file.type || 'application/octet-stream',
+              mediaGroupId,
+              isViewOnce,
+            });
+          }
+        }}
       />
     </div>
   );

@@ -13,6 +13,7 @@ interface AttachmentMenuProps {
   onSendDocument: (data: { fileName: string; fileSize: string; dataUrl: string; fileType?: string }) => void;
   onSendPoll: (data: { question: string; options: string[] }) => void;
   onSendEvent: (data: { title: string; date: string; time: string; description?: string; location?: string }) => void;
+  onSelectFiles?: (files: File[]) => void;
 }
 
 type SubModal = 'none' | 'location' | 'contact' | 'poll' | 'event';
@@ -27,6 +28,7 @@ export const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
   onSendDocument,
   onSendPoll,
   onSendEvent,
+  onSelectFiles,
 }) => {
   const [subModal, setSubModal] = useState<SubModal>('none');
   const menuRef = useRef<HTMLDivElement>(null);
@@ -89,6 +91,13 @@ export const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
   const handleFileSelected = (e: React.ChangeEvent<HTMLInputElement>, type: 'image' | 'camera' | 'video' | 'document') => {
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
+
+    if (onSelectFiles && type !== 'camera') {
+      onSelectFiles(files);
+      closeAndReset();
+      e.target.value = '';
+      return;
+    }
 
     const sendFile = (file: File, fileType: 'image' | 'camera' | 'video' | 'document') => {
       const isVideo = file.type.startsWith('video/');

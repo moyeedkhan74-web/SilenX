@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Download, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Download, X, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RotateCw, Copy, Check } from 'lucide-react';
 import { useChatStore } from '../store/chatStore';
 import type { ChatMessage } from '../types';
 
@@ -18,6 +18,8 @@ export const MediaViewer: React.FC = () => {
   const activeConversationId = useChatStore((state) => state.activeConversationId);
   const messages = useChatStore((state) => state.messages);
   const [zoom, setZoom] = useState(1);
+  const [rotation, setRotation] = useState(0);
+  const [copied, setCopied] = useState(false);
 
   const mediaItems = useMemo(() => {
     if (!activeConversationId) return [] as ChatMessage[];
@@ -43,14 +45,18 @@ export const MediaViewer: React.FC = () => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         setActiveMediaMessage(null);
-      }
-
-      if (event.key === 'ArrowRight' && activeIndex >= 0 && activeIndex < mediaItems.length - 1) {
+      } else if (event.key === 'ArrowRight' && activeIndex >= 0 && activeIndex < mediaItems.length - 1) {
         setActiveMediaMessage(mediaItems[activeIndex + 1]);
-      }
-
-      if (event.key === 'ArrowLeft' && activeIndex > 0) {
+        setZoom(1);
+        setRotation(0);
+      } else if (event.key === 'ArrowLeft' && activeIndex > 0) {
         setActiveMediaMessage(mediaItems[activeIndex - 1]);
+        setZoom(1);
+        setRotation(0);
+      } else if (event.key === '=' || event.key === '+') {
+        setZoom((z) => Math.min(3, z + 0.2));
+      } else if (event.key === '-') {
+        setZoom((z) => Math.max(0.5, z - 0.2));
       }
     };
 
@@ -65,6 +71,7 @@ export const MediaViewer: React.FC = () => {
   useEffect(() => {
     if (!isOpen) {
       setZoom(1);
+      setRotation(0);
     }
   }, [isOpen]);
 
@@ -82,6 +89,7 @@ export const MediaViewer: React.FC = () => {
     if (activeIndex >= 0 && activeIndex < mediaItems.length - 1) {
       setActiveMediaMessage(mediaItems[activeIndex + 1]);
       setZoom(1);
+      setRotation(0);
     }
   };
 
@@ -89,6 +97,7 @@ export const MediaViewer: React.FC = () => {
     if (activeIndex > 0) {
       setActiveMediaMessage(mediaItems[activeIndex - 1]);
       setZoom(1);
+      setRotation(0);
     }
   };
 
@@ -111,10 +120,23 @@ export const MediaViewer: React.FC = () => {
     }
   };
 
+  const handleCopyImage = async () => {
+    if (!activeMediaMessage.mediaUrl || !isImage) return;
+    try {
+      const response = await fetch(activeMediaMessage.mediaUrl);
+      const blob = await response.blob();
+      await navigator.clipboard.write([new ClipboardItem({ [blob.type || 'image/png']: blob })]);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy image to clipboard', err);
+    }
+  };
+
   const handleWheelZoom = (event: React.WheelEvent<HTMLDivElement>) => {
     event.preventDefault();
-    const delta = event.deltaY > 0 ? -0.1 : 0.1;
-    setZoom((current) => Math.min(2.5, Math.max(1, Number((current + delta).toFixed(2)))));
+    const delta = event.deltaY > 0 ? -0.15 : 0.15;
+    setZoom((current) => Math.min(3, Math.max(0.5, Number((current + delta).toFixed(2)))));
   };
 
   const viewerContent = isImage ? (
@@ -123,7 +145,7 @@ export const MediaViewer: React.FC = () => {
         src={activeMediaMessage.mediaUrl}
         alt={getAttachmentName(activeMediaMessage)}
         className="media-viewer-image"
-        style={{ transform: `scale(${zoom})` }}
+        style={{ transform: `scale(${zoom}) rotate(${rotation}deg)`, transition: 'transform 150ms ease-out' }}
       />
     </div>
   ) : isVideo ? (
@@ -133,6 +155,7 @@ export const MediaViewer: React.FC = () => {
         className="media-viewer-video"
         controls
         playsInline
+        autoPlay
         preload="metadata"
         poster={activeMediaMessage.mediaUrl}
       />
@@ -158,17 +181,99 @@ export const MediaViewer: React.FC = () => {
           </button>
         )}
 
+        {/* Top Header Bar */}
         <div className="media-viewer-header">
           <div className="media-viewer-title">{getAttachmentName(activeMediaMessage)}</div>
-          <button className="media-viewer-download-btn" onClick={handleDownload} type="button">
-            <Download size={16} />
-            <span>Download</span>
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {isImage && (
+              <>
+                <button
+                  className="media-viewer-download-btn"
+                  onClick={() => setZoom((z) => Math.min(3, z + 0.25))}
+                  type="button"
+                  title="Zoom in"
+                >
+                  <ZoomIn size={16} />
+                </button>
+                <button
+                  className="media-viewer-download-btn"
+                  onClick={() => setZoom((z) => Math.max(0.5, z - 0.25))}
+                  type="button"
+                  title="Zoom out"
+                >
+                  <ZoomOut size={16} />
+                </button>
+                <button
+                  className="media-viewer-download-btn"
+                  onClick={() => setRotation((r) => (r + 90) % 360)}
+                  type="button"
+                  title="Rotate"
+                >
+                  <RotateCw size={16} />
+                </button>
+                <button
+                  className="media-viewer-download-btn"
+                  onClick={handleCopyImage}
+                  type="button"
+                  title="Copy Image"
+                >
+                  {copied ? <Check size={16} /> : <Copy size={16} />}
+                  <span>{copied ? 'Copied' : 'Copy'}</span>
+                </button>
+              </>
+            )}
+            <button className="media-viewer-download-btn" onClick={handleDownload} type="button">
+              <Download size={16} />
+              <span>Download</span>
+            </button>
+          </div>
         </div>
 
         {viewerContent}
+
+        {/* Bottom Conversation Media Filmstrip */}
+        {mediaItems.length > 1 && (
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '10px 16px',
+            background: 'rgba(15, 23, 42, 0.95)',
+            borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+            overflowX: 'auto'
+          }}>
+            {mediaItems.map((item, idx) => (
+              <div
+                key={item.id}
+                onClick={() => {
+                  setActiveMediaMessage(item);
+                  setZoom(1);
+                  setRotation(0);
+                }}
+                style={{
+                  width: '48px',
+                  height: '48px',
+                  borderRadius: '10px',
+                  overflow: 'hidden',
+                  border: idx === activeIndex ? '2px solid #6366f1' : '2px solid transparent',
+                  cursor: 'pointer',
+                  opacity: idx === activeIndex ? 1 : 0.6,
+                  flexShrink: 0,
+                  transition: 'all 150ms ease'
+                }}
+              >
+                {item.contentType === 'video' ? (
+                  <video src={item.mediaUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                ) : (
+                  <img src={item.mediaUrl} alt="thumb" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>,
     document.body
   );
 };
+
