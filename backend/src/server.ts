@@ -7,6 +7,7 @@ import { Server } from 'socket.io';
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
+import compression from 'compression';
 import crypto from 'crypto';
 import { config } from './config';
 import { registerSocketHandlers } from './websocket/handlers';
@@ -107,6 +108,27 @@ app.use((_req: Request, res: Response, next) => {
 
 app.options('*', cors(corsOptions));
 app.use(express.json());
+
+// Dynamic API Response Compression
+app.use(
+  compression({
+    threshold: 1024, // Only compress payloads >= 1KB
+    level: 6,        // Balanced compression level for Render CPU
+    filter: (req: Request, res: Response) => {
+      if (req.headers['x-no-compression']) {
+        return false;
+      }
+      const contentType = String(res.getHeader('Content-Type') || '');
+      if (
+        req.path.startsWith('/uploads') ||
+        /(image|video|audio|zip|pdf|font|octet-stream)/i.test(contentType)
+      ) {
+        return false;
+      }
+      return compression.filter(req, res);
+    },
+  })
+);
 
 // Serve local uploads folder fallback (safely handle permission restrictions in container environments)
 let uploadsPath = path.join(process.cwd(), 'uploads');

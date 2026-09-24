@@ -1,0 +1,45 @@
+name: Deploy Backend to Serv00 🚀
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'backend/**'
+      - '.github/workflows/deploy-serv00.yml'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Deploy to Serv00 via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERV00_HOST }}
+          username: ${{ secrets.SERV00_USERNAME }}
+          password: ${{ secrets.SERV00_PASSWORD }}
+          port: 22
+          script: |
+            echo "--> Navigating to SilenX backend folder..."
+            cd $HOME/silenx/backend || exit 1
+
+            echo "--> Fetching latest changes from GitHub..."
+            git pull origin main
+
+            echo "--> Installing dependencies..."
+            npm ci --only=production
+
+            echo "--> Building TypeScript..."
+            npm run build
+
+            echo "--> Restarting PM2 process..."
+            pm2 restart silenx-backend || pm2 start ecosystem.config.js
+
+            echo "--> Saving PM2 state..."
+            pm2 save
+
+            echo "--> Deployment to Serv00 successful! 🎉"

@@ -674,32 +674,49 @@
   display: grid;
   grid-template-columns: auto 1fr auto;
   align-items: center;
-  gap: 8px;
-  width: min(100%, 280px);
+  gap: 10px;
+  width: min(100%, 310px);
   min-width: 0;
-  padding: 8px 10px;
-  border-radius: 14px;
-  border: 1px solid var(--border-color);
-  background: var(--color-surface-soft);
+  padding: 10px 12px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: var(--color-surface-soft, rgba(255, 255, 255, 0.06));
+  backdrop-filter: blur(10px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+}
+.media-file-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.22);
+  border-color: rgba(99, 102, 241, 0.4);
 }
 .media-file-icon-wrap {
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   flex-shrink: 0;
-  border-radius: 12px;
+  border-radius: 14px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(var(--color-accent-rgb), 0.12);
+  background: rgba(var(--color-accent-rgb), 0.14);
   color: var(--color-accent);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+  transition: transform 180ms ease;
+}
+.media-file-card:hover .media-file-icon-wrap {
+  transform: scale(1.05);
 }
 .media-file-info {
   min-width: 0;
   flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 .media-file-name {
   font-size: clamp(12px, 2.8vw, 13px);
   font-weight: 700;
+  color: var(--text-primary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -716,12 +733,19 @@
   gap: 6px;
   border: none;
   border-radius: 999px;
-  padding: 6px 10px;
+  padding: 7px 14px;
   cursor: pointer;
-  background: var(--color-primary);
-  color: var(--color-on-accent);
+  background: linear-gradient(135deg, var(--color-primary, #6366f1) 0%, #4f46e5 100%);
+  color: #ffffff;
   font-size: clamp(11px, 2.7vw, 12px);
   font-weight: 700;
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.35);
+  transition: all 160ms ease;
+}
+.media-file-download-btn:hover,
+.media-viewer-download-btn:hover {
+  transform: translateY(-1px) scale(1.04);
+  box-shadow: 0 6px 18px rgba(79, 70, 229, 0.5);
 }
 .media-viewer-overlay {
   position: fixed;
