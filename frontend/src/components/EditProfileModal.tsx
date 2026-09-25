@@ -10,18 +10,12 @@ import {
   Sparkles, 
   ShieldCheck, 
   Camera, 
-  Lock, 
   Zap, 
-  QrCode, 
-  Eye, 
-  Edit3,
   RefreshCw
 } from 'lucide-react';
 import Modal from './ui/Modal';
 import Button from './ui/Button';
 import AvatarDisplay from './shared/AvatarDisplay';
-import UIDDisplay from './shared/UIDDisplay';
-import QRCodeSection from './shared/QRCodeSection';
 import { API_URL } from '../config/webrtc-config';
 import { useAuthStore } from '../store/authStore';
 import { compressImageToDataUrl } from '../services/backblaze';
@@ -55,14 +49,10 @@ export const EditProfileModal: React.FC<Props> = ({ isOpen, onClose, profile, on
   const [saving, setSaving] = useState(false);
   const [displayNameError, setDisplayNameError] = useState('');
   const [copiedBio, setCopiedBio] = useState(false);
-  const [copiedUid, setCopiedUid] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
-  const [activeTab, setActiveTab] = useState<'edit' | 'preview'>('edit');
-  const [showQrPreview, setShowQrPreview] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const currentUser = useAuthStore((s) => s.user);
-  const uid = profile?.uid || currentUser?.uid || 'Loading...';
   const email = profile?.email || currentUser?.email || '';
 
   useEffect(() => {
@@ -75,7 +65,6 @@ export const EditProfileModal: React.FC<Props> = ({ isOpen, onClose, profile, on
       setAvatarFile(null);
       setCropperSrc(null);
       setIsDragOver(false);
-      setActiveTab('edit');
     }
   }, [isOpen, profile, currentUser]);
 
@@ -118,14 +107,6 @@ export const EditProfileModal: React.FC<Props> = ({ isOpen, onClose, profile, on
     navigator.clipboard.writeText(textToCopy);
     setCopiedBio(true);
     setTimeout(() => setCopiedBio(false), 2000);
-  };
-
-  const handleCopyUid = () => {
-    if (uid && uid !== 'Loading...') {
-      navigator.clipboard.writeText(uid);
-      setCopiedUid(true);
-      setTimeout(() => setCopiedUid(false), 2000);
-    }
   };
 
   const handleApplyPresetBio = (presetText: string) => {
@@ -201,8 +182,8 @@ export const EditProfileModal: React.FC<Props> = ({ isOpen, onClose, profile, on
             <ShieldCheck size={20} className="epm-badge-svg" />
           </div>
           <div>
-            <h2 className="epm-title">Edit Identity Profile</h2>
-            <p className="epm-subtitle">Customize your visual persona & encrypted credentials</p>
+            <h2 className="epm-title">Edit Profile</h2>
+            <p className="epm-subtitle">Update your profile photo, display name & bio</p>
           </div>
         </div>
 
@@ -215,27 +196,63 @@ export const EditProfileModal: React.FC<Props> = ({ isOpen, onClose, profile, on
         )}
       </div>
 
-      {/* Mobile Tab Switcher */}
-      <div className="epm-mobile-tabs">
-        <button 
-          type="button"
-          className={`epm-tab-btn ${activeTab === 'edit' ? 'active' : ''}`}
-          onClick={() => setActiveTab('edit')}
-        >
-          <Edit3 size={14} /> Edit Profile
-        </button>
-        <button 
-          type="button"
-          className={`epm-tab-btn ${activeTab === 'preview' ? 'active' : ''}`}
-          onClick={() => setActiveTab('preview')}
-        >
-          <Eye size={14} /> Live Card Preview
-        </button>
-      </div>
+      <div className="epm-content-container">
+        
+        {/* 1. TOP SECTION: Centered Avatar Upload */}
+        <div className="epm-top-avatar-section">
+          <div 
+            className={`epm-top-avatar-circle ${isDragOver ? 'drag-over' : ''}`}
+            onDrop={onDrop}
+            onDragOver={onDragOver}
+            onDragLeave={onDragLeave}
+          >
+            <AvatarDisplay name={displayName || 'User'} avatarUrl={avatarUrl} size={92} />
+            <button
+              type="button"
+              className="epm-avatar-overlay-btn"
+              onClick={() => fileInputRef.current?.click()}
+              title="Upload new avatar"
+            >
+              <Camera size={22} />
+            </button>
+          </div>
 
-      <div className="editor-grid">
-        {/* Left Column: Form Editor */}
-        <div className={`editor-form ${activeTab === 'preview' ? 'mobile-hidden' : ''}`}>
+          <input 
+            type="file" 
+            ref={fileInputRef}
+            accept="image/*" 
+            style={{ display: 'none' }}
+            onChange={(e) => e.target.files?.[0] && handleFileSelect(e.target.files[0])} 
+          />
+
+          <div className="epm-avatar-actions-row">
+            <button
+              type="button"
+              className="epm-btn-upload"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={saving}
+            >
+              <Upload size={14} /> {avatarUrl ? 'Change Photo' : 'Upload Photo'}
+            </button>
+
+            {avatarUrl && (
+              <button
+                type="button"
+                className="epm-btn-remove"
+                onClick={handleRemoveAvatar}
+                disabled={saving}
+              >
+                <Trash2 size={14} /> Remove Photo
+              </button>
+            )}
+          </div>
+          <span className="epm-dropzone-hint">
+            Drag & drop an image or click change photo (JPG, PNG, WebP)
+          </span>
+        </div>
+
+        {/* 2. FORM FIELDS SECTION */}
+        <div className="epm-form-fields">
           
           {/* Display Name Input */}
           <div className="epm-field-group">
@@ -245,7 +262,7 @@ export const EditProfileModal: React.FC<Props> = ({ isOpen, onClose, profile, on
                 <span>Display Name</span>
                 <span className="epm-required-badge">*</span>
               </label>
-              <span className="epm-helper-tag">Visible in chats</span>
+              <span className="epm-helper-tag">Visible to all contacts</span>
             </div>
             
             <div className="epm-input-wrapper">
@@ -254,7 +271,7 @@ export const EditProfileModal: React.FC<Props> = ({ isOpen, onClose, profile, on
                 type="text"
                 className={`epm-input ${displayNameError ? 'has-error' : ''}`}
                 value={displayName}
-                placeholder="Enter your handle or name..."
+                placeholder="Enter your display name..."
                 onChange={(e) => {
                   setDisplayName(e.target.value);
                   if (e.target.value.trim()) setDisplayNameError('');
@@ -307,7 +324,7 @@ export const EditProfileModal: React.FC<Props> = ({ isOpen, onClose, profile, on
             {/* Quick Preset Bios Chips */}
             <div className="epm-preset-bios">
               <span className="epm-presets-title">
-                <Zap size={12} /> Quick Presets:
+                <Zap size={12} /> Quick Status Presets:
               </span>
               <div className="epm-presets-chips">
                 {PRESET_BIOS.map((preset, idx) => (
@@ -325,166 +342,24 @@ export const EditProfileModal: React.FC<Props> = ({ isOpen, onClose, profile, on
             </div>
           </div>
 
-          {/* Avatar Dropzone Section */}
-          <div className="epm-field-group">
-            <label className="epm-label" style={{ marginBottom: '8px' }}>
-              <Camera size={14} className="epm-field-icon" />
-              <span>Profile Avatar</span>
-            </label>
-
-            <div 
-              className={`epm-dropzone ${isDragOver ? 'drag-over' : ''} ${avatarUrl ? 'has-avatar' : ''}`} 
-              onDrop={onDrop} 
-              onDragOver={onDragOver}
-              onDragLeave={onDragLeave}
-            >
-              <div className="epm-dropzone-avatar">
-                <AvatarDisplay name={displayName || 'User'} avatarUrl={avatarUrl} size={64} />
-                <button
-                  type="button"
-                  className="epm-avatar-overlay-btn"
-                  onClick={() => fileInputRef.current?.click()}
-                  title="Change avatar photo"
-                >
-                  <Camera size={18} />
-                </button>
-              </div>
-
-              <div className="epm-dropzone-info">
-                <div className="epm-dropzone-title">
-                  {avatarUrl ? 'Custom Avatar Active' : 'Upload or Drop Picture'}
-                </div>
-                <div className="epm-dropzone-subtitle">
-                  Supports JPG, PNG, WebP up to 5MB (Square ratio recommended)
-                </div>
-
-                <input 
-                  type="file" 
-                  ref={fileInputRef}
-                  accept="image/*" 
-                  style={{ display: 'none' }}
-                  onChange={(e) => e.target.files?.[0] && handleFileSelect(e.target.files[0])} 
-                />
-
-                <div className="epm-dropzone-actions">
-                  <button
-                    type="button"
-                    className="epm-btn-upload"
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={saving}
-                  >
-                    <Upload size={14} /> {avatarUrl ? 'Replace Photo' : 'Upload Photo'}
-                  </button>
-
-                  {avatarUrl && (
-                    <button
-                      type="button"
-                      className="epm-btn-remove"
-                      onClick={handleRemoveAvatar}
-                      disabled={saving}
-                    >
-                      <Trash2 size={14} /> Remove
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Form Actions Row */}
-          <div className="actions-row">
-            <Button variant="secondary" onClick={onClose} disabled={saving} className="epm-action-cancel">
-              Cancel
-            </Button>
-            <Button variant="primary" onClick={handleSave} disabled={saving || isBioTooLong} className="epm-action-save">
-              {saving ? (
-                <>
-                  <RefreshCw size={15} className="spin-icon" /> Saving Profile...
-                </>
-              ) : (
-                <>
-                  <Save size={15} /> Save Changes
-                </>
-              )}
-            </Button>
-          </div>
-
         </div>
 
-        {/* Right Column: Live Card Preview */}
-        <div className={`editor-preview ${activeTab === 'edit' ? 'mobile-hidden' : ''}`}>
-          <div className="epm-preview-header">
-            <div className="epm-preview-title">
-              <Eye size={14} /> Live Identity Card
-            </div>
-            <div className="epm-live-indicator">
-              <span className="epm-pulse-dot" /> LIVE PREVIEW
-            </div>
-          </div>
-
-          <div className="epm-card-container">
-            {/* Ambient Graphic Banner */}
-            <div className="epm-card-banner">
-              <div className="epm-card-banner-grid" />
-              <div className="epm-card-badge-tag">
-                <Lock size={11} /> ENCRYPTED NODE
-              </div>
-            </div>
-
-            {/* Avatar & Main Content */}
-            <div className="epm-card-body">
-              <div className="epm-card-avatar-wrap">
-                <AvatarDisplay name={displayName || 'User'} avatarUrl={avatarUrl} size={76} />
-                <span className="epm-card-status-pulse" title="Online & Secured" />
-              </div>
-
-              <div className="epm-card-name">
-                {displayName || 'Your Name'}
-              </div>
-
-              <div className="epm-card-bio">
-                "{bio || DEFAULT_ENHANCED_BIO}"
-              </div>
-
-              {/* Secure ID Box */}
-              <div className="epm-card-uid-box">
-                <div className="epm-card-uid-header">
-                  <span className="epm-uid-label">SECURE UID</span>
-                  <button
-                    type="button"
-                    className="epm-uid-copy-btn"
-                    onClick={handleCopyUid}
-                    title="Copy UID"
-                  >
-                    {copiedUid ? <Check size={12} className="text-green" /> : <Copy size={12} />}
-                    <span>{copiedUid ? 'Copied' : 'Copy'}</span>
-                  </button>
-                </div>
-                
-                <UIDDisplay uid={uid} isLoading={uid === 'Loading...'} />
-              </div>
-
-              {/* QR Code Collapsible preview */}
-              {uid !== 'Loading...' && (
-                <div className="epm-card-qr-section">
-                  <button 
-                    type="button" 
-                    className="epm-qr-toggle-btn"
-                    onClick={() => setShowQrPreview(!showQrPreview)}
-                  >
-                    <QrCode size={14} />
-                    <span>{showQrPreview ? 'Hide QR Signatures' : 'Show Instant QR Code'}</span>
-                  </button>
-
-                  {showQrPreview && (
-                    <div className="epm-qr-container">
-                      <QRCodeSection uid={uid} size={140} />
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
+        {/* 3. ACTIONS FOOTER */}
+        <div className="actions-row">
+          <Button variant="secondary" onClick={onClose} disabled={saving} className="epm-action-cancel">
+            Cancel
+          </Button>
+          <Button variant="primary" onClick={handleSave} disabled={saving || isBioTooLong} className="epm-action-save">
+            {saving ? (
+              <>
+                <RefreshCw size={15} className="spin-icon" /> Saving Profile...
+              </>
+            ) : (
+              <>
+                <Save size={15} /> Save Changes
+              </>
+            )}
+          </Button>
         </div>
 
       </div>
@@ -505,4 +380,5 @@ export const EditProfileModal: React.FC<Props> = ({ isOpen, onClose, profile, on
 };
 
 export default EditProfileModal;
+
 

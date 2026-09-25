@@ -1,17 +1,17 @@
 /* ============================================================
-   EDIT PROFILE MODAL (EPM) - TOP-NOTCH GLASSMORPHIC OVERHAUL
+   EDIT PROFILE MODAL (EPM) - TOP-CENTERED PROFILE OVERHAUL
    ============================================================ */
 
 .modal-content.edit-profile-modal {
-  max-width: 860px !important;
-  width: 92vw !important;
-  max-height: 90vh !important;
+  max-width: 560px !important;
+  width: 90vw !important;
+  max-height: 88vh !important;
   padding: 0 !important;
   border-radius: 24px !important;
   background: var(--color-surface, #0f172a) !important;
   border: 1px solid rgba(255, 255, 255, 0.12) !important;
   box-shadow: 
-    0 32px 80px rgba(0, 0, 0, 0.55),
+    0 32px 80px rgba(0, 0, 0, 0.6),
     0 0 0 1px rgba(255, 255, 255, 0.08) inset,
     0 0 40px rgba(13, 148, 136, 0.15) !important;
   overflow-y: auto !important;
@@ -24,11 +24,12 @@
 .modal-glow-ambient {
   position: absolute;
   top: -80px;
-  right: -80px;
-  width: 260px;
-  height: 260px;
-  background: radial-gradient(circle, rgba(13, 148, 136, 0.25) 0%, rgba(99, 102, 241, 0.12) 50%, transparent 70%);
-  filter: blur(50px);
+  right: 50%;
+  transform: translateX(50%);
+  width: 300px;
+  height: 300px;
+  background: radial-gradient(circle, rgba(13, 148, 136, 0.22) 0%, rgba(99, 102, 241, 0.12) 50%, transparent 70%);
+  filter: blur(60px);
   pointer-events: none;
   z-index: 0;
 }
@@ -54,8 +55,8 @@
 }
 
 .epm-icon-badge {
-  width: 44px;
-  height: 44px;
+  width: 42px;
+  height: 42px;
   border-radius: 14px;
   background: linear-gradient(135deg, rgba(13, 148, 136, 0.25) 0%, rgba(99, 102, 241, 0.2) 100%);
   border: 1px solid rgba(13, 148, 136, 0.4);
@@ -91,7 +92,7 @@
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  padding: 6px 12px;
+  padding: 5px 12px;
   border-radius: 20px;
   background: rgba(15, 23, 42, 0.6);
   border: 1px solid rgba(255, 255, 255, 0.1);
@@ -112,55 +113,127 @@
   box-shadow: 0 0 8px #22c55e;
 }
 
-/* ── Mobile Tab Switcher ────────────────────────────────── */
-.epm-mobile-tabs {
-  display: none;
-  padding: 12px 20px 0 20px;
-  gap: 8px;
+/* ── Content Container ──────────────────────────────────── */
+.epm-content-container {
+  position: relative;
+  z-index: 1;
+  padding: 24px 28px 28px 28px;
+  display: flex;
+  flex-direction: column;
 }
 
-.epm-tab-btn {
-  flex: 1;
-  padding: 9px;
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.04);
-  color: var(--text-secondary);
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
+/* ── TOP SECTION: Centered Avatar Upload ─────────────────── */
+.epm-top-avatar-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  margin-bottom: 24px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.epm-top-avatar-circle {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, rgba(20, 184, 166, 0.6) 0%, rgba(99, 102, 241, 0.4) 100%);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.4), 0 0 20px rgba(13, 148, 136, 0.2);
+  margin-bottom: 14px;
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.epm-top-avatar-circle:hover,
+.epm-top-avatar-circle.drag-over {
+  transform: scale(1.03);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5), 0 0 30px rgba(13, 148, 136, 0.4);
+}
+
+.epm-avatar-overlay-btn {
+  position: absolute;
+  inset: 4px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(4px);
+  border: none;
+  color: #ffffff;
   display: flex;
   align-items: center;
   justify-content: center;
+  opacity: 0;
+  cursor: pointer;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.epm-top-avatar-circle:hover .epm-avatar-overlay-btn {
+  opacity: 1;
+}
+
+.epm-avatar-actions-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.epm-btn-upload {
+  display: inline-flex;
+  align-items: center;
   gap: 6px;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 12px;
+  border: 1px solid rgba(13, 148, 136, 0.4);
+  background: rgba(13, 148, 136, 0.15);
+  color: var(--color-accent, #14b8a6);
+  cursor: pointer;
   transition: all 0.2s ease;
 }
 
-.epm-tab-btn.active {
-  background: rgba(13, 148, 136, 0.2);
+.epm-btn-upload:hover {
+  background: rgba(13, 148, 136, 0.3);
   border-color: var(--color-accent, #14b8a6);
   color: #ffffff;
-  box-shadow: 0 4px 12px rgba(13, 148, 136, 0.25);
+  transform: translateY(-1px);
 }
 
-/* ── Main Editor Grid ───────────────────────────────────── */
-.editor-grid {
-  position: relative;
-  z-index: 1;
-  display: grid;
-  grid-template-columns: 1fr 320px;
-  gap: 24px;
-  padding: 24px 28px 28px 28px;
-  align-items: flex-start;
+.epm-btn-remove {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 12px;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+  cursor: pointer;
+  transition: all 0.2s ease;
 }
 
-.editor-form {
+.epm-btn-remove:hover {
+  background: rgba(239, 68, 68, 0.25);
+  border-color: #ef4444;
+  transform: translateY(-1px);
+}
+
+.epm-dropzone-hint {
+  font-size: 11.5px;
+  color: var(--text-tertiary);
+}
+
+/* ── FORM FIELDS SECTION ────────────────────────────────── */
+.epm-form-fields {
   display: flex;
   flex-direction: column;
   gap: 20px;
 }
 
-/* ── Form Fields & Labels ────────────────────────────────── */
 .epm-field-group {
   display: flex;
   flex-direction: column;
@@ -206,7 +279,7 @@
 .epm-input {
   width: 100%;
   padding: 12px 14px;
-  padding-right: 50px;
+  padding-right: 55px;
   border-radius: 12px;
   border: 1px solid rgba(255, 255, 255, 0.12);
   background: rgba(15, 23, 42, 0.7);
@@ -370,129 +443,13 @@
   transform: translateY(-1px);
 }
 
-/* ── Avatar Dropzone ────────────────────────────────────── */
-.epm-dropzone {
-  display: flex;
-  align-items: center;
-  gap: 18px;
-  padding: 16px 20px;
-  border: 2px dashed rgba(255, 255, 255, 0.14);
-  border-radius: 16px;
-  background: rgba(15, 23, 42, 0.5);
-  transition: all 0.25s ease;
-}
-
-.epm-dropzone:hover,
-.epm-dropzone.drag-over {
-  border-color: var(--color-accent, #14b8a6);
-  background: rgba(13, 148, 136, 0.08);
-  box-shadow: 0 0 20px rgba(13, 148, 136, 0.15);
-}
-
-.epm-dropzone-avatar {
-  position: relative;
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.epm-avatar-overlay-btn {
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  background: rgba(0, 0, 0, 0.55);
-  backdrop-filter: blur(4px);
-  border: none;
-  color: #ffffff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  opacity: 0;
-  cursor: pointer;
-  transition: opacity 0.2s ease, transform 0.2s ease;
-}
-
-.epm-dropzone-avatar:hover .epm-avatar-overlay-btn {
-  opacity: 1;
-}
-
-.epm-dropzone-info {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.epm-dropzone-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-.epm-dropzone-subtitle {
-  font-size: 12px;
-  color: var(--text-tertiary);
-  line-height: 1.35;
-}
-
-.epm-dropzone-actions {
-  display: flex;
-  gap: 8px;
-  margin-top: 4px;
-  flex-wrap: wrap;
-}
-
-.epm-btn-upload {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 14px;
-  font-size: 12.5px;
-  font-weight: 600;
-  border-radius: 10px;
-  border: 1px solid rgba(13, 148, 136, 0.4);
-  background: rgba(13, 148, 136, 0.15);
-  color: var(--color-accent, #14b8a6);
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.epm-btn-upload:hover {
-  background: rgba(13, 148, 136, 0.3);
-  border-color: var(--color-accent, #14b8a6);
-  color: #ffffff;
-  transform: translateY(-1px);
-}
-
-.epm-btn-remove {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 12px;
-  font-size: 12.5px;
-  font-weight: 600;
-  border-radius: 10px;
-  border: 1px solid rgba(239, 68, 68, 0.3);
-  background: rgba(239, 68, 68, 0.1);
-  color: #ef4444;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.epm-btn-remove:hover {
-  background: rgba(239, 68, 68, 0.25);
-  border-color: #ef4444;
-  transform: translateY(-1px);
-}
-
 /* ── Actions Row (Footer) ────────────────────────────────── */
 .actions-row {
   display: flex;
   justify-content: flex-end;
   align-items: center;
   gap: 12px;
-  margin-top: 8px;
+  margin-top: 20px;
   padding-top: 18px;
   border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
@@ -513,7 +470,7 @@
 
 .epm-action-save {
   border-radius: 12px !important;
-  padding: 10px 22px !important;
+  padding: 10px 24px !important;
   font-size: 13.5px !important;
   font-weight: 600 !important;
   background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%) !important;
@@ -535,248 +492,12 @@
   to { transform: rotate(360deg); }
 }
 
-/* ── Right Column: Live Card Preview ────────────────────── */
-.editor-preview {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  position: sticky;
-  top: 0;
-}
-
-.epm-preview-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.epm-preview-title {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.8px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.epm-live-indicator {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 10px;
-  font-weight: 700;
-  color: var(--color-accent, #14b8a6);
-  letter-spacing: 1px;
-}
-
-.epm-pulse-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--color-accent, #14b8a6);
-  box-shadow: 0 0 8px var(--color-accent, #14b8a6);
-  animation: pulse 1.8s infinite;
-}
-
-/* Card Container */
-.epm-card-container {
-  border-radius: 20px;
-  background: linear-gradient(180deg, rgba(30, 41, 59, 0.7) 0%, rgba(15, 23, 42, 0.9) 100%);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.05) inset;
-  overflow: hidden;
-  transition: all 0.3s ease;
-}
-
-.epm-card-container:hover {
-  border-color: rgba(13, 148, 136, 0.3);
-  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.45), 0 0 30px rgba(13, 148, 136, 0.15);
-}
-
-/* Banner Graphic */
-.epm-card-banner {
-  height: 64px;
-  background: linear-gradient(135deg, rgba(13, 148, 136, 0.4) 0%, rgba(99, 102, 241, 0.3) 100%);
-  position: relative;
-  overflow: hidden;
-  display: flex;
-  justify-content: flex-end;
-  padding: 10px 14px;
-}
-
-.epm-card-banner-grid {
-  position: absolute;
-  inset: 0;
-  background-image: radial-gradient(rgba(255, 255, 255, 0.15) 1px, transparent 1px);
-  background-size: 12px 12px;
-  opacity: 0.5;
-}
-
-.epm-card-badge-tag {
-  position: relative;
-  z-index: 1;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  background: rgba(0, 0, 0, 0.4);
-  backdrop-filter: blur(6px);
-  padding: 3px 8px;
-  border-radius: 12px;
-  font-size: 9.5px;
-  font-weight: 700;
-  color: #69f0cc;
-  letter-spacing: 0.8px;
-  border: 1px solid rgba(105, 240, 204, 0.3);
-  height: max-content;
-}
-
-/* Card Main Body */
-.epm-card-body {
-  padding: 0 20px 20px 20px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-  margin-top: -38px;
-}
-
-.epm-card-avatar-wrap {
-  position: relative;
-  margin-bottom: 12px;
-  padding: 3px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, rgba(20, 184, 166, 0.6) 0%, rgba(99, 102, 241, 0.4) 100%);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
-}
-
-.epm-card-status-pulse {
-  position: absolute;
-  bottom: 4px;
-  right: 4px;
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  background: #22c55e;
-  border: 2.5px solid #0f172a;
-  box-shadow: 0 0 10px #22c55e;
-}
-
-.epm-card-name {
-  font-size: 17px;
-  font-weight: 700;
-  color: var(--text-primary);
-  margin-bottom: 6px;
-  word-break: break-word;
-}
-
-.epm-card-bio {
-  font-size: 13px;
-  color: var(--text-secondary);
-  margin-bottom: 16px;
-  line-height: 1.4;
-  word-break: break-word;
-  font-style: italic;
-  padding: 0 8px;
-}
-
-/* Secure UID Box in Preview */
-.epm-card-uid-box {
-  width: 100%;
-  background: rgba(15, 23, 42, 0.8);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 12px;
-  padding: 10px 12px;
-  box-sizing: border-box;
-  text-align: left;
-}
-
-.epm-card-uid-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 6px;
-}
-
-.epm-uid-label {
-  font-size: 10px;
-  font-weight: 700;
-  color: var(--text-tertiary);
-  letter-spacing: 0.8px;
-}
-
-.epm-uid-copy-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  background: transparent;
-  border: none;
-  color: var(--color-accent, #14b8a6);
-  font-size: 11px;
-  font-weight: 600;
-  cursor: pointer;
-  padding: 2px 4px;
-  border-radius: 4px;
-  transition: all 0.15s ease;
-}
-
-.epm-uid-copy-btn:hover {
-  background: rgba(13, 148, 136, 0.15);
-}
-
-.text-green {
-  color: #22c55e !important;
-}
-
-/* QR Collapsible Section */
-.epm-card-qr-section {
-  width: 100%;
-  margin-top: 12px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.epm-qr-toggle-btn {
-  width: 100%;
-  padding: 8px;
-  border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.04);
-  color: var(--text-secondary);
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  transition: all 0.2s ease;
-}
-
-.epm-qr-toggle-btn:hover {
-  background: rgba(255, 255, 255, 0.08);
-  color: var(--text-primary);
-}
-
-.epm-qr-container {
-  margin-top: 12px;
-  padding: 12px;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  display: flex;
-  justify-content: center;
-  animation: fadeIn 0.25s ease-out;
-}
-
 /* ── Responsive Mobile Alignment ───────────────────────── */
-@media (max-width: 780px) {
+@media (max-width: 600px) {
   .modal-content.edit-profile-modal {
-    width: 95vw !important;
-    max-width: 95vw !important;
-    max-height: 94vh !important;
+    width: 94vw !important;
+    max-width: 94vw !important;
+    max-height: 92vh !important;
     border-radius: 20px !important;
   }
 
@@ -784,27 +505,11 @@
     padding: 18px 16px 14px 16px;
   }
 
+  .epm-content-container {
+    padding: 18px 16px;
+  }
+
   .epm-title {
     font-size: 18px;
-  }
-
-  .epm-mobile-tabs {
-    display: flex;
-  }
-
-  .editor-grid {
-    display: flex;
-    flex-direction: column;
-    padding: 16px;
-    gap: 16px;
-  }
-
-  .editor-preview {
-    width: 100%;
-    position: static;
-  }
-
-  .mobile-hidden {
-    display: none !important;
   }
 }
