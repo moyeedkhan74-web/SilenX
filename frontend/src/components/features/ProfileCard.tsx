@@ -29,7 +29,7 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
   const name = profile?.displayName || 'Loading...';
   const email = profile?.email || '';
   const status = profile?.status || 'offline';
-  const defaultEnhancedBio = "Hey!! I'm using SilenX 🔒";
+  const defaultEnhancedBio = "Available on SilenX";
   const bio = profile?.bio && profile.bio.trim() ? profile.bio : defaultEnhancedBio;
   const avatarUrl = profile?.avatarUrl;
 

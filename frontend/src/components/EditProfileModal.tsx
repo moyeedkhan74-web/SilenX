@@ -10,7 +10,6 @@ import {
   Sparkles, 
   ShieldCheck, 
   Camera, 
-  Zap, 
   RefreshCw
 } from 'lucide-react';
 import Modal from './ui/Modal';
@@ -29,15 +28,15 @@ interface Props {
   onSaved: () => void;
 }
 
-const DEFAULT_ENHANCED_BIO = "Hey!! I'm using SilenX 🔒";
+const DEFAULT_ENHANCED_BIO = "Available on SilenX";
 const BIO_MAX_LENGTH = 160;
 
 const PRESET_BIOS = [
-  "🔒 E2E Encrypted & Anonymous",
-  "⚡ Silent Operator | SilenX",
-  "🛡️ Privacy is a fundamental right",
-  "💬 Reach out via my Secure ID",
-  "🚀 Digital Nomad & Tech Enthusiast"
+  "Available",
+  "End-to-End Encrypted",
+  "Silent Mode Active",
+  "Busy",
+  "Do Not Disturb"
 ];
 
 export const EditProfileModal: React.FC<Props> = ({ isOpen, onClose, profile, onSaved }) => {
@@ -324,7 +323,7 @@ export const EditProfileModal: React.FC<Props> = ({ isOpen, onClose, profile, on
             {/* Quick Preset Bios Chips */}
             <div className="epm-preset-bios">
               <span className="epm-presets-title">
-                <Zap size={12} /> Quick Status Presets:
+                <Sparkles size={12} /> Status Presets:
               </span>
               <div className="epm-presets-chips">
                 {PRESET_BIOS.map((preset, idx) => (
