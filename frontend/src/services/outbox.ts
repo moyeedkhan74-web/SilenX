@@ -47,23 +47,23 @@ const ACK_TIMEOUT_MS = 8_000;
 function buildPreviewText(payload: OutgoingPayload): string {
   switch (payload.contentType) {
     case 'voice-note':
-      return `🎤 Voice note${payload.duration ? ` (${payload.duration})` : ''}`;
+      return `Voice note${payload.duration ? ` (${payload.duration})` : ''}`;
     case 'image':
-      return '📷 Photo';
+      return 'Photo';
     case 'video':
-      return '🎬 Video';
+      return 'Video';
     case 'file':
-      return `📄 ${payload.fileName || payload.text || 'Document'}`;
+      return payload.fileName || payload.text || 'Document';
     case 'location':
-      return '📍 Location';
+      return 'Location';
     case 'contact':
-      return '👤 Contact';
+      return 'Contact';
     case 'poll':
-      return `📊 ${payload.text || 'Poll'}`;
+      return payload.text || 'Poll';
     case 'event':
-      return `📅 ${payload.text || 'Event'}`;
+      return payload.text || 'Event';
     default:
-      return payload.previewText?.trim() || payload.text?.trim() || '🔒 Encrypted message';
+      return payload.previewText?.trim() || payload.text?.trim() || 'Encrypted message';
   }
 }
 

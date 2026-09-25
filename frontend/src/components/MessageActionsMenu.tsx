@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Copy, Reply, Star, Trash2, Forward, SmilePlus, Pin, Pencil, MoreHorizontal, Download } from 'lucide-react';
+import { Copy, Reply, Star, Trash2, Forward, SmilePlus, Pin, Pencil, MoreHorizontal, Download, X, Plus } from 'lucide-react';
 
 interface MessageActionsMenuProps {
   open: boolean;
@@ -119,7 +119,7 @@ export const MessageActionsMenu: React.FC<MessageActionsMenuProps> = ({
             title="Back"
             style={{ fontSize: 11, width: 24, height: 24, borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,0.1)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-primary)' }}
           >
-            ✕
+            <X size={14} />
           </button>
         </div>
       ) : showEmojiRow ? (
@@ -143,9 +143,9 @@ export const MessageActionsMenu: React.FC<MessageActionsMenuProps> = ({
             className="emoji-quick-btn plus-btn"
             onClick={() => setShowAllGrid(true)}
             title="More emojis"
-            style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '15px' }}
+            style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
           >
-            ➕
+            <Plus size={14} />
           </button>
           <button
             type="button"
@@ -154,7 +154,7 @@ export const MessageActionsMenu: React.FC<MessageActionsMenuProps> = ({
             title="Back"
             style={{ fontSize: 11, marginLeft: 4 }}
           >
-            ✕
+            <X size={14} />
           </button>
         </>
       ) : (

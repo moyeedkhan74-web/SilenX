@@ -176,9 +176,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
               convo.members?.find((m) => m.id !== currentUserId)?.id || currentUserId;
             try {
               const plain = await decryptIncoming(convo.id, preview, otherMemberId, otherMemberId);
-              convo.lastMessage = plain !== null ? plain : '🔒 Encrypted message';
+              convo.lastMessage = plain !== null ? plain : 'Encrypted message';
             } catch {
-              convo.lastMessage = '🔒 Encrypted message';
+              convo.lastMessage = 'Encrypted message';
             }
           })
         );
@@ -453,14 +453,14 @@ export const useChatStore = create<ChatState>((set, get) => ({
             : c.unreadCount;
 
           const previewText = msg.text || (
-            msg.contentType === 'image' ? '📷 Photo' :
-            msg.contentType === 'video' ? '🎥 Video' :
-            msg.contentType === 'voice-note' ? '🎤 Voice note' :
-            msg.contentType === 'file' ? `📄 ${msg.fileName || 'File'}` :
-            msg.contentType === 'location' ? '📍 Location' :
-            msg.contentType === 'contact' ? '👤 Contact' :
-            msg.contentType === 'poll' ? '📊 Poll' :
-            msg.contentType === 'event' ? '📅 Event' : ''
+            msg.contentType === 'image' ? 'Photo' :
+            msg.contentType === 'video' ? 'Video' :
+            msg.contentType === 'voice-note' ? 'Voice note' :
+            msg.contentType === 'file' ? msg.fileName || 'File' :
+            msg.contentType === 'location' ? 'Location' :
+            msg.contentType === 'contact' ? 'Contact' :
+            msg.contentType === 'poll' ? 'Poll' :
+            msg.contentType === 'event' ? 'Event' : ''
           );
 
           return {

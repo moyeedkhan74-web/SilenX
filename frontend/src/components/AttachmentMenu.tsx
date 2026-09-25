@@ -193,7 +193,7 @@ export const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
         return (
           <div className="attach-sub-modal">
             <div className="attach-sub-header">
-              <h4>📍 Share Location</h4>
+              <h4 style={{ display: 'flex', alignItems: 'center', gap: 6 }}><MapPin size={16} /> Share Location</h4>
               <button className="attach-sub-close" onClick={() => setSubModal('none')} type="button"><X size={16} /></button>
             </div>
             <div className="attach-sub-body">
@@ -218,7 +218,7 @@ export const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
         return (
           <div className="attach-sub-modal">
             <div className="attach-sub-header">
-              <h4>👤 Share Contact</h4>
+              <h4 style={{ display: 'flex', alignItems: 'center', gap: 6 }}><User size={16} /> Share Contact</h4>
               <button className="attach-sub-close" onClick={() => setSubModal('none')} type="button"><X size={16} /></button>
             </div>
             <div className="attach-sub-body">
@@ -239,7 +239,7 @@ export const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
         return (
           <div className="attach-sub-modal">
             <div className="attach-sub-header">
-              <h4>📊 Create Poll</h4>
+              <h4 style={{ display: 'flex', alignItems: 'center', gap: 6 }}><BarChart3 size={16} /> Create Poll</h4>
               <button className="attach-sub-close" onClick={() => setSubModal('none')} type="button"><X size={16} /></button>
             </div>
             <div className="attach-sub-body">
@@ -279,7 +279,7 @@ export const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
         return (
           <div className="attach-sub-modal">
             <div className="attach-sub-header">
-              <h4>📅 Create Event</h4>
+              <h4 style={{ display: 'flex', alignItems: 'center', gap: 6 }}><CalendarDays size={16} /> Create Event</h4>
               <button className="attach-sub-close" onClick={() => setSubModal('none')} type="button"><X size={16} /></button>
             </div>
             <div className="attach-sub-body">

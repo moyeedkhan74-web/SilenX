@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { ArrowLeft, Phone, Video, MoreVertical, Lock, Search, Bell, UserX, Flag, Trash2, Check, CheckCheck, Clock,
-Star, MapPin, Image as ImageIcon } from 'lucide-react';
+Star, MapPin, Pin, Image as ImageIcon } from 'lucide-react';
 import { useIsMobile } from '../hooks/useIsMobile';
 import { useChatStore } from '../store/chatStore';
 import { connectSocket } from '../services/socket';
@@ -522,7 +522,7 @@ export const ChatView: React.FC = () => {
       msg.id === messageId ? { ...msg, isStarred: !msg.isStarred } : msg
     );
     setMessages(activeConversationId, updatedMessages);
-    showToast(target?.isStarred ? 'Message unstarred' : 'Message starred ⭐');
+    showToast(target?.isStarred ? 'Message unstarred' : 'Message starred');
   };
 
   const handleTypingChange = (isTyping: boolean) => {
@@ -868,7 +868,7 @@ export const ChatView: React.FC = () => {
                       openMessageMenu(msg.id, event.currentTarget);
                     }}
                   >
-                    {msg.isPinned && <div className="msg-pin-pill">📌 Pinned</div>}
+                    {msg.isPinned && <div className="msg-pin-pill"><Pin size={10} style={{ display: 'inline', marginRight: 4 }} /> Pinned</div>}
                     {msg.replyTo && (
                       <div className="reply-preview">
                         <div className="reply-preview-name">{msg.replyTo.sender}</div>

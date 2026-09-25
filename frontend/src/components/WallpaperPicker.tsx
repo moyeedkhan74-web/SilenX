@@ -253,10 +253,10 @@ const WallpaperPicker: React.FC<WallpaperPickerProps> = ({ isOpen, onClose }) =>
           )}
           <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, padding: 16 }}>
             <div style={{ background: 'rgba(var(--color-accent-rgb), 0.9)', borderRadius: '18px 18px 4px 18px', padding: '8px 14px', maxWidth: '55%', fontSize: 12, color: '#fff', fontWeight: 500, backdropFilter: 'blur(4px)', boxShadow: '0 2px 8px rgba(0,0,0,0.2)' }}>
-              Hey! Preview looks 🔥
+              Hey! Preview looks great.
             </div>
             <div style={{ background: 'rgba(30,30,40,0.75)', borderRadius: '18px 18px 18px 4px', padding: '8px 14px', maxWidth: '55%', fontSize: 12, color: '#fff', fontWeight: 500, backdropFilter: 'blur(4px)', boxShadow: '0 2px 8px rgba(0,0,0,0.2)', alignSelf: 'flex-end' }}>
-              Yeah, looks great! 😍
+              Yeah, looks great!
             </div>
           </div>
           {!chatWallpaper && (

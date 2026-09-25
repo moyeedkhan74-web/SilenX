@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Check, X } from 'lucide-react';
 import { getSocket } from '../services/socket';
 import { useAuthStore } from '../store/authStore';
 import { API_URL } from '../config/webrtc-config';
@@ -117,8 +118,8 @@ const NotificationsPanel: React.FC = () => {
               <div className="text"><div className="name">{r.senderName}</div><div className="uid">{r.senderUid}</div></div>
             </div>
             <div className="actions">
-              <button className="btn" onClick={() => decline(r.id)}>✗</button>
-              <button className="btn btn-primary" onClick={() => accept(r.id)}>✓</button>
+              <button className="btn" onClick={() => decline(r.id)} title="Decline"><X size={14} /></button>
+              <button className="btn btn-primary" onClick={() => accept(r.id)} title="Accept"><Check size={14} /></button>
             </div>
           </div>
         ))}

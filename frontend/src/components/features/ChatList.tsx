@@ -177,21 +177,21 @@ export const ChatList: React.FC<ChatListProps> = ({ onNewChatClick }) => {
                 return convo.lastMessage;
               }
               const firstName = (displayName || 'user').split(' ')[0];
-              return `Say hi to ${firstName}! 👋`;
+              return `Say hi to ${firstName}!`;
             }
 
-            if (lastMsg.contentType === 'image') return '📷 Photo';
-            if (lastMsg.contentType === 'video') return '🎥 Video';
-            if (lastMsg.contentType === 'voice-note') return '🎤 Voice note';
-            if (lastMsg.contentType === 'file') return `📄 ${lastMsg.fileName || 'Document'}`;
-            if (lastMsg.contentType === 'location') return '📍 Location';
-            if (lastMsg.contentType === 'contact') return '👤 Contact';
-            if (lastMsg.contentType === 'poll') return '📊 Poll';
-            if (lastMsg.contentType === 'event') return '📅 Event';
+            if (lastMsg.contentType === 'image') return 'Photo';
+            if (lastMsg.contentType === 'video') return 'Video';
+            if (lastMsg.contentType === 'voice-note') return 'Voice note';
+            if (lastMsg.contentType === 'file') return lastMsg.fileName || 'Document';
+            if (lastMsg.contentType === 'location') return 'Location';
+            if (lastMsg.contentType === 'contact') return 'Contact';
+            if (lastMsg.contentType === 'poll') return 'Poll';
+            if (lastMsg.contentType === 'event') return 'Event';
 
             const text = lastMsg.text || '';
             if (text === '[Encrypted Message]' || text.startsWith('SLX2.')) {
-              return '🔒 Message';
+              return 'Encrypted Message';
             }
             return text;
           };

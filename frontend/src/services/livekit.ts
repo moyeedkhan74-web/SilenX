@@ -1283,7 +1283,7 @@ export class LiveKitService {
           console.error('[LiveKit] Browser microphone permission is denied');
           this.lastMediaError =
             'Microphone access is blocked in your browser.\n\n' +
-            'Fix: click the 🔒 lock icon next to the URL → Site settings → Microphone → Allow, then refresh and try again.';
+            'Fix: click the lock icon next to the URL → Site settings → Microphone → Allow, then refresh and try again.';
           return false;
         }
       } catch {
@@ -1339,7 +1339,7 @@ export class LiveKitService {
           } else if (name === 'NotAllowedError' || name === 'SecurityError') {
             this.lastMediaError = isCapacitorNative
               ? 'Microphone access is blocked. Open Android Settings > Apps > SilenX > Permissions and allow Microphone, then try again.'
-              : 'Microphone access is blocked.\n\nFix: click the 🔒 lock icon next to the URL → Site settings → Microphone → Allow, then refresh.';
+              : 'Microphone access is blocked.\n\nFix: click the lock icon next to the URL → Site settings → Microphone → Allow, then refresh.';
           } else {
             this.lastMediaError = 'Unable to access your microphone. Please check your browser or device settings.';
           }

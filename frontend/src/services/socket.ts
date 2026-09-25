@@ -417,14 +417,14 @@ socket.on('receive-message', async (payload: any) => {
       let preview: string;
       if (contentType === 'text' || contentType === 'system') {
         preview = decryptedText;
-      } else if (contentType === 'image') preview = '📷 [Image]';
-      else if (contentType === 'video') preview = '🎥 [Video]';
-      else if (contentType === 'voice-note') preview = '🎤 [Voice Note]';
-      else if (contentType === 'file') preview = `📄 [${payload?.fileName || 'File'}]`;
-      else if (contentType === 'location') preview = '📍 [Location]';
-      else if (contentType === 'contact') preview = '👤 [Contact]';
-      else if (contentType === 'poll') preview = '📊 [Poll]';
-      else if (contentType === 'event') preview = '📅 [Event]';
+      } else if (contentType === 'image') preview = '[Photo]';
+      else if (contentType === 'video') preview = '[Video]';
+      else if (contentType === 'voice-note') preview = '[Voice Note]';
+      else if (contentType === 'file') preview = `[${payload?.fileName || 'File'}]`;
+      else if (contentType === 'location') preview = '[Location]';
+      else if (contentType === 'contact') preview = '[Contact]';
+      else if (contentType === 'poll') preview = '[Poll]';
+      else if (contentType === 'event') preview = '[Event]';
       else preview = decryptedText;
 
       window.dispatchEvent(

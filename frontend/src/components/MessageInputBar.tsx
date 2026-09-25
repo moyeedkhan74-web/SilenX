@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState, useEffect, useCallback } from 'react';
-import { Send, Smile, X, Paperclip, Mic } from 'lucide-react';
+import { Send, Smile, X, Paperclip, Mic, Sticker } from 'lucide-react';
 import Picker from '@emoji-mart/react';
 import data from '@emoji-mart/data';
 import { AttachmentMenu } from './AttachmentMenu';
@@ -138,7 +138,7 @@ export function MessageInputBar({ onSend, onSendRichMessage, replyTo, onCancelRe
     const mm = Math.floor(durationSeconds / 60);
     const ss = Math.floor(durationSeconds % 60);
     onSendRichMessage?.({
-      text: `🎤 Voice note (${mm}:${String(ss).padStart(2, '0')})`,
+      text: `Voice note (${mm}:${String(ss).padStart(2, '0')})`,
       contentType: 'voice-note',
       mediaUrl,
       duration: `${mm}:${String(ss).padStart(2, '0')}`,
@@ -149,7 +149,7 @@ export function MessageInputBar({ onSend, onSendRichMessage, replyTo, onCancelRe
   // ─── Attachment callbacks ───
   const handleSendImage = (dataUrl: string) => {
     onSendRichMessage?.({
-      text: '📷 Photo',
+      text: 'Photo',
       contentType: 'image',
       mediaUrl: dataUrl,
       fileName: `photo_${Date.now()}.jpg`,
@@ -159,7 +159,7 @@ export function MessageInputBar({ onSend, onSendRichMessage, replyTo, onCancelRe
 
   const handleSendCamera = (dataUrl: string) => {
     onSendRichMessage?.({
-      text: '📸 Camera photo',
+      text: 'Camera photo',
       contentType: 'image',
       mediaUrl: dataUrl,
       fileName: `camera_${Date.now()}.jpg`,
@@ -170,7 +170,7 @@ export function MessageInputBar({ onSend, onSendRichMessage, replyTo, onCancelRe
   const handleSendDocument = (data: { fileName: string; fileSize: string; dataUrl: string; fileType?: string }) => {
     const isVideo = data.fileType?.startsWith('video/') || /\.(mp4|webm|mov|mkv)$/i.test(data.fileName);
     onSendRichMessage?.({
-      text: isVideo ? `🎬 ${data.fileName}` : `📄 ${data.fileName}`,
+      text: data.fileName,
       contentType: isVideo ? 'video' : 'file',
       mediaUrl: data.dataUrl,
       fileName: data.fileName,
@@ -179,10 +179,10 @@ export function MessageInputBar({ onSend, onSendRichMessage, replyTo, onCancelRe
     });
   };
   const handleSendLocation = (data: { latitude: number; longitude: number; description: string }) => {
-    onSendRichMessage?.({ text: `📍 ${data.description}`, contentType: 'location', locationData: data });
+    onSendRichMessage?.({ text: data.description || 'Location', contentType: 'location', locationData: data });
   };
   const handleSendContact = (data: { name: string; uid: string }) => {
-    onSendRichMessage?.({ text: `👤 ${data.name}`, contentType: 'contact', contactData: data });
+    onSendRichMessage?.({ text: data.name || 'Contact', contentType: 'contact', contactData: data });
   };
   const handleSendPoll = (data: { question: string; options: string[] }) => {
     const pollData = {
@@ -193,10 +193,10 @@ export function MessageInputBar({ onSend, onSendRichMessage, replyTo, onCancelRe
         votes: [] as string[],
       })),
     };
-    onSendRichMessage?.({ text: `📊 Poll: ${data.question}`, contentType: 'poll', pollData });
+    onSendRichMessage?.({ text: `Poll: ${data.question}`, contentType: 'poll', pollData });
   };
   const handleSendEvent = (data: { title: string; date: string; time: string; description?: string; location?: string }) => {
-    onSendRichMessage?.({ text: `📅 ${data.title}`, contentType: 'event', eventData: data });
+    onSendRichMessage?.({ text: data.title || 'Event', contentType: 'event', eventData: data });
   };
 
   const handleSelectGif = (gif: GiphyGifResult) => {
@@ -277,7 +277,7 @@ export function MessageInputBar({ onSend, onSendRichMessage, replyTo, onCancelRe
                 type="button"
               >
                 {tab === 'emoji' && <Smile size={18} />}
-                {tab === 'sticker' && '🎭'}
+                {tab === 'sticker' && <Sticker size={18} />}
                 {tab === 'gif' && 'GIF'}
               </button>
             ))}

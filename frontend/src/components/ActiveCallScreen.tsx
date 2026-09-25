@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Mic, MicOff, Video, VideoOff, Volume2, VolumeX, PhoneOff, Maximize2, Minimize2, RefreshCw } from 'lucide-react';
+import { Mic, MicOff, Video, VideoOff, Volume2, VolumeX, PhoneOff, Maximize2, Minimize2, RefreshCw, Lock } from 'lucide-react';
 import { Avatar } from './Avatar';
 import { livekitService } from '../services/livekit';
 
@@ -213,7 +213,7 @@ export default function ActiveCallScreen({
       {audioPlaybackBlocked && (
         <div className="active-call__audio-fallback">
           <button type="button" className="audio-fallback-button" onClick={enableAudioPlayback}>
-            🔊 Tap to Unmute Remote Voice
+            <Volume2 size={16} /> Tap to Unmute Remote Voice
           </button>
         </div>
       )}
@@ -223,7 +223,8 @@ export default function ActiveCallScreen({
         <h2 className="active-call__name">{callerName}</h2>
         <div className="active-call__meta">
           <span className="active-call__e2ee">
-            🔒 End-to-end encrypted
+            <Lock size={12} style={{ display: 'inline', marginRight: '4px', verticalAlign: 'middle' }} />
+            End-to-end encrypted
           </span>
           <span className="active-call__dot" />
           <span className="active-call__timer">{formatDuration(seconds)}</span>

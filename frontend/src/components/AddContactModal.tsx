@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Html5Qrcode } from 'html5-qrcode';
-import { Camera, Lock, CheckCircle2 } from 'lucide-react';
+import { Camera, Lock, CheckCircle2, RefreshCw } from 'lucide-react';
 import Modal from './ui/Modal';
 import Input from './ui/Input';
 import Button from './ui/Button';
@@ -380,10 +380,10 @@ const lookupByUid = async (searchUid: string) => {
                     <button
                       type="button"
                       className="btn-secondary"
-                      style={{ marginTop: 8, fontSize: 13, padding: '8px 16px' }}
+                      style={{ marginTop: 8, fontSize: 13, padding: '8px 16px', display: 'inline-flex', alignItems: 'center', gap: 6 }}
                       onClick={() => { setError(''); setScanSuccess(true); lookupByUid(uid); }}
                     >
-                      🔄 Retry Lookup
+                      <RefreshCw size={14} /> Retry Lookup
                     </button>
                   )}
                 </div>

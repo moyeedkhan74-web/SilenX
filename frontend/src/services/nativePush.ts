@@ -201,7 +201,7 @@ function handlePushNotification(notification: PushNotificationSchema): void {
   // Foreground: surface a WhatsApp-style in-app banner + chime. The OS-level
   // heads-up notification is suppressed by Android when the app is focused.
   const senderName = data.senderDisplayName || 'New message';
-  const preview = typeof data.body === 'string' && data.body ? data.body : '🔒 Encrypted message';
+  const preview = typeof data.body === 'string' && data.body ? data.body : 'Encrypted message';
 
   window.dispatchEvent(
     new CustomEvent('silenx:inapp-notification', {
