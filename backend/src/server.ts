@@ -252,24 +252,25 @@ registerSocketHandlers(io);
 const port = Number(process.env.PORT) || 5000;
 
 process.on('uncaughtException', (err) => {
-  console.error('[Server] Uncaught Exception:', err);
+  console.error('[Server] Uncaught Exception (process kept alive):', err);
+  // DO NOT exit — keep server alive so health checks pass
 });
 
 process.on('unhandledRejection', (reason) => {
-  console.error('[Server] Unhandled Rejection:', reason);
+  console.error('[Server] Unhandled Rejection (process kept alive):', reason);
+  // DO NOT exit — keep server alive so health checks pass
 });
 
 const startServer = async () => {
   server.listen(port, '0.0.0.0', () => {
     console.log(`[Server] SilenX backend listening on 0.0.0.0:${port}`);
+    console.log(`[Server] Health check available at http://0.0.0.0:${port}/health`);
   });
 
-  try {
-    await connectDb();
-    initializePruner(); // Start zero-bandwidth background pruner (media 7d / messages 30d)
-  } catch (err) {
-    console.error('[Server] MongoDB connection failed:', err);
-  }
+  // Non-blocking DB connect — server is already up and answering health checks
+  connectDb()
+    .then(() => initializePruner())
+    .catch((err) => console.error('[Server] MongoDB connection failed (non-fatal):', err));
 };
 
 
