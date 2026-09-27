@@ -1,10 +1,17 @@
-import { Redis } from '@upstash/redis';
+// Upstash Redis - optional integration (gracefully disabled if package not installed)
+let RedisClass: any = null;
+try {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  RedisClass = require('@upstash/redis').Redis;
+} catch {
+  console.warn('[Redis] @upstash/redis not installed. Redis features disabled.');
+}
 
 const redisUrl = process.env.UPSTASH_REDIS_REST_URL;
 const redisToken = process.env.UPSTASH_REDIS_REST_TOKEN;
 
-export const redis = (redisUrl && redisToken)
-  ? new Redis({ url: redisUrl, token: redisToken })
+export const redis = (RedisClass && redisUrl && redisToken)
+  ? new RedisClass({ url: redisUrl, token: redisToken })
   : null;
 
 /**
