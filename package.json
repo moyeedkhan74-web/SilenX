@@ -3,7 +3,7 @@
   "private": true,
   "scripts": {
     "build": "npm --prefix frontend install --legacy-peer-deps && npm --prefix frontend run build && npm --prefix backend install --include=dev && npm --prefix backend run build",
-    "start": "node server.js"
+    "start": "node --max-old-space-size=380 dist/server.js"
   },
   "overrides": {
     "jose": "4.15.9"
