@@ -23,7 +23,8 @@
     "mongoose": "^9.7.4",
     "multer": "^2.2.0",
     "qrcode": "^1.5.4",
-    "socket.io": "^4.7.4"
+    "socket.io": "^4.7.4",
+    "@upstash/redis": "^1.34.3"
   },
   "devDependencies": {
     "@types/compression": "^1.8.1",
