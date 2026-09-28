@@ -4,7 +4,9 @@ node_modules/
 
 # Build outputs
 dist/
+!dist/server.js
 **/dist/
+!**/dist/server.js
 build/
 **/build/
 .output/

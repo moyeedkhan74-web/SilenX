@@ -1,0 +1,1 @@
+const path=require("path");const fs=require("fs");const p=path.join(__dirname,"../backend/dist/server.js");if(fs.existsSync(p)){require(p);}else{console.error("[Root Proxy] backend/dist/server.js not found");process.exit(1);}

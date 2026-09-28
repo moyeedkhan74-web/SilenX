@@ -1,75 +1,82 @@
 {
   "users": [
     {
+      "_id": "6a610575d45cd6c1c0722acb",
       "id": "FjEcUktRBeZlbLxXbdbXzFdVOa82",
       "uid": "SEC_FjEcUktRBeZlbLxXbdbXzFdVOa82",
       "email": "moyeedkhan74@gmail.com",
       "googleId": "101613362981422664192",
       "displayName": "Moyeed Khan",
       "avatarUrl": "https://lh3.googleusercontent.com/a/ACg8ocKQFVs3_qpVATyDbrL8F6qnztgnbaGw721yxLa9vhD1tY3W-ReD=s96-c",
-      "status": "online",
+      "status": "offline",
       "lastSeen": "2026-07-02T09:55:01.096Z",
       "bio": "",
       "createdAt": "2026-07-02T09:55:01.096Z",
       "updatedAt": "2026-07-02T09:55:01.096Z",
-      "deletedAt": null
+      "deletedAt": null,
+      "__v": 0,
+      "publicKey": null,
+      "publicKeys": []
     },
     {
+      "_id": "6a610575d45cd6c1c0722acc",
       "id": "CGmnFr3IfXQ9zEQElfZRK1vW2qp2",
       "uid": "SEC_CGmnFr3IfXQ9zEQElfZRK1vW2qp2",
       "email": "officialsilenx@gmail.com",
       "googleId": "104445039545829297077",
       "displayName": "SilenX",
       "avatarUrl": "https://lh3.googleusercontent.com/a/ACg8ocINiGM2U1nk-cfGP8w81A5wHazXP0ABXcWqgLkiKaIAnKFZqm4=s96-c",
-      "status": "online",
+      "status": "offline",
       "lastSeen": "2026-07-02T09:56:03.553Z",
       "bio": "",
       "createdAt": "2026-07-02T09:56:03.553Z",
       "updatedAt": "2026-07-02T09:56:03.553Z",
-      "deletedAt": null
+      "deletedAt": null,
+      "__v": 0,
+      "publicKey": null,
+      "publicKeys": []
     }
   ],
   "conversations": [
     {
+      "_id": "6a610575d45cd6c1c0722acd",
       "id": "conv_seed_1784558170273",
       "type": "direct",
       "name": null,
       "avatarUrl": null,
       "createdBy": "FjEcUktRBeZlbLxXbdbXzFdVOa82",
       "createdAt": "2026-07-20T14:36:10.273Z",
-      "updatedAt": "2026-07-20T14:36:10.273Z"
+      "updatedAt": "2026-07-20T14:36:10.273Z",
+      "__v": 0
     }
   ],
   "conversationMembers": [
     {
+      "_id": "6a610575d45cd6c1c0722ace",
       "id": "m_conv_seed_1784558170273_1",
       "conversationId": "conv_seed_1784558170273",
       "userId": "FjEcUktRBeZlbLxXbdbXzFdVOa82",
       "joinedAt": "2026-07-20T14:36:10.273Z",
       "leftAt": null,
-      "muted": false
+      "muted": false,
+      "__v": 0
     },
     {
+      "_id": "6a610575d45cd6c1c0722acf",
       "id": "m_conv_seed_1784558170273_2",
       "conversationId": "conv_seed_1784558170273",
       "userId": "CGmnFr3IfXQ9zEQElfZRK1vW2qp2",
       "joinedAt": "2026-07-20T14:36:10.273Z",
       "leftAt": null,
-      "muted": false
+      "muted": false,
+      "__v": 0
     }
   ],
-  "messages": [
-    {
-      "id": "msg_conv_seed_1784558170273_seed",
-      "conversationId": "conv_seed_1784558170273",
-      "senderId": "FjEcUktRBeZlbLxXbdbXzFdVOa82",
-      "encryptedContent": "Say hi! 🔗 Secure connection established.",
-      "contentType": "system",
-      "createdAt": "2026-07-20T14:36:10.273Z",
-      "editedAt": null,
-      "deletedAt": null
-    }
-  ],
+  "groups": [],
+  "groupMembers": [],
+  "groupInvites": [],
+  "messages": [],
+  "callLogs": [],
   "friendRequests": [],
   "friends": []
 }
