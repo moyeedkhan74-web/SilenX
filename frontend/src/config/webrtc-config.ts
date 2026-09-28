@@ -21,7 +21,7 @@ const isLocalhost = !isCapacitorNative && (
 const envApiUrl = (import.meta.env.VITE_API_URL as string | undefined)?.trim();
 const envSocketUrl = (import.meta.env.VITE_SOCKET_URL as string | undefined)?.trim();
 
-const FALLBACK_PRODUCTION_URL = 'https://silenx.onrender.com';
+const FALLBACK_PRODUCTION_URL = 'https://silenx-service.getvoroa.com';
 
 let defaultBackendUrl: string;
 if (isCapacitorNative) {

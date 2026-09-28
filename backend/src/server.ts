@@ -63,7 +63,9 @@ const checkOrigin = (origin: string | undefined, callback: (err: Error | null, a
     origin.startsWith('http://127.0.0.1:') ||
     origin.startsWith('capacitor://') ||
     origin.startsWith('ionic://') ||
-    /^https:\/\/silen.*\.vercel\.app$/.test(origin);
+    /^https:\/\/silen.*\.vercel\.app$/.test(origin) ||
+    /^https:\/\/.*\.getvoroa\.com$/.test(origin) ||
+    /^https:\/\/.*\.onrender\.com$/.test(origin);
 
   if (isAllowed) {
     callback(null, true);
