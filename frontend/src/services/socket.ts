@@ -1,10 +1,9 @@
 import { io, Socket } from 'socket.io-client';
-import { SOCKET_URL } from '../config/webrtc-config';
+import { SOCKET_URL, API_URL, getActiveBackendUrl, switchToBackupBackend, VOROA_PRIMARY_URL } from '../config/webrtc-config';
 import { useChatStore } from '../store/chatStore';
 import { useAuthStore } from '../store/authStore';
 import { auth } from '../config/firebase';
 import type { ChatMessage } from '../types';
-import { API_URL } from '../config/webrtc-config';
 import { processOutbox, attachOutboxListeners } from './outbox';
 import { apiFetch } from '../utils/apiFetch';
 import { setSocketTokenUpdater } from '../utils/tokenSync';
@@ -311,8 +310,12 @@ export const connectSocket = (idToken?: string): Socket => {
     }
   });
 
+  let connectErrorCount = 0;
+
   socket.on('connect_error', async (error) => {
     console.error(`[Socket] Connection Error: ${error.message}`);
+    connectErrorCount += 1;
+
     if (error.message === 'UNAUTHORIZED' || error.message?.includes('UNAUTHORIZED')) {
       try {
         const currentUser = auth.currentUser;
@@ -320,11 +323,19 @@ export const connectSocket = (idToken?: string): Socket => {
           console.info('[Socket] UNAUTHORIZED received — Force-refreshing Firebase token...');
           const freshToken = await currentUser.getIdToken(true);
           useAuthStore.getState().setToken(freshToken);
-          // Update the active socket handshake credential and reconnect
           updateSocketToken(freshToken);
         }
       } catch (refreshErr) {
         console.warn('[Socket] Token refresh on connect_error failed:', refreshErr);
+      }
+    } else if (connectErrorCount >= 3 && getActiveBackendUrl() === VOROA_PRIMARY_URL) {
+      console.warn('[Socket Failover] Primary Voroa socket connection failed 3 times. Switching to HA Render backup...');
+      const backupUrl = switchToBackupBackend();
+      connectErrorCount = 0;
+      if (socket) {
+        socket.disconnect();
+        socket = io(backupUrl, options);
+        attachOutboxListeners(socket);
       }
     }
   });

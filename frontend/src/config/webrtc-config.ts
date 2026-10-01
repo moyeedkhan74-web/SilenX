@@ -18,29 +18,53 @@ const isLocalhost = !isCapacitorNative && (
   hostname.endsWith('.local')
 );
 
+export const VOROA_PRIMARY_URL = 'https://silenx-service.getvoroa.com';
+export const RENDER_BACKUP_URL = 'https://slienx-backend.onrender.com';
+
 const envApiUrl = (import.meta.env.VITE_API_URL as string | undefined)?.trim();
 const envSocketUrl = (import.meta.env.VITE_SOCKET_URL as string | undefined)?.trim();
 
-const FALLBACK_PRODUCTION_URL = 'https://silenx-service.getvoroa.com';
-
 let defaultBackendUrl: string;
 if (isCapacitorNative) {
-  defaultBackendUrl = envApiUrl || FALLBACK_PRODUCTION_URL;
+  defaultBackendUrl = envApiUrl || VOROA_PRIMARY_URL;
 } else if (isLocalhost) {
   defaultBackendUrl = 'http://localhost:5000';
 } else {
-  defaultBackendUrl = envApiUrl || FALLBACK_PRODUCTION_URL;
+  defaultBackendUrl = envApiUrl || VOROA_PRIMARY_URL;
 }
+
+let activeBackendUrl: string = defaultBackendUrl;
+let _isFailoverActive = false;
+export const isFailoverActive = (): boolean => _isFailoverActive;
+
+export const getActiveBackendUrl = (): string => activeBackendUrl;
+
+export const getBackupBackendUrl = (): string => {
+  if (isLocalhost) return 'http://localhost:5000';
+  return activeBackendUrl.includes('getvoroa.com') ? RENDER_BACKUP_URL : VOROA_PRIMARY_URL;
+};
+
+export const switchToBackupBackend = (): string => {
+  if (isLocalhost) return activeBackendUrl;
+  const newUrl = getBackupBackendUrl();
+  if (activeBackendUrl !== newUrl) {
+    activeBackendUrl = newUrl;
+    _isFailoverActive = true;
+    console.warn(`[HA Failover] Active backend switched to backup server: ${activeBackendUrl}`);
+  }
+  return activeBackendUrl;
+};
+
+export const resetToPrimaryBackend = (): string => {
+  if (isLocalhost) return activeBackendUrl;
+  activeBackendUrl = envApiUrl || VOROA_PRIMARY_URL;
+  _isFailoverActive = false;
+  console.info(`[HA Failover] Active backend restored to primary server: ${activeBackendUrl}`);
+  return activeBackendUrl;
+};
 
 export const API_URL: string = defaultBackendUrl;
 export const SOCKET_URL: string = envSocketUrl || defaultBackendUrl;
-
-if (!isLocalhost && !API_URL) {
-   console.warn('[Config] VITE_API_URL is not set. API calls may fail in production.');
-}
-if (!isLocalhost && !SOCKET_URL) {
-   console.warn('[Config] VITE_SOCKET_URL is not set. Socket connections may fail in production.');
-}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 export const normalizeUid = (value: string | null | undefined): string => {
