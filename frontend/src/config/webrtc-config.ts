@@ -19,7 +19,7 @@ const isLocalhost = !isCapacitorNative && (
 );
 
 export const VOROA_PRIMARY_URL = 'https://silenx-service.getvoroa.com';
-export const RENDER_BACKUP_URL = 'https://slienx-backend.onrender.com';
+export const RENDER_BACKUP_URL = 'https://silenx.onrender.com';
 
 const envApiUrl = (import.meta.env.VITE_API_URL as string | undefined)?.trim();
 const envSocketUrl = (import.meta.env.VITE_SOCKET_URL as string | undefined)?.trim();
