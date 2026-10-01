@@ -12,7 +12,7 @@ import {
   getConversationsCache,
   deleteConversationCache,
 } from '../utils/offlineDb';
-import { decryptIncoming } from '../services/e2ee';
+import { decryptIncoming, looksLikeCiphertext } from '../services/e2ee';
 
 interface ChatState {
   conversations: Conversation[];
@@ -63,10 +63,14 @@ const persistState = (state: Partial<ChatState>) => {
   const key = getStorageKey(currentUser?.id);
   const payload = {
     conversations: state.conversations ?? useChatStore.getState().conversations,
-    messages: state.messages ?? useChatStore.getState().messages,
     activeConversationId: state.activeConversationId ?? useChatStore.getState().activeConversationId,
   };
-  localStorage.setItem(key, JSON.stringify(payload));
+  try {
+    localStorage.setItem(key, JSON.stringify(payload));
+  } catch {
+    // localStorage quota exceeded — drop the payload silently; messages are
+    // already persisted in IndexedDB via saveOfflineMessage / saveOfflineMessages.
+  }
 };
 
 const sortMessagesByTime = (msgs: ChatMessage[]): ChatMessage[] => {
@@ -92,11 +96,29 @@ export const useChatStore = create<ChatState>((set, get) => ({
       if (!raw) return;
 
       const parsed = JSON.parse(raw);
+      // Legacy migration: older builds persisted the full `messages` tree to
+      // localStorage, which eventually hit the browser's ~5 MB quota and threw
+      // QuotaExceededError on subsequent writes. Read the legacy messages for
+      // an instant sync, but never re-persist them — messages now live only in
+      // IndexedDB (see hydrateFromIndexedDB + saveOfflineMessage*).
+      const legacyMessages: Record<string, ChatMessage[]> | undefined = parsed.messages;
       set({
         conversations: parsed.conversations || [],
-        messages: parsed.messages || {},
+        messages: legacyMessages || {},
         activeConversationId: parsed.activeConversationId || null,
       });
+      // Strip the heavy messages payload from the stored entry to free quota.
+      try {
+        localStorage.setItem(
+          key,
+          JSON.stringify({
+            conversations: parsed.conversations || [],
+            activeConversationId: parsed.activeConversationId || null,
+          })
+        );
+      } catch {
+        // ignore — best-effort migration
+      }
     } catch (err) {
       console.error('Failed to hydrate chat state:', err);
     }
@@ -231,12 +253,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
             if (!msg.senderId || msg.senderId === 'system') return msg;
 
             const rawText = msg.text ?? '';
-            // Skip plaintext — only attempt decrypt on actual ciphertext
-            const isCiphertext = rawText.startsWith('SLX2.') || (
-              rawText.length >= 20 &&
-              /^[A-Za-z0-9+/=_-]+$/.test(rawText)
-            );
-            if (!isCiphertext) return msg;
+            // Skip plaintext — only attempt decrypt on actual ciphertext.
+            // Use the same robust heuristic as in e2ee.ts to avoid false positives
+            // from base64‑like plaintext (e.g., seed data, URLs, hashes).
+            if (!looksLikeCiphertext(rawText)) return msg;
 
             try {
               const plain = await decryptIncoming(

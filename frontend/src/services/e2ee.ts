@@ -320,7 +320,7 @@ export async function encryptOutgoingText(
  *   at least a nonce + MAC + padding — anything shorter or containing spaces,
  *   emoji, punctuation etc. is ordinary plaintext and is returned as-is.
  */
-function looksLikeCiphertext(content: string): boolean {
+export function looksLikeCiphertext(content: string): boolean {
   if (!content) return false;
   if (content.startsWith(`${CIPHER_HEADER}.`)) return true;
   if (!/^[A-Za-z0-9+/=_-]+$/.test(content)) return false;
