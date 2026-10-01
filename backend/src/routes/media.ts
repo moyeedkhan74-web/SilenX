@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import multer from 'multer';
-import { uploadFile, getPresignedDownloadUrl } from '../services/storageService';
+import { uploadFile, getPresignedDownloadUrl, getImageKitAuthParameters } from '../services/storageService';
 
 const router = Router();
 const upload = multer({
@@ -56,7 +56,20 @@ router.get('/presigned-url', async (req: Request, res: Response) => {
     return res.status(200).json({ url: presignedUrl });
   } catch (error: any) {
     console.error('[MediaRoute] Error generating presigned URL:', error);
-    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/**
+ * GET /api/media/imagekit-auth
+ * Generates ImageKit authentication parameters for direct client uploads.
+ */
+router.get('/imagekit-auth', (_req: Request, res: Response) => {
+  try {
+    const authParams = getImageKitAuthParameters();
+    return res.status(200).json(authParams);
+  } catch (error: any) {
+    console.error('[MediaRoute] Error generating ImageKit auth parameters:', error);
+    return res.status(500).json({ error: 'Failed to generate ImageKit auth parameters' });
   }
 });
 

@@ -46,8 +46,80 @@ export interface UploadResult {
   isCloud: boolean;
 }
 
+const IMAGEKIT_PUBLIC_KEY = process.env.IMAGEKIT_PUBLIC_KEY || 'public_IujRu9A06L5SrEXi0OvOaaozWuQ=';
+const IMAGEKIT_PRIVATE_KEY = process.env.IMAGEKIT_PRIVATE_KEY || 'private_3WVFgKPJXY8uLyJmNN8rezJoYx8=';
+const IMAGEKIT_URL_ENDPOINT = process.env.IMAGEKIT_URL_ENDPOINT || 'https://ik.imagekit.io/silenx';
+
 /**
- * Upload file buffer or stream to Backblaze B2 / S3 or fallback to local disk
+ * Generate temporary ImageKit auth parameters for direct client uploads
+ */
+export function getImageKitAuthParameters() {
+  const token = crypto.randomUUID();
+  const expire = Math.floor(Date.now() / 1000) + 1800; // valid for 30 minutes
+  const signature = crypto
+    .createHmac('sha1', IMAGEKIT_PRIVATE_KEY)
+    .update(token + expire)
+    .digest('hex');
+
+  return {
+    token,
+    expire,
+    signature,
+    publicKey: IMAGEKIT_PUBLIC_KEY,
+    urlEndpoint: IMAGEKIT_URL_ENDPOINT,
+  };
+}
+
+/**
+ * Upload file buffer directly to ImageKit CDN via REST API
+ */
+export async function uploadToImageKit(
+  fileBuffer: Buffer,
+  originalFilename: string
+): Promise<{ url: string; key: string } | null> {
+  if (!IMAGEKIT_PRIVATE_KEY) return null;
+
+  try {
+    const ext = path.extname(originalFilename) || '.bin';
+    const uuid = crypto.randomUUID();
+    const fileName = `${uuid}${ext}`;
+    const base64File = fileBuffer.toString('base64');
+
+    const authHeader = 'Basic ' + Buffer.from(`${IMAGEKIT_PRIVATE_KEY}:`).toString('base64');
+
+    const response = await fetch('https://upload.imagekit.io/api/v1/files/upload', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: authHeader,
+      },
+      body: JSON.stringify({
+        file: base64File,
+        fileName,
+        folder: '/silenx/media',
+        useUniqueFileName: true,
+      }),
+    });
+
+    if (response.ok) {
+      const data: any = await response.json();
+      console.log('[ImageKit] Media uploaded successfully to global CDN:', data.url);
+      return {
+        url: data.url,
+        key: data.filePath || data.name || fileName,
+      };
+    } else {
+      const errText = await response.text();
+      console.error('[ImageKit] API upload failed:', response.status, errText);
+    }
+  } catch (err) {
+    console.error('[ImageKit] Upload exception:', err);
+  }
+  return null;
+}
+
+/**
+ * Upload file buffer to ImageKit CDN (primary), S3/B2 (secondary), or local disk (fallback)
  */
 export async function uploadFile(
   fileBuffer: Buffer,
@@ -61,8 +133,22 @@ export async function uploadFile(
   const uuid = crypto.randomUUID();
   const key = `media/${year}/${month}/${uuid}${ext}`;
 
-  const client = getS3Client();
+  // Strategy 1: Try ImageKit CDN Upload (Primary - 20GB free, auto WebP compression)
+  try {
+    const ikResult = await uploadToImageKit(fileBuffer, originalFilename);
+    if (ikResult) {
+      return {
+        url: ikResult.url,
+        key: ikResult.key,
+        isCloud: true,
+      };
+    }
+  } catch (ikErr) {
+    console.warn('[StorageService] ImageKit upload attempt failed, falling back to S3/B2:', ikErr);
+  }
 
+  // Strategy 2: Try Cloud Storage (S3/Backblaze B2)
+  const client = getS3Client();
   if (client) {
     try {
       const command = new PutObjectCommand({
