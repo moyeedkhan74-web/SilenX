@@ -75,7 +75,8 @@ export function getImageKitAuthParameters() {
  */
 export async function uploadToImageKit(
   fileBuffer: Buffer,
-  originalFilename: string
+  originalFilename: string,
+  mimeType?: string
 ): Promise<{ url: string; key: string } | null> {
   if (!IMAGEKIT_PRIVATE_KEY) return null;
 
@@ -83,7 +84,9 @@ export async function uploadToImageKit(
     const ext = path.extname(originalFilename) || '.bin';
     const uuid = crypto.randomUUID();
     const fileName = `${uuid}${ext}`;
-    const base64File = fileBuffer.toString('base64');
+    const base64File = mimeType
+      ? `data:${mimeType};base64,${fileBuffer.toString('base64')}`
+      : fileBuffer.toString('base64');
 
     const authHeader = 'Basic ' + Buffer.from(`${IMAGEKIT_PRIVATE_KEY}:`).toString('base64');
 
@@ -135,7 +138,7 @@ export async function uploadFile(
 
   // Strategy 1: Try ImageKit CDN Upload (Primary - 20GB free, auto WebP compression)
   try {
-    const ikResult = await uploadToImageKit(fileBuffer, originalFilename);
+    const ikResult = await uploadToImageKit(fileBuffer, originalFilename, mimeType);
     if (ikResult) {
       return {
         url: ikResult.url,
