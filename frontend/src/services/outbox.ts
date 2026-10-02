@@ -42,6 +42,13 @@ export interface OutgoingPayload {
 }
 
 const ACK_TIMEOUT_MS = 8_000;
+const BACKOFF_BASE_MS = 1_000;
+const BACKOFF_MAX_MS = 30_000;
+
+function getBackoffDelay(attempts: number): number {
+  const delay = BACKOFF_BASE_MS * Math.pow(2, attempts);
+  return Math.min(delay, BACKOFF_MAX_MS);
+}
 
 /** Content-type-aware push preview, mirroring the backend's placeholders. */
 function buildPreviewText(payload: OutgoingPayload): string {
@@ -195,6 +202,13 @@ async function sendQueuedEntry(entry: OutgoingEntry): Promise<boolean> {
   const socket = getSocket();
   if (!socket?.connected) return false;
 
+  // Apply exponential backoff based on previous attempts.
+  if (entry.attempts > 0) {
+    const delay = getBackoffDelay(entry.attempts);
+    console.info(`[Outbox] Backing off ${delay}ms before retry for ${entry.tempId} (attempt ${entry.attempts})`);
+    await new Promise((resolve) => setTimeout(resolve, delay));
+  }
+
   await markOutgoingSending(entry.tempId);
 
   // Re-encrypt under the CURRENT epoch key. If keys rotated (or were rotated
@@ -284,6 +298,26 @@ export async function processOutbox(): Promise<void> {
  */
 export function attachOutboxListeners(socket: Socket): void {
   socket.on('message-sent-ack', handleSentAck);
+}
+
+/**
+ * Start a browser network listener that auto-drains the outbox when the
+ * device transitions from offline -> online. Safe to call multiple times;
+ * duplicate listeners are deduped by the browser.
+ */
+export function startNetworkListener(): void {
+  if (typeof window === 'undefined') return;
+
+  window.addEventListener('online', () => {
+    console.info('[Outbox] Network came online — draining queued messages');
+    void processOutbox();
+  });
+
+  // Also attempt a drain on startup in case we were already online when
+  // the listener was registered (e.g., app launched while connected).
+  if (navigator.onLine) {
+    void processOutbox();
+  }
 }
 
 // Re-export for convenience so socket.ts has a single import surface.

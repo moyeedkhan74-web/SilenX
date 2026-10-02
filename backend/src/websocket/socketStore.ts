@@ -28,3 +28,33 @@ export function removeSocketById(socketId: string) {
 export function getSocketIdForUser(userId: string) {
   return userSockets.get(userId) || null;
 }
+
+/**
+ * Whether the user's browser tab is actually being looked at.
+ * Clients report this via the `client-visibility` event, so a hidden or
+ * minimized tab can still receive OS-level Web Push notifications.
+ * Unknown users default to visible to avoid duplicate notifications.
+ */
+const userVisibility: Map<string, boolean> = new Map();
+
+export function setUserVisibility(userId: string, visible: boolean) {
+  userVisibility.set(userId, visible);
+}
+
+export function clearUserVisibility(userId: string) {
+  userVisibility.delete(userId);
+}
+
+export function isUserVisible(userId: string): boolean {
+  return userVisibility.get(userId) !== false;
+}
+
+/**
+ * True when the user is offline OR their connected tab is in the background,
+ * i.e. an OS notification is warranted instead of (or in addition to) a
+ * real-time socket event.
+ */
+export function shouldNotifyViaPush(userId: string): boolean {
+  if (!getSocketIdForUser(userId)) return true;
+  return !isUserVisible(userId);
+}

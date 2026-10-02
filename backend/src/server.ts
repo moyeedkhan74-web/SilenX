@@ -19,8 +19,10 @@ import groupRoutes from './routes/groups';
 import groupCallRoutes from './routes/groupCalls';
 import requestRoutes from './routes/requests';
 import mediaRoutes from './routes/media';
+import notificationRoutes from './routes/notifications';
 import { connectDb } from './store/db';
 import { initializePruner } from './services/pruneService';
+import { configureWebPush } from './services/webPushService';
 
 const app = express();
 
@@ -209,6 +211,7 @@ app.use('/api/calls', callRoutes);
 app.use('/api/groups', groupRoutes);
 app.use('/api/group-calls', groupCallRoutes);
 app.use('/api/requests', requestRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // ─── Serve Frontend (production) ───────────────────────────
 const frontendDist = path.join(__dirname, '../../frontend/dist');
@@ -268,6 +271,9 @@ const startServer = async () => {
     console.log(`[Server] SilenX backend listening on 0.0.0.0:${port}`);
     console.log(`[Server] Health check available at http://0.0.0.0:${port}/health`);
   });
+
+  // VAPID signing keys power browser Web Push for background/closed tabs.
+  configureWebPush();
 
   // Non-blocking DB connect — server is already up and answering health checks
   connectDb()

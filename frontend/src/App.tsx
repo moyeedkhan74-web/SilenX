@@ -18,8 +18,12 @@ import { livekitService } from './services/livekit';
 import { authenticateWithGoogleBackend } from './services/authApi';
 import { initializeNativePush, isNativePushSupported } from './services/nativePush';
 import { initializePushNotifications } from './services/pushNotification';
+import { usePushNotifications } from './hooks/usePushNotifications';
+import { getSocket } from './services/socket';
+import { startNetworkListener } from './services/outbox';
 import InAppNotificationBanner from './components/InAppNotificationBanner';
 import DeepLinkHandler from './components/DeepLinkHandler';
+import AppLockOverlay from './components/AppLockOverlay';
 import type { UserStatus } from './types';
 import './App.css';
 import { ThemeProvider } from './theme/ThemeContext';
@@ -92,6 +96,41 @@ function AppInner({
   initialized: boolean;
 }) {
   const { initializeKeys } = useCrypto();
+
+  // Background/closed-app delivery over standards-based Web Push (VAPID).
+  // Native builds keep using Firebase/nativePush, and the hook never prompts
+  // for permission on its own.
+  usePushNotifications();
+
+  // Start the outbox network listener so queued messages auto-sync when the
+  // device transitions from offline -> online.
+  useEffect(() => {
+    startNetworkListener();
+  }, []);
+
+  /**
+   * Tell the backend whether this tab is actually being looked at. A hidden or
+   * minimized tab is treated like an offline client so incoming messages and
+   * calls still raise an OS notification.
+   */
+  useEffect(() => {
+    const reportVisibility = () => {
+      const socket = getSocket();
+      if (!socket?.connected) return;
+      socket.emit('client-visibility', { visible: document.visibilityState === 'visible' });
+    };
+
+    reportVisibility();
+    document.addEventListener('visibilitychange', reportVisibility);
+    window.addEventListener('focus', reportVisibility);
+    window.addEventListener('blur', reportVisibility);
+
+    return () => {
+      document.removeEventListener('visibilitychange', reportVisibility);
+      window.removeEventListener('focus', reportVisibility);
+      window.removeEventListener('blur', reportVisibility);
+    };
+  }, []);
 
   /**
    * Register push notifications once a session exists.
@@ -288,6 +327,7 @@ useEffect(() => {
         <CallOverlay />
         <InAppNotificationBanner />
         <DeepLinkHandler />
+        <AppLockOverlay />
       </div>
     </BrowserRouter>
   );

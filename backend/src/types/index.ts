@@ -26,6 +26,24 @@ export interface User {
   updatedAt: Date;
   deletedAt: Date | null;
   fcmTokens: string[];
+  /**
+   * Standards-based (VAPID) browser push endpoints used to alert the user
+   * while the tab is hidden or the app is closed. Never contains keys for
+   * anything other than push delivery.
+   */
+  webPushSubscriptions?: WebPushSubscriptionRecord[];
+}
+
+/** A single browser PushSubscription as registered by usePushNotifications. */
+export interface WebPushSubscriptionRecord {
+  endpoint: string;
+  keys: {
+    p256dh: string;
+    auth: string;
+  };
+  userAgent?: string;
+  platform?: string;
+  createdAt: Date;
 }
 
 export interface UserEncryptionKey {

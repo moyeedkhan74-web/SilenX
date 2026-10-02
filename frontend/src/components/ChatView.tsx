@@ -487,7 +487,7 @@ export const ChatView: React.FC = () => {
       await navigator.clipboard.writeText(targetMessage.text);
       showToast('Message copied');
     } catch {
-      showToast('Copy failed � please copy manually');
+      showToast('Copy failed — please copy manually');
     }
   };
 
@@ -539,6 +539,17 @@ export const ChatView: React.FC = () => {
 
   const clearSelection = useCallback(() => setSelectedMessageIds([]), []);
 
+  useEffect(() => {
+    if (selectedMessageIds.length === 0) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        clearSelection();
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [selectedMessageIds.length, clearSelection]);
+
   const handleReplySelected = () => {
     if (selectedMessageIds.length !== 1) return;
     handleReply(selectedMessageIds[0]);
@@ -561,7 +572,7 @@ export const ChatView: React.FC = () => {
       navigator.clipboard
         .writeText(text)
         .then(() => showToast(`${plural} copied`))
-        .catch(() => showToast('Copy failed � please copy manually'));
+        .catch(() => showToast('Copy failed — please copy manually'));
       clearSelection();
       return;
     }
@@ -587,7 +598,7 @@ export const ChatView: React.FC = () => {
       return;
     }
 
-    showToast(`Forwarding ${plural} � forwarding is coming soon`);
+    showToast(`Forwarding ${plural} — forwarding is coming soon`);
     clearSelection();
   };
 
@@ -612,7 +623,7 @@ export const ChatView: React.FC = () => {
 
   const scheduleCloseMenu = () => {
     cancelCloseMenu();
-    // 350ms gives enough time to move from bubble �  pill edge �  overflow sub-menu
+    // 350ms gives enough time to move from bubble → pill edge → overflow sub-menu
     closeTimer.current = window.setTimeout(() => {
       setActiveMessageId(null);
     }, 350) as unknown as number;
@@ -899,7 +910,7 @@ export const ChatView: React.FC = () => {
         >
         {searchTerm && (
           <div className="chatview-inline-banner search">
-            Showing results for {searchTerm}
+            Showing results for “{searchTerm}”
           </div>
         )}
         {activeConversationState.isMuted && (
@@ -959,7 +970,7 @@ export const ChatView: React.FC = () => {
           const msgSender = !isOwn ? activeConvo.members.find((m) => m.id === msg.senderId) || otherUser : null;
 
           const isMediaOnly = (msg.contentType === 'image' || msg.contentType === 'video');
-          const isLegacyMediaText = msg.text === '=� Photo' || msg.text === '=� Camera photo' || msg.text?.startsWith('<� ');
+          const isLegacyMediaText = msg.text === '📷 Photo' || msg.text === '📸 Camera photo' || msg.text?.startsWith('🎬 ');
           const showTextMessage = msg.text && !isLegacyMediaText;
 
           return (
@@ -1042,7 +1053,7 @@ export const ChatView: React.FC = () => {
                         : isDelivered
                         ? 'Delivered to recipient'
                         : isPending
-                        ? 'Waiting to sync  will send when you are back online'
+                        ? 'Waiting to sync — will send when you are back online'
                         : 'Sent';
                       const formattedTime = formatMessageTime(msg.createdAt) || formatMessageTime(msg.time) || msg.time || '';
 

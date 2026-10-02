@@ -5,6 +5,7 @@ import UIDDisplay from './shared/UIDDisplay';
 import QRCodeSection from './shared/QRCodeSection';
 import Modal from './ui/Modal';
 import MediaGalleryModal from './MediaGalleryModal';
+import SecurityVerifyModal from './SecurityVerifyModal';
 import { useChatStore } from '../store/chatStore';
 import './ContactDetailsModal.css';
 import { formatLastSeen } from '../utils/date';
@@ -50,6 +51,7 @@ export const ContactDetailsModal: React.FC<ContactDetailsModalProps> = ({
   const [selectedDisappearingTimer, setSelectedDisappearingTimer] = useState(0);
   const [isDisappearingSelectorOpen, setIsDisappearingSelectorOpen] = useState(false);
   const [isMediaGalleryOpen, setIsMediaGalleryOpen] = useState(false);
+  const [showSecurityVerify, setShowSecurityVerify] = useState(false);
 
   const conversation = useChatStore((s) => s.conversations.find((c) => c.id === conversationId));
   const messages = useChatStore((s) => s.messages[conversationId] || []);
@@ -325,6 +327,17 @@ export const ContactDetailsModal: React.FC<ContactDetailsModalProps> = ({
                 </div>
               </div>
             </div>
+
+            {/* Verify Encryption */}
+            <div className="contact-option-row clickable-row" onClick={() => setShowSecurityVerify(true)}>
+              <div className="row-left">
+                <Shield size={20} className="row-icon" />
+                <div className="row-text">
+                  <span className="row-title">Verify Encryption</span>
+                  <span className="row-subtitle">Compare safety numbers & scan QR</span>
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* Disappearing messages selector */}
@@ -373,6 +386,13 @@ export const ContactDetailsModal: React.FC<ContactDetailsModalProps> = ({
               <span>Block {displayNameToUse}</span>
             </button>
           </div>
+          {/* Security Verify Modal */}
+          <SecurityVerifyModal
+            isOpen={showSecurityVerify}
+            onClose={() => setShowSecurityVerify(false)}
+            peerPublicKey={(user as any).publicKey}
+            peerName={displayNameToUse}
+          />
         </div>
       </div>
     </Modal>

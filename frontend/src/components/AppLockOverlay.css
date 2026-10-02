@@ -1,0 +1,151 @@
+.app-lock-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.app-lock-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 32px;
+  background: var(--bg-primary, #0f172a);
+  border: 1px solid var(--border-color, #334155);
+  border-radius: 20px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  width: 90vw;
+  max-width: 360px;
+}
+
+.app-lock-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  color: #fff;
+}
+
+.app-lock-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-primary, #f1f5f9);
+}
+
+.app-lock-subtitle {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-secondary, #94a3b8);
+  text-align: center;
+}
+
+.app-lock-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 10px;
+  color: #ef4444;
+  font-size: 13px;
+  width: 100%;
+}
+
+.app-lock-pin-container {
+  display: flex;
+  gap: 12px;
+  margin: 8px 0;
+}
+
+.app-lock-pin-dot {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid var(--border-color, #475569);
+  transition: all 0.15s ease;
+}
+
+.app-lock-pin-dot.filled {
+  background: var(--color-primary, #6366f1);
+  border-color: var(--color-primary, #6366f1);
+}
+
+.app-lock-keypad {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  width: 100%;
+  max-width: 280px;
+  margin-top: 4px;
+}
+
+.app-lock-key {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 56px;
+  border: 1px solid var(--border-color, #334155);
+  border-radius: 14px;
+  background: var(--bg-secondary, #0f172a);
+  color: var(--text-primary, #f1f5f9);
+  font-size: 20px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  user-select: none;
+}
+
+.app-lock-key:active {
+  background: rgba(99, 102, 241, 0.15);
+}
+
+.app-lock-key-bio,
+.app-lock-key-del {
+  font-size: 16px;
+  color: var(--text-secondary, #94a3b8);
+}
+
+.app-lock-key-empty {
+  visibility: hidden;
+}
+
+.app-lock-toggle-visibility {
+  margin-top: 8px;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary, #94a3b8);
+  font-size: 12px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+
+.app-lock-toggle-visibility:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.app-lock-cancel {
+  margin-top: 8px;
+  background: transparent;
+  border: 1px solid var(--border-color, #334155);
+  color: var(--text-secondary, #94a3b8);
+  font-size: 13px;
+  padding: 8px 16px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.app-lock-cancel:hover {
+  background: rgba(255, 255, 255, 0.05);
+}

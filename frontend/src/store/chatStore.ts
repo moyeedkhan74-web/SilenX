@@ -3,15 +3,7 @@ import type { Conversation, ChatMessage, UserStatus } from '../types';
 import { API_URL } from '../config/webrtc-config';
 import { useAuthStore } from './authStore';
 import { apiFetch } from '../utils/apiFetch';
-import {
-  saveOfflineMessage,
-  saveOfflineMessages,
-  deleteOfflineMessage,
-  getAllOfflineMessages,
-  saveConversationsCache,
-  getConversationsCache,
-  deleteConversationCache,
-} from '../utils/offlineDb';
+import { dbService } from '../services/db';
 import { decryptIncoming, looksLikeCiphertext } from '../services/e2ee';
 
 interface ChatState {
@@ -135,8 +127,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
       if (!currentUserId) return;
 
       const [cachedConversations, cachedMessages] = await Promise.all([
-        getConversationsCache(currentUserId),
-        getAllOfflineMessages(),
+        dbService.getConversations(currentUserId),
+        dbService.getAllMessages(),
       ]);
 
       set((state) => {
@@ -210,7 +202,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         );
         set({ conversations: cleanedConvos });
         persistState({ conversations: cleanedConvos });
-        void saveConversationsCache(cleanedConvos);
+        void dbService.saveConversations(cleanedConvos);
       }
     } catch (err) {
       console.error('Failed to fetch conversations from server:', err);
@@ -296,7 +288,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
             }
           });
           const sorted = sortMessagesByTime(mergedMessages);
-          void saveOfflineMessages(sorted);
+          void dbService.saveMessages(sorted);
           const nextState = {
             messages: {
               ...state.messages,
@@ -508,13 +500,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
         conversations: updatedConvos,
       };
       persistState(nextState);
-      void saveOfflineMessage(msg);
+      void dbService.saveMessage(msg);
       return nextState;
     }),
   setMessages: (convId, msgs) =>
     set((state) => {
       const sorted = sortMessagesByTime(msgs);
-      void saveOfflineMessages(sorted);
+      void dbService.saveMessages(sorted);
       const nextState: Partial<ChatState> = { messages: { ...state.messages, [convId]: sorted } };
       persistState(nextState);
       return nextState;
@@ -550,8 +542,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
         m.id === (isRemap ? canonicalId : messageId)
       );
       if (updatedMessage) {
-        if (isRemap) void deleteOfflineMessage(messageId);
-        void saveOfflineMessage(updatedMessage);
+        void dbService.deleteMessage(messageId);
+        void dbService.saveMessage(updatedMessage);
       }
       return nextState;
     }),
@@ -679,7 +671,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       });
 
       if (res.ok) {
-        void deleteConversationCache(convId);
+        void dbService.deleteConversation(convId);
         set((state) => {
           const nextConvos = state.conversations.filter((c) => c.id !== convId);
           const nextMessages = { ...state.messages };
@@ -766,7 +758,7 @@ muteConversation: (convId) => {
       const updatedMsgs = convMsgs.map((m) =>
         !m.isSelf ? { ...m, isRead: true, deliveryStatus: 'read' as const } : m
       );
-      void saveOfflineMessages(updatedMsgs);
+      void dbService.saveMessages(updatedMsgs);
 
       const nextState = {
         conversations: nextConvos,
@@ -836,7 +828,7 @@ redecryptMessages: async (conversationId?: string) => {
 
       if (convUpdated) {
         newMessagesState[convId] = updatedMsgs;
-        void saveOfflineMessages(updatedMsgs);
+        void dbService.saveMessages(updatedMsgs);
       }
     }
 

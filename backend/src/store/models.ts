@@ -34,6 +34,23 @@ const UserSchema = new Schema({
   updatedAt: { type: Date, required: true, default: Date.now },
   deletedAt: { type: Date, default: null },
   fcmTokens: { type: [String], default: [] },
+  // Browser Web Push (VAPID) endpoints — declared explicitly because Mongoose
+  // strict mode would otherwise strip them on every Mongo sync.
+  webPushSubscriptions: [
+    new Schema(
+      {
+        endpoint: { type: String, required: true },
+        keys: {
+          p256dh: { type: String, required: true },
+          auth: { type: String, required: true },
+        },
+        userAgent: { type: String, default: null },
+        platform: { type: String, default: null },
+        createdAt: { type: Date, default: Date.now },
+      },
+      { _id: false }
+    ),
+  ],
 });
 
 // Conversation Schema

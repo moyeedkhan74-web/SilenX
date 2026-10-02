@@ -1,8 +1,9 @@
 import { Server, Socket } from 'socket.io';
-import { setUserSocket, removeSocketById, getSocketIdForUser, setIoServer } from './socketStore';
+import { setUserSocket, removeSocketById, getSocketIdForUser, setIoServer, setUserVisibility, clearUserVisibility, shouldNotifyViaPush } from './socketStore';
 import { messages, conversations, conversationMembers, users, saveDb, callLogs } from '../store/db';
 import { getAdminAuth } from '../config/firebaseAdmin';
 import { sendPushToUser } from '../services/pushService';
+import { sendWebPushToUser, hasWebPushSubscriptions } from '../services/webPushService';
 import type {
   SendMessagePayload,
   TypingPayload,
@@ -24,6 +25,38 @@ interface AuthenticatedSocketData {
 }
 
 type AuthSocket = Socket & { data: AuthenticatedSocketData };
+
+/**
+ * Content-aware preview for OS notifications. Mirrors pushService so Firebase
+ * and Web Push render identical text; E2EE ciphertext never reaches the server,
+ * so media types fall back to labelled placeholders.
+ */
+function buildNotificationPreview(data: {
+  text?: string;
+  contentType?: string;
+  duration?: string;
+}): string {
+  switch (data.contentType) {
+    case 'voice-note':
+      return `🎤 Voice note${data.duration ? ` (${data.duration})` : ''}`;
+    case 'image':
+      return '📷 Photo';
+    case 'video':
+      return '🎬 Video';
+    case 'file':
+      return `📄 ${data.text || 'Document'}`;
+    case 'location':
+      return '📍 Location';
+    case 'contact':
+      return '👤 Contact';
+    case 'poll':
+      return '📊 Poll';
+    case 'event':
+      return '📅 Event';
+    default:
+      return data.text?.trim() || '🔒 Encrypted message';
+  }
+}
 
 /**
  * Verifies the Firebase ID token passed in socket auth and resolves to the DB user.
@@ -194,6 +227,14 @@ export function registerSocketHandlers(io: any): void {
       // intentionally empty
     });
 
+    // ─── Tab visibility ─────────────────────────────────────────────────────
+    // The client reports whether this tab is in the foreground. Hidden or
+    // minimized tabs still receive messages over the socket, but must also be
+    // notified through push, so the server knows to raise an alert.
+    socket.on('client-visibility', (data: { visible?: boolean }) => {
+      setUserVisibility(userId, data?.visible === true);
+    });
+
     // ─── Heartbeat ──────────────────────────────────────────────────────────
     // Client sends 'heartbeat' every ~20 seconds to signal activity
     socket.on('heartbeat', () => {
@@ -266,14 +307,39 @@ export function registerSocketHandlers(io: any): void {
 
       convoMemberIds.forEach(memberId => {
         const recipientSocketId = getSocketIdForUser(memberId);
+
         if (recipientSocketId) {
           io.to(recipientSocketId).emit('receive-message', outgoing);
+        }
+
+        // Raise an OS notification when the recipient is offline OR their tab
+        // is hidden/minimized — a connected socket alone doesn't mean they are
+        // looking at the chat.
+        if (!shouldNotifyViaPush(memberId)) return;
+
+        // One channel per recipient: browsers with a VAPID subscription get
+        // Web Push, everyone else (native, older web clients) gets Firebase.
+        // Sending both would alert the user twice for a single message.
+        const sender = users.find(u => u.id === userId);
+        if (hasWebPushSubscriptions(memberId)) {
+          sendWebPushToUser(memberId, {
+            type: 'message',
+            title: sender?.displayName || 'SilenX User',
+            body: buildNotificationPreview({
+              text: data.previewText,
+              contentType: data.contentType,
+              duration: data.duration,
+            }),
+            icon: sender?.avatarUrl || undefined,
+            conversationId: data.conversationId,
+            senderId: userId,
+            messageId: newMsg.id,
+          }).catch(() => false);
         } else {
-          // User is offline - send push notification
           sendPushToUser(memberId, {
             conversationId: data.conversationId,
             senderId: userId,
-            senderDisplayName: users.find(u => u.id === userId)?.displayName || 'SilenX User',
+            senderDisplayName: sender?.displayName || 'SilenX User',
             messageId: newMsg.id,
             text: data.previewText,
             contentType: data.contentType,
@@ -538,7 +604,13 @@ export function registerSocketHandlers(io: any): void {
     socket.on('call-initiate', (data: CallInitiatePayload) => {
       console.debug('[Socket] call-initiate from', userId, 'to', data.targetUserId);
       const recipientSocketId = getSocketIdForUser(data.targetUserId);
-      if (!recipientSocketId) {
+
+      // A closed tab still gets a ringing Web Push alert; only fail fast when
+      // the callee has no browser subscription to fall back on.
+      const recipient = users.find(u => u.id === data.targetUserId);
+      const recipientHasWebPush = (recipient?.webPushSubscriptions?.length || 0) > 0;
+
+      if (!recipientSocketId && !recipientHasWebPush) {
         socket.emit('error', { code: 'USER_OFFLINE', message: 'Recipient is offline or unavailable' });
         return;
       }
@@ -560,13 +632,41 @@ export function registerSocketHandlers(io: any): void {
       });
       saveDb();
 
-      io.to(recipientSocketId).emit('call-incoming', {
-        callerId: userId,
-        callerName: data.callerName,
-        callerAvatarUrl: data.callerAvatarUrl,
-        callType: data.callType,
-        callLogId: logId,
-      });
+      if (recipientSocketId) {
+        io.to(recipientSocketId).emit('call-incoming', {
+          callerId: userId,
+          callerName: data.callerName,
+          callerAvatarUrl: data.callerAvatarUrl,
+          callType: data.callType,
+          callLogId: logId,
+        });
+      }
+
+      // Ringing alert for a hidden tab or a fully closed app
+      if (shouldNotifyViaPush(data.targetUserId)) {
+        const caller = users.find(u => u.id === userId);
+        const callLabel = data.callType === 'video' ? '📹 Video call' : '📞 Voice call';
+        // Same single-channel rule as messages: never alert twice.
+        if (hasWebPushSubscriptions(data.targetUserId)) {
+          sendWebPushToUser(data.targetUserId, {
+            type: 'call',
+            title: caller?.displayName || data.callerName || 'SilenX User',
+            body: callLabel,
+            icon: data.callerAvatarUrl || caller?.avatarUrl || undefined,
+            senderId: userId,
+            callType: data.callType,
+          }).catch(() => false);
+        } else {
+          sendPushToUser(data.targetUserId, {
+            conversationId: `direct_${userId}_${data.targetUserId}`,
+            senderId: userId,
+            senderDisplayName: caller?.displayName || data.callerName || 'SilenX User',
+            messageId: logId,
+            text: callLabel,
+            contentType: 'call',
+          });
+        }
+      }
 
       // Send back the logId to the caller so they can reference it on end
       socket.emit('call-log-id', { callLogId: logId });
@@ -776,6 +876,7 @@ export function registerSocketHandlers(io: any): void {
       // Only set offline if no other sockets are connected for this user
       const stillConnected = getSocketIdForUser(userId) !== null;
       if (!stillConnected) {
+        clearUserVisibility(userId);
         const userObj = users.find(u => u.id === userId);
         if (userObj) {
           userObj.status = 'offline';

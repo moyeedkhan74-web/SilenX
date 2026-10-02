@@ -12,6 +12,10 @@ interface SettingsState {
   chatWallpaperFit: WallpaperFit;
   chatWallpaperDim: number; // 0 to 0.7
 
+  appLockEnabled: boolean;
+  appLockPin: string | null;
+  appLockTimeoutMinutes: number;
+
   setMessageNotifications: (value: boolean) => void;
   setCallNotifications: (value: boolean) => void;
   setShowOnlineStatus: (value: boolean) => void;
@@ -20,6 +24,9 @@ interface SettingsState {
   setChatWallpaper: (value: string | null) => void;
   setChatWallpaperFit: (value: WallpaperFit) => void;
   setChatWallpaperDim: (value: number) => void;
+  setAppLockEnabled: (value: boolean) => void;
+  setAppLockPin: (value: string | null) => void;
+  setAppLockTimeoutMinutes: (value: number) => void;
 }
 
 const getStoredBool = (key: string, defaultValue: boolean): boolean => {
@@ -36,6 +43,10 @@ export const useSettingsStore = create<SettingsState>((set) => ({
   chatWallpaper: localStorage.getItem('slienx_chat_wallpaper') || null,
   chatWallpaperFit: (localStorage.getItem('slienx_chat_wallpaper_fit') as WallpaperFit) || 'cover',
   chatWallpaperDim: Number(localStorage.getItem('slienx_chat_wallpaper_dim')) || 0,
+
+  appLockEnabled: getStoredBool('slienx_app_lock_enabled', false),
+  appLockPin: localStorage.getItem('slienx_app_lock_pin'),
+  appLockTimeoutMinutes: Number(localStorage.getItem('slienx_app_lock_timeout_minutes')) || 1,
 
   setMessageNotifications: (value) => {
     localStorage.setItem('slienx_msg_notif', String(value));
@@ -72,6 +83,23 @@ export const useSettingsStore = create<SettingsState>((set) => ({
   setChatWallpaperDim: (value) => {
     localStorage.setItem('slienx_chat_wallpaper_dim', String(value));
     set({ chatWallpaperDim: value });
+  },
+
+  setAppLockEnabled: (value) => {
+    localStorage.setItem('slienx_app_lock_enabled', String(value));
+    set({ appLockEnabled: value });
+  },
+  setAppLockPin: (value) => {
+    if (value === null) {
+      localStorage.removeItem('slienx_app_lock_pin');
+    } else {
+      localStorage.setItem('slienx_app_lock_pin', value);
+    }
+    set({ appLockPin: value });
+  },
+  setAppLockTimeoutMinutes: (value) => {
+    localStorage.setItem('slienx_app_lock_timeout_minutes', String(value));
+    set({ appLockTimeoutMinutes: value });
   },
 }));
 
