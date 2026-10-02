@@ -1,4 +1,4 @@
-﻿import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { ArrowLeft, Phone, Video, MoreVertical, Lock, Search, Bell, UserX, Flag, Trash2, Check, CheckCheck, Clock,
   Star, MapPin, Pin, Image as ImageIcon, X, Copy, Forward, Send as ReplyIcon } from 'lucide-react';
 import { useIsMobile } from '../hooks/useIsMobile';
@@ -449,7 +449,7 @@ export const ChatView: React.FC = () => {
         return msg.eventData ? (
           <div className="rich-event-bubble">
             <div className="rich-event-title">{msg.eventData.title}</div>
-            <div className="rich-event-datetime">{msg.eventData.date} Â· {msg.eventData.time}</div>
+            <div className="rich-event-datetime">{msg.eventData.date} · {msg.eventData.time}</div>
             {msg.eventData.description && <div className="rich-event-desc">{msg.eventData.description}</div>}
             {msg.eventData.location && <div className="rich-event-loc">{msg.eventData.location}</div>}
           </div>
@@ -487,7 +487,7 @@ export const ChatView: React.FC = () => {
       await navigator.clipboard.writeText(targetMessage.text);
       showToast('Message copied');
     } catch {
-      showToast('Copy failed â€” please copy manually');
+      showToast('Copy failed � please copy manually');
     }
   };
 
@@ -561,7 +561,7 @@ export const ChatView: React.FC = () => {
       navigator.clipboard
         .writeText(text)
         .then(() => showToast(`${plural} copied`))
-        .catch(() => showToast('Copy failed â€” please copy manually'));
+        .catch(() => showToast('Copy failed � please copy manually'));
       clearSelection();
       return;
     }
@@ -587,7 +587,7 @@ export const ChatView: React.FC = () => {
       return;
     }
 
-    showToast(`Forwarding ${plural} â€” forwarding is coming soon`);
+    showToast(`Forwarding ${plural} � forwarding is coming soon`);
     clearSelection();
   };
 
@@ -612,7 +612,7 @@ export const ChatView: React.FC = () => {
 
   const scheduleCloseMenu = () => {
     cancelCloseMenu();
-    // 350ms gives enough time to move from bubble â†’ pill edge â†’ overflow sub-menu
+    // 350ms gives enough time to move from bubble �  pill edge �  overflow sub-menu
     closeTimer.current = window.setTimeout(() => {
       setActiveMessageId(null);
     }, 350) as unknown as number;
@@ -899,7 +899,7 @@ export const ChatView: React.FC = () => {
         >
         {searchTerm && (
           <div className="chatview-inline-banner search">
-            Showing results for “{searchTerm}”
+            Showing results for {searchTerm}
           </div>
         )}
         {activeConversationState.isMuted && (
@@ -959,7 +959,7 @@ export const ChatView: React.FC = () => {
           const msgSender = !isOwn ? activeConvo.members.find((m) => m.id === msg.senderId) || otherUser : null;
 
           const isMediaOnly = (msg.contentType === 'image' || msg.contentType === 'video');
-          const isLegacyMediaText = msg.text === '📷 Photo' || msg.text === '📸 Camera photo' || msg.text?.startsWith('🎬 ');
+          const isLegacyMediaText = msg.text === '=� Photo' || msg.text === '=� Camera photo' || msg.text?.startsWith('<� ');
           const showTextMessage = msg.text && !isLegacyMediaText;
 
           return (
@@ -1042,7 +1042,7 @@ export const ChatView: React.FC = () => {
                         : isDelivered
                         ? 'Delivered to recipient'
                         : isPending
-                        ? 'Waiting to sync — will send when you are back online'
+                        ? 'Waiting to sync  will send when you are back online'
                         : 'Sent';
                       const formattedTime = formatMessageTime(msg.createdAt) || formatMessageTime(msg.time) || msg.time || '';
 
