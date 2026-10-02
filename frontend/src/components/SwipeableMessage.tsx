@@ -4,9 +4,10 @@ interface SwipeableMessageProps {
   children: React.ReactNode;
   onSwipeReply: () => void;
   onLongPress: () => void;
+  onClick?: () => void;
 }
 
-export const SwipeableMessage: React.FC<SwipeableMessageProps> = ({ children, onSwipeReply, onLongPress }) => {
+export const SwipeableMessage: React.FC<SwipeableMessageProps> = ({ children, onSwipeReply, onLongPress, onClick }) => {
   const [offset, setOffset] = useState(0);
   const startX = useRef<number | null>(null);
   const longPressTimer = useRef<number | null>(null);

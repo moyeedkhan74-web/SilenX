@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { ArrowLeft, Phone, Video, MoreVertical, Lock, Search, Bell, UserX, Flag, Trash2, Check, CheckCheck, Clock,
-Star, MapPin, Pin, Image as ImageIcon } from 'lucide-react';
+  Star, MapPin, Pin, Image as ImageIcon, X, Copy, Forward, Send as ReplyIcon } from 'lucide-react';
 import { useIsMobile } from '../hooks/useIsMobile';
 import { useChatStore } from '../store/chatStore';
 import { connectSocket } from '../services/socket';
@@ -606,7 +606,7 @@ export const ChatView: React.FC = () => {
         }
       }}
     >
-      {isDraggingOver && (
+{isDraggingOver && (
         <div className="chat-drag-overlay">
           <div className="chat-drag-icon">
             <ImageIcon size={36} />
@@ -615,116 +615,170 @@ export const ChatView: React.FC = () => {
           <div className="chat-drag-subtext">Images, videos, documents, or audio clips</div>
         </div>
       )}
-      <header className="chatview-header">
-        <div className="chatview-header-info">
-          {isMobile && (
+      {selectedMessageIds.length > 0 ? (
+        <header className="chatview-selection-header">
+          <div className="chatview-selection-header-left">
             <button
-              className="icon-btn mobile-back-btn"
-              title="Back to chats"
+              className="icon-btn-selection active"
               type="button"
-              onClick={() => setActiveConversation(null as any)}
+              onClick={clearSelection}
             >
-              <ArrowLeft size={22} />
+              <X size={18} />
             </button>
-          )}
-          <div
-            className="chatview-header-profile-btn"
-            onClick={() => {
-              if (activeConvo?.type === 'group') {
-                setGroupDetailsOpen(true);
-              } else {
-                setContactDetailsOpen(true);
-              }
-            }}
-            style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', flex: 1, minWidth: 0 }}
-          >
-            <Avatar
-              name={chatName || 'SlienX'}
-              size={40}
-              online={status === 'online'}
-              avatarUrl={activeConvo.type === 'group' ? (activeConvo.avatarUrl || null) : (otherUser?.avatarUrl || activeConvo.avatarUrl || null)}
-            />
-            <div className="chatview-header-meta">
-              <h3 className="chatview-header-name">
-                {chatName}
-                <span className="e2ee-badge" title="End-to-end encrypted">
-                  <Lock size={10} strokeWidth={2.6} />
-                  E2EE
+            <span className="chatview-selection-count">
+              {selectedMessageIds.length} selected
+            </span>
+          </div>
+          <div className="chatview-selection-header-right">
+            <button
+              className="icon-btn-selection"
+              type="button"
+              onClick={() => handleSelectAction('copy')}
+            >
+              <Copy size={16} />
+            </button>
+            <button
+              className="icon-btn-selection"
+              type="button"
+              onClick={() => handleSelectAction('star')}
+            >
+              <Star size={16} />
+            </button>
+            <button
+              className="icon-btn-selection"
+              type="button"
+              onClick={() => handleSelectAction('forward')}
+            >
+              <Forward size={16} />
+            </button>
+            <button
+              className="icon-btn-selection"
+              type="button"
+              onClick={() => handleSelectAction('delete')}
+            >
+              <Trash2 size={16} />
+            </button>
+            <button
+              className="icon-btn-selection"
+              type="button"
+              onClick={handleReplySelected}
+            >
+              <ReplyIcon size={16} />
+            </button>
+          </div>
+        </header>
+      ) : (
+        <header className="chatview-header">
+          <div className="chatview-header-info">
+            {isMobile && (
+              <button
+                className="icon-btn mobile-back-btn"
+                title="Back to chats"
+                type="button"
+                onClick={() => setActiveConversation(null as any)}
+              >
+                <ArrowLeft size={22} />
+              </button>
+            )}
+            <div
+              className="chatview-header-profile-btn"
+              onClick={() => {
+                if (activeConvo?.type === 'group') {
+                  setGroupDetailsOpen(true);
+                } else {
+                  setContactDetailsOpen(true);
+                }
+              }}
+              style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', flex: 1, minWidth: 0 }}
+            >
+              <Avatar
+                name={chatName || 'SlienX'}
+                size={40}
+                online={status === 'online'}
+                avatarUrl={activeConvo.type === 'group' ? (activeConvo.avatarUrl || null) : (otherUser?.avatarUrl || activeConvo.avatarUrl || null)}
+              />
+              <div className="chatview-header-meta">
+                <h3 className="chatview-header-name">
+                  {chatName}
+                  <span className="e2ee-badge" title="End-to-end encrypted">
+                    <Lock size={10} strokeWidth={2.6} />
+                    E2EE
+                  </span>
+                </h3>
+                <span className={`chatview-status-subtext ${status === 'online' ? 'online' : ''}`}>
+                  {statusText}
                 </span>
-              </h3>
-              <span className={`chatview-status-subtext ${status === 'online' ? 'online' : ''}`}>
-                {statusText}
-              </span>
+              </div>
             </div>
           </div>
-        </div>
-        <div className="chatview-header-actions">
-          <button className="icon-btn call-btn" title="Start audio call" type="button" onClick={handleAudioCall}>
-            <Phone size={18} />
-          </button>
-          <button className="icon-btn call-btn" title="Start video call" type="button" onClick={handleVideoCall}>
-            <Video size={18} />
-          </button>
-          <div className="menu-wrapper" ref={headerMenuRef}>
-            <button className="icon-btn" title="More options" onClick={() => setMenuOpen((open) => !open)} type="button">
-              <MoreVertical size={18} />
+          <div className="chatview-header-actions">
+            <button className="icon-btn call-btn" title="Start audio call" type="button" onClick={handleAudioCall}>
+              <Phone size={18} />
             </button>
-            {menuOpen && (
-              <div className="dropdown-menu">
-                <button className="dropdown-item" type="button" onClick={handleSearchInChat}>
-                  <Search size={16} />
-                  <span>Search in chat</span>
-                </button>
-                <button className="dropdown-item" type="button" onClick={handleMuteNotifications}>
-                  <Bell size={16} />
-                  <span>{activeConversationState.isMuted ? 'Unmute notifications' : 'Mute notifications'}</span>
-                </button>
-                <button className="dropdown-item" type="button" onClick={handleVerifyEncryption}>
-                  <Lock size={16} />
-                  <span>Verify encryption</span>
-                </button>
-                <button className="dropdown-item" type="button" onClick={handleBlockContact}>
-                  <UserX size={16} />
-                  <span>{activeConversationState.isBlocked ? 'Unblock contact' : 'Block contact'}</span>
-                </button>
-                <button className="dropdown-item" type="button" onClick={handleReport}>
-                  <Flag size={16} />
-                  <span>Report</span>
-                </button>
-                <button
-                  className="dropdown-item"
-                  type="button"
-                  onClick={() => {
-                    setMenuOpen(false);
-                    setWallpaperPickerOpen(true);
-                  }}
-                >
-                  <ImageIcon size={16} />
-                  <span>Chat wallpaper</span>
-                </button>
-                <button
-                  className="dropdown-item danger"
-                  type="button"
-                  onClick={() => {
-                    const confirmed = window.confirm('Clear this chat for this device?');
-                    if (!confirmed) {
+            <button className="icon-btn call-btn" title="Start video call" type="button" onClick={handleVideoCall}>
+              <Video size={18} />
+            </button>
+            <div className="menu-wrapper" ref={headerMenuRef}>
+              <button className="icon-btn" title="More options" onClick={() => setMenuOpen((open) => !open)} type="button">
+                <MoreVertical size={18} />
+              </button>
+              {menuOpen && (
+                <div className="dropdown-menu">
+                  <button className="dropdown-item" type="button" onClick={handleSearchInChat}>
+                    <Search size={16} />
+                    <span>Search in chat</span>
+                  </button>
+                  <button className="dropdown-item" type="button" onClick={handleMuteNotifications}>
+                    <Bell size={16} />
+                    <span>{activeConversationState.isMuted ? 'Unmute notifications' : 'Mute notifications'}</span>
+                  </button>
+                  <button className="dropdown-item" type="button" onClick={handleVerifyEncryption}>
+                    <Lock size={16} />
+                    <span>Verify encryption</span>
+                  </button>
+                  <button className="dropdown-item" type="button" onClick={handleBlockContact}>
+                    <UserX size={16} />
+                    <span>{activeConversationState.isBlocked ? 'Unblock contact' : 'Block contact'}</span>
+                  </button>
+                  <button className="dropdown-item" type="button" onClick={handleReport}>
+                    <Flag size={16} />
+                    <span>Report</span>
+                  </button>
+                  <button
+                    className="dropdown-item"
+                    type="button"
+                    onClick={() => {
                       setMenuOpen(false);
-                      return;
-                    }
-                    if (activeConversationId) {
-                      clearConversation(activeConversationId);
-                    }
-                    setMenuOpen(false);
-                  }}
-                >
-                  <Trash2 size={16} />
-                  <span>Clear chat</span>
-                </button>
-              </div>
-            )}
+                      setWallpaperPickerOpen(true);
+                    }}
+                  >
+                    <ImageIcon size={16} />
+                    <span>Chat wallpaper</span>
+                  </button>
+                  <button
+                    className="dropdown-item danger"
+                    type="button"
+                    onClick={() => {
+                      const confirmed = window.confirm('Clear this chat for this device?');
+                      if (!confirmed) {
+                        setMenuOpen(false);
+                        return;
+                      }
+                      if (activeConversationId) {
+                        clearConversation(activeConversationId);
+                      }
+                      setMenuOpen(false);
+                    }}
+                  >
+                    <Trash2 size={16} />
+                    <span>Clear chat</span>
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
-      </header>
+        </header>
+      )}
 
       {/* Chat messages area with wallpaper */}
       <div
@@ -803,6 +857,7 @@ export const ChatView: React.FC = () => {
         {currentMessages.map((msg) => {
           const isHighlighted = searchTerm && searchMatchIds.includes(msg.id);
           const isOwn = msg.isSelf;
+          const isSelected = selectedMessageIds.includes(msg.id);
 
           if (msg.isSystem) {
             return (
@@ -840,7 +895,11 @@ export const ChatView: React.FC = () => {
           const showTextMessage = msg.text && !isLegacyMediaText;
 
           return (
-            <div key={msg.id} data-message-id={msg.id} className={`msg-wrapper ${isOwn ? 'self' : 'remote'} ${isHighlighted ? 'highlighted' : ''}`}>
+            <div 
+              key={msg.id} 
+              data-message-id={msg.id} 
+              className={`msg-wrapper ${isOwn ? 'self' : 'remote'} ${isHighlighted ? 'highlighted' : ''} ${isSelected ? 'selected' : ''}`}
+            >
               {!isOwn && (
                 <div className="msg-avatar" style={{ alignSelf: 'flex-end', marginRight: 8, flexShrink: 0 }}>
                   <Avatar name={msgSender?.displayName || 'User'} size={28} avatarUrl={msgSender?.avatarUrl} />
@@ -854,7 +913,18 @@ export const ChatView: React.FC = () => {
                 )}
                 <SwipeableMessage
                   onSwipeReply={() => handleReply(msg.id)}
-                  onLongPress={() => openMessageMenu(msg.id, messageRefs.current[msg.id] || undefined)}
+                  onLongPress={() => {
+                    if (selectedMessageIds.length > 0) {
+                      toggleSelectMessage(msg.id);
+                    } else {
+                      openMessageMenu(msg.id, messageRefs.current[msg.id] || undefined);
+                    }
+                  }}
+                  onClick={() => {
+                    if (selectedMessageIds.length > 0) {
+                      toggleSelectMessage(msg.id);
+                    }
+                  }}
                 >
                   <div
                     ref={(node) => {

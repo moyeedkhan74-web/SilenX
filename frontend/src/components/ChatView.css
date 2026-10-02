@@ -118,6 +118,51 @@
   padding-right: 2px;
 }
 
+/* ── Selection Header Bar ── */
+.chatview-selection-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  min-height: 56px;
+  padding: 0 12px 0 10px;
+  background: var(--color-bg);
+  border-bottom: 1px solid var(--color-border);
+  flex-shrink: 0;
+  position: relative;
+  z-index: 10;
+}
+.chatview-selection-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.chatview-selection-header-right {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.chatview-selection-count {
+  font-size: clamp(12px, 3vw, 13px);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.icon-btn-selection {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-md);
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  transition: background var(--transition), color var(--transition);
+}
+.icon-btn-selection:hover { background: var(--bg-secondary); color: var(--text-primary); }
+.icon-btn-selection.active { background: var(--color-accent-soft); color: var(--color-accent); }
+
+
 .icon-btn {
   width: 36px;
   height: 36px;
@@ -393,6 +438,17 @@
 }
 .msg-wrapper.self .msg-content-col { align-items: flex-end; }
 .msg-wrapper.remote .msg-content-col { align-items: flex-start; }
+
+/* ── Selection Mode ── */
+.msg-wrapper.selected {
+  background-color: rgba(16, 185, 129, 0.18);
+  transition: background-color 0.2s ease-in-out;
+  border-radius: 12px;
+}
+.msg-wrapper.selected .msg-bubble {
+  border-radius: 12px;
+}
+
 .msg-sender-name {
   font-size: 11px;
   font-weight: 600;
@@ -408,7 +464,9 @@
   line-height: 1.5;
   position: relative;
   cursor: default;
-  user-select: text;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
   display: flex;
   flex-direction: column;
   gap: 5px;
