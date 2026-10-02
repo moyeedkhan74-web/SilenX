@@ -127,6 +127,7 @@ export const AddContactModal: React.FC<AddContactModalProps> = ({ isOpen, onClos
   const startScanner = async () => {
     setScanError('');
     setScanSuccess(false);
+    setScannerActive(true);
     try {
       const html5Qrcode = new Html5Qrcode('qr-reader');
       scannerRef.current = html5Qrcode;
@@ -147,8 +148,6 @@ export const AddContactModal: React.FC<AddContactModalProps> = ({ isOpen, onClos
         },
         () => {}
       );
-
-      setScannerActive(true);
     } catch (err: any) {
       console.error('Scanner start failed:', err);
       setScanError(
@@ -156,6 +155,7 @@ export const AddContactModal: React.FC<AddContactModalProps> = ({ isOpen, onClos
           ? 'Camera permission denied. Please allow camera access.'
           : 'Could not start camera. Make sure no other app is using it.'
       );
+      setScannerActive(false);
     }
   };
 
