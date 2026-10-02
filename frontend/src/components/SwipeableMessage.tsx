@@ -12,6 +12,7 @@ export const SwipeableMessage: React.FC<SwipeableMessageProps> = ({ children, on
   const startX = useRef<number | null>(null);
   const longPressTimer = useRef<number | null>(null);
   const hasMoved = useRef(false);
+  const didLongPress = useRef(false);
 
   const cancelLongPress = () => {
     if (longPressTimer.current !== null) {
@@ -23,9 +24,11 @@ export const SwipeableMessage: React.FC<SwipeableMessageProps> = ({ children, on
   const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
     startX.current = event.clientX;
     hasMoved.current = false;
+    didLongPress.current = false;
     cancelLongPress();
     longPressTimer.current = window.setTimeout(() => {
       if (!hasMoved.current) {
+        didLongPress.current = true;
         onLongPress();
       }
     }, 550);
@@ -45,11 +48,18 @@ export const SwipeableMessage: React.FC<SwipeableMessageProps> = ({ children, on
 
   const handlePointerUp = () => {
     cancelLongPress();
-    if (offset < -90) {
-      onSwipeReply();
-    }
-    setOffset(0);
+    if (startX.current === null) return;
+    const wasSwiped = offset < -90;
+    const shouldClick = !didLongPress.current && !hasMoved.current && offset === 0;
     startX.current = null;
+    setOffset(0);
+    if (wasSwiped) {
+      onSwipeReply();
+      return;
+    }
+    if (shouldClick && onClick) {
+      onClick();
+    }
   };
 
   return (

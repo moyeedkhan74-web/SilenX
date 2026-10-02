@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+﻿import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { ArrowLeft, Phone, Video, MoreVertical, Lock, Search, Bell, UserX, Flag, Trash2, Check, CheckCheck, Clock,
   Star, MapPin, Pin, Image as ImageIcon, X, Copy, Forward, Send as ReplyIcon } from 'lucide-react';
 import { useIsMobile } from '../hooks/useIsMobile';
@@ -45,6 +45,7 @@ export const ChatView: React.FC = () => {
   const [wallpaperPickerOpen, setWallpaperPickerOpen] = useState(false);
   const [isDraggingOver, setIsDraggingOver] = useState(false);
   const [droppedFiles, setDroppedFiles] = useState<File[]>([]);
+  const [selectedMessageIds, setSelectedMessageIds] = useState<string[]>([]);
   const typingTimers = useRef<Record<string, NodeJS.Timeout>>({}); 
   const closeTimer = useRef<number | null>(null);
 
@@ -53,6 +54,7 @@ export const ChatView: React.FC = () => {
   const showToast = useCallback((message: string) => {
     setToast({ message, visible: true });
   }, []);
+
   const { conversations, activeConversationId, messages, addMessage, clearConversation, editMessage, deleteMessage, reactToMessage, setActiveConversation, markAsRead } = useChatStore();
   const setMessages = useChatStore((s) => s.setMessages);
   const currentUser = useAuthStore((s) => s.user);
@@ -76,6 +78,10 @@ export const ChatView: React.FC = () => {
     target?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     setSearchTargetId(null);
   }, [searchTargetId, currentMessages]);
+
+  useEffect(() => {
+    setSelectedMessageIds([]);
+  }, [activeConversationId]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -443,7 +449,7 @@ export const ChatView: React.FC = () => {
         return msg.eventData ? (
           <div className="rich-event-bubble">
             <div className="rich-event-title">{msg.eventData.title}</div>
-            <div className="rich-event-datetime">{msg.eventData.date} · {msg.eventData.time}</div>
+            <div className="rich-event-datetime">{msg.eventData.date} Â· {msg.eventData.time}</div>
             {msg.eventData.description && <div className="rich-event-desc">{msg.eventData.description}</div>}
             {msg.eventData.location && <div className="rich-event-loc">{msg.eventData.location}</div>}
           </div>
@@ -481,7 +487,7 @@ export const ChatView: React.FC = () => {
       await navigator.clipboard.writeText(targetMessage.text);
       showToast('Message copied');
     } catch {
-      showToast('Copy failed — please copy manually');
+      showToast('Copy failed â€” please copy manually');
     }
   };
 
@@ -525,6 +531,66 @@ export const ChatView: React.FC = () => {
     showToast(target?.isStarred ? 'Message unstarred' : 'Message starred');
   };
 
+  const toggleSelectMessage = useCallback((messageId: string) => {
+    setSelectedMessageIds((prev) =>
+      prev.includes(messageId) ? prev.filter((id) => id !== messageId) : [...prev, messageId]
+    );
+  }, []);
+
+  const clearSelection = useCallback(() => setSelectedMessageIds([]), []);
+
+  const handleReplySelected = () => {
+    if (selectedMessageIds.length !== 1) return;
+    handleReply(selectedMessageIds[0]);
+    clearSelection();
+  };
+
+  const handleSelectAction = (action: 'copy' | 'star' | 'forward' | 'delete') => {
+    const ids = selectedMessageIds;
+    if (ids.length === 0) return;
+    const idSet = new Set(ids);
+    const targets = currentMessages.filter((msg) => idSet.has(msg.id));
+    const plural = `${ids.length} message${ids.length > 1 ? 's' : ''}`;
+
+    if (action === 'copy') {
+      const text = targets.map((msg) => msg.text).filter(Boolean).join('\n');
+      if (!text) {
+        showToast('Nothing to copy');
+        return;
+      }
+      navigator.clipboard
+        .writeText(text)
+        .then(() => showToast(`${plural} copied`))
+        .catch(() => showToast('Copy failed â€” please copy manually'));
+      clearSelection();
+      return;
+    }
+
+    if (action === 'star') {
+      if (!activeConversationId) return;
+      const shouldStar = !targets.every((msg) => msg.isStarred);
+      setMessages(
+        activeConversationId,
+        (messages[activeConversationId] || []).map((msg) =>
+          idSet.has(msg.id) ? { ...msg, isStarred: shouldStar } : msg
+        )
+      );
+      showToast(shouldStar ? `${plural} starred` : `Removed ${plural} from starred`);
+      clearSelection();
+      return;
+    }
+
+    if (action === 'delete') {
+      ids.forEach((id) => handleDeleteMessage(id));
+      showToast(`${plural} deleted`);
+      clearSelection();
+      return;
+    }
+
+    showToast(`Forwarding ${plural} â€” forwarding is coming soon`);
+    clearSelection();
+  };
+
   const handleTypingChange = (isTyping: boolean) => {
     if (!activeConversationId) return;
     const socket = connectSocket();
@@ -546,7 +612,7 @@ export const ChatView: React.FC = () => {
 
   const scheduleCloseMenu = () => {
     cancelCloseMenu();
-    // 350ms gives enough time to move from bubble → pill edge → overflow sub-menu
+    // 350ms gives enough time to move from bubble â†’ pill edge â†’ overflow sub-menu
     closeTimer.current = window.setTimeout(() => {
       setActiveMessageId(null);
     }, 350) as unknown as number;
@@ -606,7 +672,7 @@ export const ChatView: React.FC = () => {
         }
       }}
     >
-{isDraggingOver && (
+    {isDraggingOver && (
         <div className="chat-drag-overlay">
           <div className="chat-drag-icon">
             <ImageIcon size={36} />
@@ -615,7 +681,7 @@ export const ChatView: React.FC = () => {
           <div className="chat-drag-subtext">Images, videos, documents, or audio clips</div>
         </div>
       )}
-      {selectedMessageIds.length > 0 ? (
+    {selectedMessageIds.length > 0 ? (
         <header className="chatview-selection-header">
           <div className="chatview-selection-header-left">
             <button
@@ -662,6 +728,8 @@ export const ChatView: React.FC = () => {
               className="icon-btn-selection"
               type="button"
               onClick={handleReplySelected}
+              disabled={selectedMessageIds.length !== 1}
+              title={selectedMessageIds.length === 1 ? 'Reply' : 'Select a single message to reply'}
             >
               <ReplyIcon size={16} />
             </button>
@@ -710,116 +778,116 @@ export const ChatView: React.FC = () => {
                 </span>
               </div>
             </div>
-          </div>
-          <div className="chatview-header-actions">
-            <button className="icon-btn call-btn" title="Start audio call" type="button" onClick={handleAudioCall}>
-              <Phone size={18} />
-            </button>
-            <button className="icon-btn call-btn" title="Start video call" type="button" onClick={handleVideoCall}>
-              <Video size={18} />
-            </button>
-            <div className="menu-wrapper" ref={headerMenuRef}>
-              <button className="icon-btn" title="More options" onClick={() => setMenuOpen((open) => !open)} type="button">
-                <MoreVertical size={18} />
+            <div className="chatview-header-actions">
+              <button className="icon-btn call-btn" title="Start audio call" type="button" onClick={handleAudioCall}>
+                <Phone size={18} />
               </button>
-              {menuOpen && (
-                <div className="dropdown-menu">
-                  <button className="dropdown-item" type="button" onClick={handleSearchInChat}>
-                    <Search size={16} />
-                    <span>Search in chat</span>
-                  </button>
-                  <button className="dropdown-item" type="button" onClick={handleMuteNotifications}>
-                    <Bell size={16} />
-                    <span>{activeConversationState.isMuted ? 'Unmute notifications' : 'Mute notifications'}</span>
-                  </button>
-                  <button className="dropdown-item" type="button" onClick={handleVerifyEncryption}>
-                    <Lock size={16} />
-                    <span>Verify encryption</span>
-                  </button>
-                  <button className="dropdown-item" type="button" onClick={handleBlockContact}>
-                    <UserX size={16} />
-                    <span>{activeConversationState.isBlocked ? 'Unblock contact' : 'Block contact'}</span>
-                  </button>
-                  <button className="dropdown-item" type="button" onClick={handleReport}>
-                    <Flag size={16} />
-                    <span>Report</span>
-                  </button>
-                  <button
-                    className="dropdown-item"
-                    type="button"
-                    onClick={() => {
-                      setMenuOpen(false);
-                      setWallpaperPickerOpen(true);
-                    }}
-                  >
-                    <ImageIcon size={16} />
-                    <span>Chat wallpaper</span>
-                  </button>
-                  <button
-                    className="dropdown-item danger"
-                    type="button"
-                    onClick={() => {
-                      const confirmed = window.confirm('Clear this chat for this device?');
-                      if (!confirmed) {
+              <button className="icon-btn call-btn" title="Start video call" type="button" onClick={handleVideoCall}>
+                <Video size={18} />
+              </button>
+              <div className="menu-wrapper" ref={headerMenuRef}>
+                <button className="icon-btn" title="More options" onClick={() => setMenuOpen((open) => !open)} type="button">
+                  <MoreVertical size={18} />
+                </button>
+                {menuOpen && (
+                  <div className="dropdown-menu">
+                    <button className="dropdown-item" type="button" onClick={handleSearchInChat}>
+                      <Search size={16} />
+                      <span>Search in chat</span>
+                    </button>
+                    <button className="dropdown-item" type="button" onClick={handleMuteNotifications}>
+                      <Bell size={16} />
+                      <span>{activeConversationState.isMuted ? 'Unmute notifications' : 'Mute notifications'}</span>
+                    </button>
+                    <button className="dropdown-item" type="button" onClick={handleVerifyEncryption}>
+                      <Lock size={16} />
+                      <span>Verify encryption</span>
+                    </button>
+                    <button className="dropdown-item" type="button" onClick={handleBlockContact}>
+                      <UserX size={16} />
+                      <span>{activeConversationState.isBlocked ? 'Unblock contact' : 'Block contact'}</span>
+                    </button>
+                    <button className="dropdown-item" type="button" onClick={handleReport}>
+                      <Flag size={16} />
+                      <span>Report</span>
+                    </button>
+                    <button
+                      className="dropdown-item"
+                      type="button"
+                      onClick={() => {
                         setMenuOpen(false);
-                        return;
-                      }
-                      if (activeConversationId) {
-                        clearConversation(activeConversationId);
-                      }
-                      setMenuOpen(false);
-                    }}
-                  >
-                    <Trash2 size={16} />
-                    <span>Clear chat</span>
-                  </button>
-                </div>
-              )}
+                        setWallpaperPickerOpen(true);
+                      }}
+                    >
+                      <ImageIcon size={16} />
+                      <span>Chat wallpaper</span>
+                    </button>
+                    <button
+                      className="dropdown-item danger"
+                      type="button"
+                      onClick={() => {
+                        const confirmed = window.confirm('Clear this chat for this device?');
+                        if (!confirmed) {
+                          setMenuOpen(false);
+                          return;
+                        }
+                        if (activeConversationId) {
+                          clearConversation(activeConversationId);
+                        }
+                        setMenuOpen(false);
+                      }}
+                    >
+                      <Trash2 size={16} />
+                      <span>Clear chat</span>
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </header>
       )}
-
-      {/* Chat messages area with wallpaper */}
-      <div
-        className="chatview-messages-container"
-        style={{
-          flex: 1,
-          position: 'relative',
-          display: 'flex',
-          flexDirection: 'column',
-          overflow: 'hidden',
-        }}
-      >
-        {chatWallpaper && (
-          <div
-            className="chatview-wallpaper-bg"
-            style={{
-              position: 'absolute',
-              inset: 0,
-              pointerEvents: 'none',
-              zIndex: 0,
-              ...(chatWallpaper.startsWith('linear-gradient') || chatWallpaper.startsWith('radial-gradient')
-                ? { background: chatWallpaper }
-                : {
-                    backgroundImage: `url(${chatWallpaper})`,
-                    backgroundSize: chatWallpaperFit === 'tile' ? 'auto' : chatWallpaperFit,
-                    backgroundRepeat: chatWallpaperFit === 'tile' ? 'repeat' : 'no-repeat',
-                    backgroundPosition: 'center',
-                  }),
-            }}
-          >
-            {chatWallpaperDim > 0 && (
-              <div
-                style={{
-                  position: 'absolute',
-                  inset: 0,
-                  backgroundColor: `rgba(0, 0, 0, ${chatWallpaperDim})`,
-                }}
-              />
-            )}
-          </div>
-        )}
+    
+    {/* Chat messages area with wallpaper */}
+    <div
+      className="chatview-messages-container"
+      style={{
+        flex: 1,
+        position: 'relative',
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
+      }}
+    >
+      {chatWallpaper && (
+        <div
+          className="chatview-wallpaper-bg"
+          style={{
+            position: 'absolute',
+            inset: 0,
+            pointerEvents: 'none',
+            zIndex: 0,
+            ...(chatWallpaper.startsWith('linear-gradient') || chatWallpaper.startsWith('radial-gradient')
+              ? { background: chatWallpaper }
+              : {
+                  backgroundImage: `url(${chatWallpaper})`,
+                  backgroundSize: chatWallpaperFit === 'tile' ? 'auto' : chatWallpaperFit,
+                  backgroundRepeat: chatWallpaperFit === 'tile' ? 'repeat' : 'no-repeat',
+                  backgroundPosition: 'center',
+                }),
+          }}
+        >
+          {chatWallpaperDim > 0 && (
+            <div
+              style={{
+                position: 'absolute',
+                inset: 0,
+                backgroundColor: `rgba(0, 0, 0, ${chatWallpaperDim})`,
+              }}
+            />
+          )}
+        </div>
+      )}
         <div
           className="chatview-messages"
           style={{
@@ -917,7 +985,8 @@ export const ChatView: React.FC = () => {
                     if (selectedMessageIds.length > 0) {
                       toggleSelectMessage(msg.id);
                     } else {
-                      openMessageMenu(msg.id, messageRefs.current[msg.id] || undefined);
+                      setActiveMessageId(null);
+                      setSelectedMessageIds([msg.id]);
                     }
                   }}
                   onClick={() => {
@@ -931,7 +1000,10 @@ export const ChatView: React.FC = () => {
                       messageRefs.current[msg.id] = node;
                     }}
                     className={`msg-bubble ${msg.isDeleted ? 'deleted' : ''} ${isMediaOnly && !showTextMessage ? 'media-only' : ''}`}
-                    onMouseEnter={(event) => openMessageMenu(msg.id, event.currentTarget)}
+                    onMouseEnter={(event) => {
+                      if (selectedMessageIds.length > 0) return;
+                      openMessageMenu(msg.id, event.currentTarget);
+                    }}
                     onMouseLeave={scheduleCloseMenu}
                     onContextMenu={(event) => {
                       event.preventDefault();
@@ -1062,168 +1134,167 @@ export const ChatView: React.FC = () => {
         )}
         <div ref={messagesEndRef} />
       </div>
-      </div>
-
-      {activeConversationState.isBlocked ? (
-        <div className="chatview-blocked-input">
-          Messaging is disabled while this contact is blocked locally.
-        </div>
-      ) : (
-        <MessageInputBar
-          onSend={(payload) => {
-            setReplyTo(payload.replyTo);
-            handleSend(payload);
-          }}
-          onSendRichMessage={handleSendRichMessage}
-          replyTo={replyTo}
-          onCancelReply={() => setReplyTo(undefined)}
-          onTypingChange={handleTypingChange}
-        />
-      )}
-      <MessageActionsMenu
-        open={Boolean(activeMessageId)}
-        position={menuPosition}
-        onClose={closeMessageMenu}
-        onMouseEnter={cancelCloseMenu}
-        onMouseLeave={scheduleCloseMenu}
-        onReply={() => {
-          if (activeMessageId) {
-            handleReply(activeMessageId);
-          }
-          closeMessageMenu();
-        }}
-        onCopy={() => {
-          if (activeMessageId) {
-            handleCopyMessage(activeMessageId);
-          }
-          closeMessageMenu();
-        }}
-        onStar={() => {
-          if (activeMessageId) {
-            handleStarMessage(activeMessageId);
-          }
-          closeMessageMenu();
-        }}
-        onDelete={() => {
-          if (activeMessageId) {
-            handleDeleteMessage(activeMessageId);
-          }
-          closeMessageMenu();
-        }}
-        onForward={() => {
-          if (activeMessageId) {
-            window.alert('Forwarding is ready for the next step.');
-          }
-          closeMessageMenu();
-        }}
-        onDownload={() => {
-          if (activeMessageId) {
-            void handleDownloadMessage(activeMessageId);
-          }
-          closeMessageMenu();
-        }}
-        onReact={(emoji) => {
-          if (activeMessageId) {
-            handleReact(activeMessageId, emoji);
-          }
-          closeMessageMenu();
-        }}
-        onPin={() => {
-          if (activeMessageId) {
-            handlePinMessage(activeMessageId);
-          }
-          closeMessageMenu();
-        }}
-        onEdit={() => {
-          if (activeMessageId) {
-            handleStartEdit(activeMessageId);
-          }
-          closeMessageMenu();
-        }}
-        isOwn={Boolean(currentMessages.find((message) => message.id === activeMessageId)?.isSelf)}
-        isStarred={Boolean(currentMessages.find((message) => message.id === activeMessageId)?.isStarred)}
-        isPinned={Boolean(currentMessages.find((message) => message.id === activeMessageId)?.isPinned)}
-      />
-      <ToastNotification
-        message={toast.message}
-        visible={toast.visible}
-        onClose={() => setToast((t) => ({ ...t, visible: false }))}
-      />
-      <MediaViewer />
-      {contactDetailsOpen && activeConvo && otherUser && (
-        <ContactDetailsModal
-          isOpen={contactDetailsOpen}
-          onClose={() => setContactDetailsOpen(false)}
-          user={{
-            id: otherUser.id,
-            uid: (otherUser as any).uid || otherUser.id,
-            displayName: otherUser.displayName,
-            email: (otherUser as any).email || '',
-            bio: (otherUser as any).bio || '',
-            avatarUrl: otherUser.avatarUrl,
-            status: otherUser.status,
-            lastSeen: otherUser.lastSeen,
-          }}
-          conversationId={activeConversationId || ''}
-          onAudioCall={handleAudioCall}
-          onVideoCall={() => {}}
-          onSearchInChat={() => { setContactDetailsOpen(false); handleSearchInChat(); }}
-        />
-      )}
-      {groupDetailsOpen && activeConvo?.type === 'group' && (
-        <GroupDetailsModal
-          isOpen={groupDetailsOpen}
-          onClose={() => setGroupDetailsOpen(false)}
-          conversation={activeConvo || null}
-          onSearchInChat={() => { setGroupDetailsOpen(false); handleSearchInChat(); }}
-        />
-      )}
-      <WallpaperPicker
-        isOpen={wallpaperPickerOpen}
-        onClose={() => setWallpaperPickerOpen(false)}
-      />
-      <FilePreviewModal
-        isOpen={droppedFiles.length > 0}
-        onClose={() => setDroppedFiles([])}
-        files={droppedFiles}
-        onRemoveFile={(idx) => setDroppedFiles((prev) => prev.filter((_, i) => i !== idx))}
-        onAddFiles={(newFiles) => setDroppedFiles((prev) => [...prev, ...newFiles])}
-        onSend={async ({ files, caption, isViewOnce }) => {
-          setDroppedFiles([]);
-          const mediaGroupId = crypto.randomUUID();
-          for (let index = 0; index < files.length; index++) {
-            const file = files[index];
-            const dataUrl = await new Promise<string>((resolve) => {
-              const reader = new FileReader();
-              reader.onloadend = () => resolve(reader.result as string);
-              reader.readAsDataURL(file);
-            });
-
-            const isImage = file.type.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(file.name);
-            const isVideo = file.type.startsWith('video/') || /\.(mp4|webm|mov|mkv)$/i.test(file.name);
-            const isVoice = file.type.startsWith('audio/') || /\.(mp3|wav|ogg|m4a)$/i.test(file.name);
-
-            let contentType: ChatMessage['contentType'] = isImage ? 'image' : isVideo ? 'video' : isVoice ? 'voice-note' : 'file';
-            if (isViewOnce && (isImage || isVideo)) {
-              contentType = 'view-once';
-            }
-
-            handleSendRichMessage({
-              text: index === 0 && caption ? caption : file.name,
-              contentType,
-              mediaUrl: dataUrl,
-              fileName: file.name,
-              fileSize: (file.size / 1024 / 1024).toFixed(1) + ' MB',
-              fileType: file.type || 'application/octet-stream',
-              mediaGroupId,
-              isViewOnce,
-            });
-          }
-        }}
-      />
     </div>
+
+    {activeConversationState.isBlocked ? (
+      <div className="chatview-blocked-input">
+        Messaging is disabled while this contact is blocked locally.
+      </div>
+    ) : (
+      <MessageInputBar
+        onSend={(payload) => {
+          setReplyTo(payload.replyTo);
+          handleSend(payload);
+        }}
+        onSendRichMessage={handleSendRichMessage}
+        replyTo={replyTo}
+        onCancelReply={() => setReplyTo(undefined)}
+        onTypingChange={handleTypingChange}
+      />
+    )}
+    <MessageActionsMenu
+      open={Boolean(activeMessageId)}
+      position={menuPosition}
+      onClose={closeMessageMenu}
+      onMouseEnter={cancelCloseMenu}
+      onMouseLeave={scheduleCloseMenu}
+      onReply={() => {
+        if (activeMessageId) {
+          handleReply(activeMessageId);
+        }
+        closeMessageMenu();
+      }}
+      onCopy={() => {
+        if (activeMessageId) {
+          handleCopyMessage(activeMessageId);
+        }
+        closeMessageMenu();
+      }}
+      onStar={() => {
+        if (activeMessageId) {
+          handleStarMessage(activeMessageId);
+        }
+        closeMessageMenu();
+      }}
+      onDelete={() => {
+        if (activeMessageId) {
+          handleDeleteMessage(activeMessageId);
+        }
+        closeMessageMenu();
+      }}
+      onForward={() => {
+        if (activeMessageId) {
+          window.alert('Forwarding is ready for the next step.');
+        }
+        closeMessageMenu();
+      }}
+      onDownload={() => {
+        if (activeMessageId) {
+          void handleDownloadMessage(activeMessageId);
+        }
+        closeMessageMenu();
+      }}
+      onReact={(emoji) => {
+        if (activeMessageId) {
+          handleReact(activeMessageId, emoji);
+        }
+        closeMessageMenu();
+      }}
+      onPin={() => {
+        if (activeMessageId) {
+          handlePinMessage(activeMessageId);
+        }
+        closeMessageMenu();
+      }}
+      onEdit={() => {
+        if (activeMessageId) {
+          handleStartEdit(activeMessageId);
+        }
+        closeMessageMenu();
+      }}
+      isOwn={Boolean(currentMessages.find((message) => message.id === activeMessageId)?.isSelf)}
+      isStarred={Boolean(currentMessages.find((message) => message.id === activeMessageId)?.isStarred)}
+      isPinned={Boolean(currentMessages.find((message) => message.id === activeMessageId)?.isPinned)}
+    />
+    <ToastNotification
+      message={toast.message}
+      visible={toast.visible}
+      onClose={() => setToast((t) => ({ ...t, visible: false }))}
+    />
+    <MediaViewer />
+    {contactDetailsOpen && activeConvo && otherUser && (
+      <ContactDetailsModal
+        isOpen={contactDetailsOpen}
+        onClose={() => setContactDetailsOpen(false)}
+        user={{
+          id: otherUser.id,
+          uid: (otherUser as any).uid || otherUser.id,
+          displayName: otherUser.displayName,
+          email: (otherUser as any).email || '',
+          bio: (otherUser as any).bio || '',
+          avatarUrl: otherUser.avatarUrl,
+          status: otherUser.status,
+          lastSeen: otherUser.lastSeen,
+        }}
+        conversationId={activeConversationId || ''}
+        onAudioCall={handleAudioCall}
+        onVideoCall={() => {}}
+        onSearchInChat={() => { setContactDetailsOpen(false); handleSearchInChat(); }}
+      />
+    )}
+    {groupDetailsOpen && activeConvo?.type === 'group' && (
+      <GroupDetailsModal
+        isOpen={groupDetailsOpen}
+        onClose={() => setGroupDetailsOpen(false)}
+        conversation={activeConvo || null}
+        onSearchInChat={() => { setGroupDetailsOpen(false); handleSearchInChat(); }}
+      />
+    )}
+    <WallpaperPicker
+      isOpen={wallpaperPickerOpen}
+      onClose={() => setWallpaperPickerOpen(false)}
+    />
+    <FilePreviewModal
+      isOpen={droppedFiles.length > 0}
+      onClose={() => setDroppedFiles([])}
+      files={droppedFiles}
+      onRemoveFile={(idx) => setDroppedFiles((prev) => prev.filter((_, i) => i !== idx))}
+      onAddFiles={(newFiles) => setDroppedFiles((prev) => [...prev, ...newFiles])}
+      onSend={async ({ files, caption, isViewOnce }) => {
+        setDroppedFiles([]);
+        const mediaGroupId = crypto.randomUUID();
+        for (let index = 0; index < files.length; index++) {
+          const file = files[index];
+          const dataUrl = await new Promise<string>((resolve) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result as string);
+            reader.readAsDataURL(file);
+          });
+
+          const isImage = file.type.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(file.name);
+          const isVideo = file.type.startsWith('video/') || /\.(mp4|webm|mov|mkv)$/i.test(file.name);
+          const isVoice = file.type.startsWith('audio/') || /\.(mp3|wav|ogg|m4a)$/i.test(file.name);
+
+          let contentType: ChatMessage['contentType'] = isImage ? 'image' : isVideo ? 'video' : isVoice ? 'voice-note' : 'file';
+          if (isViewOnce && (isImage || isVideo)) {
+            contentType = 'view-once';
+          }
+
+          handleSendRichMessage({
+            text: index === 0 && caption ? caption : file.name,
+            contentType,
+            mediaUrl: dataUrl,
+            fileName: file.name,
+            fileSize: (file.size / 1024 / 1024).toFixed(1) + ' MB',
+            fileType: file.type || 'application/octet-stream',
+            mediaGroupId,
+            isViewOnce,
+          });
+        }
+      }}
+    />
+  </div>
   );
 };
 
 export default ChatView;
-
