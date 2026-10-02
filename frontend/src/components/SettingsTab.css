@@ -71,7 +71,6 @@
   padding-top: 0;
 }
 
-/* Profile header row — wraps on very narrow screens */
 .profile-settings-header .profile-header-row {
   display: flex;
   align-items: center;
@@ -81,8 +80,12 @@
 }
 
 .profile-settings-header .profile-header-meta {
-  flex: 1;
+  flex: 1 1 auto;
   min-width: 0;
+}
+
+.profile-settings-header .btn-secondary {
+  flex-shrink: 0;
 }
 
 .btn-secondary {

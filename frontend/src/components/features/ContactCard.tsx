@@ -21,6 +21,8 @@ export const ContactCard: React.FC<ContactCardProps> = ({
 }) => {
   const presenceText = (() => {
     if (status === 'online') return 'Online';
+    if (status === 'pending') return 'Pending';
+    if (status === 'rejected' || status === 'declined') return 'Rejected';
     if (lastSeen) {
       const rel = formatLastSeen(lastSeen);
       return rel === 'Offline' || !rel ? 'Offline' : `Last seen ${rel}`;
@@ -28,6 +30,8 @@ export const ContactCard: React.FC<ContactCardProps> = ({
     return 'Offline';
   })();
   const isOnline = status === 'online';
+  const isPending = status === 'pending';
+  const isRejected = status === 'rejected' || status === 'declined';
 
   return (
     <div
@@ -78,8 +82,8 @@ export const ContactCard: React.FC<ContactCardProps> = ({
             <span
               style={{
                 fontSize: '12px',
-                color: isOnline ? 'var(--color-accent)' : 'var(--text-tertiary)',
-                fontWeight: isOnline ? 600 : 400,
+                color: isOnline ? 'var(--color-accent)' : isPending ? '#f59e0b' : isRejected ? '#ef4444' : 'var(--text-tertiary)',
+                fontWeight: isOnline || isPending || isRejected ? 600 : 400,
                 display: 'block',
                 marginTop: '2px',
               }}

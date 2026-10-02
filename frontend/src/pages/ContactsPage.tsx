@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { UserPlus, UserCheck, Inbox, Search } from 'lucide-react';
+import { UserPlus, UserCheck, Inbox, Search, XCircle, Send } from 'lucide-react';
 import { API_URL } from '../config/webrtc-config';
 import { useChatStore } from '../store/chatStore';
 import { useAuthStore } from '../store/authStore';
@@ -159,12 +159,67 @@ export const ContactsPage: React.FC = () => {
     }
   };
 
-  // Filter pending requests with memoization
+  const handleDeleteRequest = async (id: string) => {
+    if (!window.confirm('Delete this request permanently?')) return;
+    const currentToken = useAuthStore.getState().token;
+    if (!currentToken) return;
+    setRequests((prev) => prev.filter((r) => r.id !== id));
+    try {
+      await fetch(`${API_URL}/api/requests/${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${currentToken}` },
+      });
+    } catch (err) {
+      console.error('Delete request failed:', err);
+      loadRequests(true);
+    }
+  };
+
+  const handleResendRequest = async (targetUserId: string, displayName: string) => {
+    const confirmed = window.confirm(`Resend contact request to ${displayName}?`);
+    if (!confirmed) return;
+    const currentToken = useAuthStore.getState().token;
+    if (!currentToken) return;
+    try {
+      const res = await fetch(`${API_URL}/api/requests/send`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${currentToken}`,
+        },
+        body: JSON.stringify({ receiverId: targetUserId }),
+      });
+      if (res.ok) {
+        loadRequests(true);
+      } else {
+        const body = await res.json().catch(() => ({}));
+        alert(body.message || 'Failed to resend request');
+      }
+    } catch (err) {
+      console.error('Resend request failed:', err);
+      alert('Network error while resending request');
+    }
+  };
+
   const pendingRequests = useMemo(() => {
     return requests.filter(
       (r) => r.status === 'pending' && (r.toUserId === currentUserId || r.receiverId === currentUserId)
     );
   }, [requests, currentUserId]);
+
+  const outgoingRequests = useMemo(() => {
+    return requests.filter(
+      (r) => (r.status === 'pending' || r.status === 'rejected' || r.status === 'declined') &&
+        (r.fromUserId === currentUserId || r.senderId === currentUserId)
+    );
+  }, [requests, currentUserId]);
+
+  const formatCreated = (value?: string | Date) => {
+    if (!value) return '';
+    const date = typeof value === 'string' ? new Date(value) : value;
+    if (Number.isNaN(date.getTime())) return '';
+    return date.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  };
 
   // Filter accepted contacts with memoization and strict peer deduplication
   const acceptedContacts = useMemo(() => {
@@ -277,21 +332,80 @@ export const ContactsPage: React.FC = () => {
                 const name = r.fromDisplayName || 'Unknown';
                 const uid = r.fromUid || 'SEC_UNKNOWN';
                 const avatar = (r as any).fromAvatarUrl || null;
+                const when = formatCreated(r.createdAt);
                 return (
                   <ContactCard
                     key={r.id}
                     displayName={name}
                     uid={uid}
                     avatarUrl={avatar}
+                    status="pending"
+                    lastSeen={when ? `Requested ${when}` : undefined}
                     actions={
-                      <>
+                      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                         <button className="btn" onClick={() => handleDecline(r.id)} style={{ padding: '6px 12px', fontSize: '13px' }}>
                           Decline
                         </button>
                         <button className="btn btn-primary" onClick={() => handleAccept(r.id)} style={{ padding: '6px 12px', fontSize: '13px' }}>
                           Accept
                         </button>
-                      </>
+                      </div>
+                    }
+                  />
+                );
+              })}
+            </div>
+          )}
+
+          {outgoingRequests.length > 0 && (
+            <div className="requests-list">
+              <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px', fontSize: '15px' }}>
+                <Send size={16} /> Sent Requests ({outgoingRequests.length})
+              </h3>
+              {outgoingRequests.map((r) => {
+                const name = r.toDisplayName || 'Unknown';
+                const uid = r.toUid || 'SEC_UNKNOWN';
+                const avatar = (r as any).toAvatarUrl || null;
+                const isRejected = r.status === 'rejected' || r.status === 'declined';
+                const when = formatCreated(r.createdAt);
+                return (
+                  <ContactCard
+                    key={r.id}
+                    displayName={name}
+                    uid={uid}
+                    avatarUrl={avatar}
+                    status={isRejected ? 'rejected' : 'pending'}
+                    lastSeen={when ? (isRejected ? `Rejected ${when}` : `Sent ${when}`) : undefined}
+                    actions={
+                      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                        {isRejected && (
+                          <>
+                            <button
+                              className="btn"
+                              onClick={() => handleDeleteRequest(r.id)}
+                              style={{ padding: '6px 12px', fontSize: '13px', color: '#ef4444', border: '1px solid rgba(239,68,68,0.3)' }}
+                            >
+                              <XCircle size={14} /> Delete
+                            </button>
+                            <button
+                              className="btn btn-primary"
+                              onClick={() => handleResendRequest((r as any).toUserId || (r as any).toUserId || '', name)}
+                              style={{ padding: '6px 12px', fontSize: '13px' }}
+                            >
+                              <Send size={14} /> Resend
+                            </button>
+                          </>
+                        )}
+                        {!isRejected && (
+                          <button
+                            className="btn"
+                            onClick={() => handleDeleteRequest(r.id)}
+                            style={{ padding: '6px 12px', fontSize: '13px', color: '#ef4444', border: '1px solid rgba(239,68,68,0.3)' }}
+                          >
+                            <XCircle size={14} /> Cancel
+                          </button>
+                        )}
+                      </div>
                     }
                   />
                 );

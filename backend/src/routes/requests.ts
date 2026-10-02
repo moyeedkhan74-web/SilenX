@@ -412,6 +412,38 @@ router.post('/:id/decline', (req: AuthenticatedRequest, res: Response) => {
   res.status(200).json({ status: 'declined' });
 });
 
+// DELETE /api/requests/:id — delete/cancel a request
+router.delete('/:id', (req: AuthenticatedRequest, res: Response) => {
+  const id = req.params.id;
+  const currentUserId = req.currentUser!.dbId;
+
+  const reqIndex = friendRequests.findIndex((r: any) => r.id === id);
+  if (reqIndex === -1) {
+    res.status(404).json({ message: 'Request not found' });
+    return;
+  }
+
+  const reqObj = friendRequests[reqIndex] as any;
+  const senderId = reqObj.senderId || reqObj.fromUserId;
+  const receiverId = reqObj.receiverId || reqObj.toUserId;
+
+  if (senderId !== currentUserId && receiverId !== currentUserId) {
+    res.status(403).json({ message: 'Cannot modify requests you did not send or receive' });
+    return;
+  }
+
+  friendRequests.splice(reqIndex, 1);
+  saveDb();
+
+  const otherUserId = senderId === currentUserId ? receiverId : senderId;
+  const otherSocketId = getSocketIdForUser(otherUserId);
+  if (otherSocketId && io) {
+    io.to(otherSocketId).emit('request:removed', { id });
+  }
+
+  res.status(200).json({ status: 'removed' });
+});
+
 // DELETE /api/requests/friends/:targetUserId — Unfriend a contact
 router.delete('/friends/:targetUserId', (req: AuthenticatedRequest, res: Response) => {
   const currentUserId = req.currentUser!.dbId;
