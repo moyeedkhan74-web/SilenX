@@ -82,21 +82,21 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onDeleteAccountCli
     <div className="settings-card">
       <div className="settings-group profile-settings-header" style={{ marginBottom: 24 }}>
         <h3>Profile</h3>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16, paddingTop: 4 }}>
+        <div className="profile-header-row" style={{ paddingTop: 4 }}>
           <AvatarDisplay
             name={currentUser?.displayName || 'User'}
             avatarUrl={currentUser?.avatarUrl}
-            size={60}
+            size={48}
             status={currentUser?.status || 'online'}
           />
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <h2 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: 'var(--text-primary)' }}>
+          <div className="profile-header-meta">
+            <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: 'var(--text-primary)' }}>
               {currentUser?.displayName || 'User Profile'}
             </h2>
             <p
               style={{
-                margin: '3px 0 0',
-                fontSize: 13,
+                margin: '2px 0 0',
+                fontSize: 12.5,
                 color: 'var(--text-secondary)',
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
@@ -107,11 +107,11 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onDeleteAccountCli
             </p>
             <span
               style={{
-                fontSize: 11.5,
+                fontSize: 11,
                 color: 'var(--color-primary)',
                 fontWeight: 600,
                 display: 'inline-block',
-                marginTop: 3,
+                marginTop: 2,
               }}
             >
               ID: {currentUser?.uid || currentUser?.id}
@@ -122,20 +122,21 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onDeleteAccountCli
             className="btn-secondary"
             onClick={() => setIsEditModalOpen(true)}
             style={{
-              padding: '7px 14px',
-              fontSize: 12.5,
-              borderRadius: 20,
+              padding: '6px 12px',
+              fontSize: 12,
+              borderRadius: 18,
               fontWeight: 600,
               cursor: 'pointer',
-              display: 'flex',
+              display: 'inline-flex',
               alignItems: 'center',
-              gap: 6,
+              gap: 5,
               border: '1px solid var(--border-color)',
               background: 'var(--bg-secondary)',
               color: 'var(--text-primary)',
+              whiteSpace: 'nowrap',
             }}
           >
-            <Edit3 size={14} /> Edit Profile
+            <Edit3 size={13} /> Edit Profile
           </button>
         </div>
       </div>
