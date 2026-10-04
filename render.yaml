@@ -14,11 +14,39 @@ services:
         sync: false
       - key: JWT_SECRET
         generateValue: true
+      - key: FRONTEND_URL
+        value: https://silen-x.vercel.app
+      - key: LIVEKIT_URL
+        sync: false
+      - key: LIVEKIT_API_KEY
+        sync: false
+      - key: LIVEKIT_API_SECRET
+        sync: false
+      - key: IMAGEKIT_PUBLIC_KEY
+        sync: false
+      - key: IMAGEKIT_PRIVATE_KEY
+        sync: false
+      - key: IMAGEKIT_URL_ENDPOINT
+        sync: false
+      - key: B2_ENDPOINT
+        sync: false
+      - key: B2_REGION
+        value: us-east-1
       - key: B2_KEY_ID
         sync: false
       - key: B2_APPLICATION_KEY
         sync: false
       - key: B2_BUCKET_NAME
+        value: silenx-media-uploads
+      - key: UPSTASH_REDIS_REST_URL
         sync: false
+      - key: UPSTASH_REDIS_REST_TOKEN
+        sync: false
+      - key: VAPID_PUBLIC_KEY
+        sync: false
+      - key: VAPID_PRIVATE_KEY
+        sync: false
+      - key: VAPID_SUBJECT
+        value: mailto:notifications@slienx.app
       - key: FIREBASE_PROJECT_ID
         sync: false

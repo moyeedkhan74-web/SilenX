@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { ArrowLeft, Phone, Video, MoreVertical, Lock, Search, Bell, UserX, Flag, Trash2, Check, CheckCheck, Clock,
-  Star, MapPin, Pin, Image as ImageIcon, X, Copy, Forward, Send as ReplyIcon } from 'lucide-react';
+  Star, MapPin, Pin, Image as ImageIcon, X, Copy, Forward, Send as ReplyIcon, ChevronUp, ChevronDown } from 'lucide-react';
 import { useIsMobile } from '../hooks/useIsMobile';
 import { useChatStore } from '../store/chatStore';
 import { connectSocket } from '../services/socket';
@@ -19,6 +19,8 @@ import { MediaViewer } from './MediaViewer';
 import VoiceNotePlayer from './VoiceNotePlayer';
 import { EncryptionBadge } from './EncryptionBadge';
 import { FilePreviewModal } from './FilePreviewModal';
+import { SecurityVerifyModal } from './SecurityVerifyModal';
+import { ConfirmDialog } from './ConfirmDialog';
 import { useAuthStore } from '../store/authStore';
 import { useSettingsStore } from '../store/settingsStore';
 import WallpaperPicker from './WallpaperPicker';
@@ -34,6 +36,8 @@ export const ChatView: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [searchMatchIds, setSearchMatchIds] = useState<string[]>([]);
   const [searchTargetId, setSearchTargetId] = useState<string | null>(null);
+  const [searchBarOpen, setSearchBarOpen] = useState(false);
+  const [currentSearchIndex, setCurrentSearchIndex] = useState(0);
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState('');
   const [typingUsers, setTypingUsers] = useState<string[]>([]);
@@ -43,6 +47,8 @@ export const ChatView: React.FC = () => {
   const [contactDetailsOpen, setContactDetailsOpen] = useState(false);
   const [groupDetailsOpen, setGroupDetailsOpen] = useState(false);
   const [wallpaperPickerOpen, setWallpaperPickerOpen] = useState(false);
+  const [securityModalOpen, setSecurityModalOpen] = useState(false);
+  const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
   const [isDraggingOver, setIsDraggingOver] = useState(false);
   const [droppedFiles, setDroppedFiles] = useState<File[]>([]);
   const [selectedMessageIds, setSelectedMessageIds] = useState<string[]>([]);
@@ -257,73 +263,38 @@ export const ChatView: React.FC = () => {
   };
 
   const handleSearchInChat = () => {
-    if (!activeConversationId) return;
-    const confirmed = window.confirm('Search this chat for matching messages?');
-    if (!confirmed) {
-      setMenuOpen(false);
-      return;
+    setSearchBarOpen((prev) => !prev);
+    if (searchBarOpen) {
+      setSearchTerm('');
+      setSearchMatchIds([]);
+      setCurrentSearchIndex(0);
     }
-
-    const query = window.prompt('Search in this chat');
-    if (!query?.trim()) return;
-
-    const normalizedQuery = query.trim().toLowerCase();
-    const matches = currentMessages.filter((msg) => msg.text?.toLowerCase().includes(normalizedQuery));
-
-    if (!matches.length) {
-      window.alert('No matches found in this conversation.');
-      return;
-    }
-
-    setSearchTerm(query.trim());
-    setSearchMatchIds(matches.map((msg) => msg.id));
-    setSearchTargetId(matches[0].id);
     setMenuOpen(false);
   };
 
   const handleMuteNotifications = () => {
-    const confirmed = window.confirm('Mute or unmute notifications for this chat?');
-    if (!confirmed) {
-      setMenuOpen(false);
-      return;
-    }
-    updateConversationState({ isMuted: !activeConversationState.isMuted });
+    const nextMuted = !activeConversationState.isMuted;
+    updateConversationState({ isMuted: nextMuted });
+    showToast(nextMuted ? 'Notifications muted for this chat' : 'Notifications unmuted');
     setMenuOpen(false);
   };
 
   const handleVerifyEncryption = () => {
-    const confirmed = window.confirm('Verify end-to-end encryption for this chat?');
-    if (!confirmed) {
-      setMenuOpen(false);
-      return;
-    }
     updateConversationState({ isVerified: true });
-    window.alert('End-to-end encryption verified for this conversation.');
+    setSecurityModalOpen(true);
     setMenuOpen(false);
   };
 
   const handleBlockContact = () => {
-    const confirmed = window.confirm('Block or unblock this contact for this device?');
-    if (!confirmed) {
-      setMenuOpen(false);
-      return;
-    }
     const nextBlocked = !activeConversationState.isBlocked;
     updateConversationState({ isBlocked: nextBlocked });
-    if (nextBlocked) {
-      window.alert('This contact is blocked locally for this device.');
-    }
+    showToast(nextBlocked ? 'Contact blocked on this device' : 'Contact unblocked');
     setMenuOpen(false);
   };
 
   const handleReport = () => {
-    const confirmed = window.confirm('Report this conversation?');
-    if (!confirmed) {
-      setMenuOpen(false);
-      return;
-    }
     updateConversationState({ isReported: true });
-    window.alert('This conversation has been reported.');
+    showToast('Conversation reported successfully');
     setMenuOpen(false);
   };
 
@@ -837,15 +808,8 @@ export const ChatView: React.FC = () => {
                       className="dropdown-item danger"
                       type="button"
                       onClick={() => {
-                        const confirmed = window.confirm('Clear this chat for this device?');
-                        if (!confirmed) {
-                          setMenuOpen(false);
-                          return;
-                        }
-                        if (activeConversationId) {
-                          clearConversation(activeConversationId);
-                        }
                         setMenuOpen(false);
+                        setClearConfirmOpen(true);
                       }}
                     >
                       <Trash2 size={16} />
@@ -857,6 +821,116 @@ export const ChatView: React.FC = () => {
             </div>
           </div>
         </header>
+      )}
+
+      {searchBarOpen && (
+        <div
+          className="chatview-search-bar"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+            padding: '10px 16px',
+            background: 'var(--bg-secondary)',
+            borderBottom: '1px solid var(--border-color)',
+            flexShrink: 0,
+            zIndex: 9,
+          }}
+        >
+          <Search size={16} style={{ color: 'var(--text-secondary)', flexShrink: 0 }} />
+          <input
+            type="text"
+            placeholder="Search messages in this conversation..."
+            value={searchTerm}
+            onChange={(e) => {
+              const query = e.target.value;
+              setSearchTerm(query);
+              if (!query.trim()) {
+                setSearchMatchIds([]);
+                setCurrentSearchIndex(0);
+                return;
+              }
+              const matches = currentMessages.filter((msg) =>
+                msg.text?.toLowerCase().includes(query.toLowerCase())
+              );
+              setSearchMatchIds(matches.map((m) => m.id));
+              setCurrentSearchIndex(0);
+              if (matches.length > 0) {
+                setSearchTargetId(matches[0].id);
+              }
+            }}
+            autoFocus
+            style={{
+              flex: 1,
+              background: 'transparent',
+              border: 'none',
+              color: 'var(--text-primary)',
+              outline: 'none',
+              fontSize: 13,
+              fontWeight: 500,
+            }}
+          />
+          {searchTerm.trim() && (
+            <span
+              style={{
+                fontSize: 12,
+                color: 'var(--text-secondary)',
+                fontWeight: 600,
+                padding: '0 4px',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {searchMatchIds.length > 0
+                ? `${currentSearchIndex + 1} of ${searchMatchIds.length}`
+                : 'No matches'}
+            </span>
+          )}
+          {searchMatchIds.length > 0 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <button
+                type="button"
+                className="icon-btn"
+                style={{ width: 28, height: 28, padding: 0 }}
+                title="Previous match"
+                onClick={() => {
+                  const nextIdx =
+                    (currentSearchIndex - 1 + searchMatchIds.length) % searchMatchIds.length;
+                  setCurrentSearchIndex(nextIdx);
+                  setSearchTargetId(searchMatchIds[nextIdx]);
+                }}
+              >
+                <ChevronUp size={16} />
+              </button>
+              <button
+                type="button"
+                className="icon-btn"
+                style={{ width: 28, height: 28, padding: 0 }}
+                title="Next match"
+                onClick={() => {
+                  const nextIdx = (currentSearchIndex + 1) % searchMatchIds.length;
+                  setCurrentSearchIndex(nextIdx);
+                  setSearchTargetId(searchMatchIds[nextIdx]);
+                }}
+              >
+                <ChevronDown size={16} />
+              </button>
+            </div>
+          )}
+          <button
+            type="button"
+            className="icon-btn"
+            style={{ width: 28, height: 28, padding: 0 }}
+            title="Close search"
+            onClick={() => {
+              setSearchBarOpen(false);
+              setSearchTerm('');
+              setSearchMatchIds([]);
+              setCurrentSearchIndex(0);
+            }}
+          >
+            <X size={16} />
+          </button>
+        </div>
       )}
     
     {/* Chat messages area with wallpaper */}
@@ -1264,6 +1338,27 @@ export const ChatView: React.FC = () => {
     <WallpaperPicker
       isOpen={wallpaperPickerOpen}
       onClose={() => setWallpaperPickerOpen(false)}
+    />
+    <SecurityVerifyModal
+      isOpen={securityModalOpen}
+      onClose={() => setSecurityModalOpen(false)}
+      peerName={chatName}
+      peerPublicKey={(otherUser as any)?.publicKey || null}
+    />
+    <ConfirmDialog
+      open={clearConfirmOpen}
+      title="Clear Chat History"
+      message="Are you sure you want to clear all messages in this chat? This action cannot be undone on this device."
+      confirmLabel="Clear Chat"
+      cancelLabel="Cancel"
+      onConfirm={() => {
+        if (activeConversationId) {
+          clearConversation(activeConversationId);
+          showToast('Chat history cleared');
+        }
+        setClearConfirmOpen(false);
+      }}
+      onCancel={() => setClearConfirmOpen(false)}
     />
     <FilePreviewModal
       isOpen={droppedFiles.length > 0}

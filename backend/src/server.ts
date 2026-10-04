@@ -29,7 +29,20 @@ const app = express();
 // Security Headers
 app.use(
   helmet({
-    contentSecurityPolicy: false, // Allow inline scripts/styles for flexibility
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        imgSrc: ["'self'", "data:", "https:", "blob:"],
+        connectSrc: ["'self'", config.frontendUrl || 'https://silen-x.vercel.app', "wss:", "https:"],
+        fontSrc: ["'self'", "data:"],
+        objectSrc: ["'none'"],
+        frameAncestors: ["'none'"],
+        upgradeInsecureRequests: [],
+      },
+      reportOnly: config.nodeEnv === 'production',
+    },
     crossOriginResourcePolicy: { policy: 'cross-origin' },
   })
 );
@@ -93,7 +106,7 @@ app.set('trust proxy', 1);
 // Rate Limiters
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5000, // Generous budget: multi-tab/mobile sync + Render cold-start reconnect storms
+  max: 500, // Stingent auth budget: login + token refresh
   message: { error: 'Too many authentication attempts, please try again later.' },
   standardHeaders: true,
   legacyHeaders: false,

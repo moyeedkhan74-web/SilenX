@@ -46,14 +46,19 @@ export interface UploadResult {
   isCloud: boolean;
 }
 
-const IMAGEKIT_PUBLIC_KEY = process.env.IMAGEKIT_PUBLIC_KEY || 'public_IujRu9A06L5SrEXi0OvOaaozWuQ=';
-const IMAGEKIT_PRIVATE_KEY = process.env.IMAGEKIT_PRIVATE_KEY || 'private_3WVFgKPJXY8uLyJmNN8rezJoYx8=';
-const IMAGEKIT_URL_ENDPOINT = process.env.IMAGEKIT_URL_ENDPOINT || 'https://ik.imagekit.io/silenx';
+const IMAGEKIT_PUBLIC_KEY = process.env.IMAGEKIT_PUBLIC_KEY || '';
+const IMAGEKIT_PRIVATE_KEY = process.env.IMAGEKIT_PRIVATE_KEY || '';
+const IMAGEKIT_URL_ENDPOINT = process.env.IMAGEKIT_URL_ENDPOINT || '';
 
 /**
  * Generate temporary ImageKit auth parameters for direct client uploads
  */
 export function getImageKitAuthParameters() {
+  if (!IMAGEKIT_PRIVATE_KEY || !IMAGEKIT_PUBLIC_KEY || !IMAGEKIT_URL_ENDPOINT) {
+    console.warn('[ImageKit] Auth parameters requested but env vars are not configured.');
+    return null;
+  }
+
   const token = crypto.randomUUID();
   const expire = Math.floor(Date.now() / 1000) + 1800; // valid for 30 minutes
   const signature = crypto

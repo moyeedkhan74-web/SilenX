@@ -24,6 +24,7 @@ import { startNetworkListener } from './services/outbox';
 import InAppNotificationBanner from './components/InAppNotificationBanner';
 import DeepLinkHandler from './components/DeepLinkHandler';
 import AppLockOverlay from './components/AppLockOverlay';
+import BackButtonHandler from './components/BackButtonHandler';
 import type { UserStatus } from './types';
 import './App.css';
 import { ThemeProvider } from './theme/ThemeContext';
@@ -328,6 +329,7 @@ useEffect(() => {
         <InAppNotificationBanner />
         <DeepLinkHandler />
         <AppLockOverlay />
+        <BackButtonHandler />
       </div>
     </BrowserRouter>
   );
