@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { QrCode, Copy, Download, Edit3, Mail, Check } from 'lucide-react';
+import QRCodeSection from '../shared/QRCodeSection';
 import AvatarDisplay from '../shared/AvatarDisplay';
 import UIDDisplay from '../shared/UIDDisplay';
-import QRCodeSection from '../shared/QRCodeSection';
 
 interface ProfileCardProps {
   profile: {
@@ -33,10 +33,16 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
   const bio = profile?.bio && profile.bio.trim() ? profile.bio : defaultEnhancedBio;
   const avatarUrl = profile?.avatarUrl;
 
-  const handleCopyUid = () => {
-    navigator.clipboard.writeText(uid);
-    setCopiedUid(true);
-    setTimeout(() => setCopiedUid(false), 2000);
+  const handleCopyUid = async () => {
+    if (uid === 'Loading...' || !uid) return;
+    try {
+      await navigator.clipboard.writeText(uid);
+      setCopiedUid(true);
+      setTimeout(() => setCopiedUid(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy UID:', err);
+      alert('Failed to copy UID to clipboard.');
+    }
   };
 
   const handleCopyBio = () => {
@@ -46,17 +52,18 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
   };
 
   const handleDownloadQr = async () => {
+    if (uid === 'Loading...' || !uid) return;
     try {
-      const { API_URL } = await import('../../config/webrtc-config');
-      const { useAuthStore } = await import('../../store/authStore');
-      const token = useAuthStore.getState().token;
-      const res = await fetch(`${API_URL}/api/users/me/qr`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        }
+      const deepLink = `slienx://uid/${uid}`;
+      const QRCode = (await import('qrcode')).default;
+      const dataUrl = await QRCode.toDataURL(deepLink, {
+        errorCorrectionLevel: 'H',
+        margin: 2,
+        color: { dark: '#212121', light: '#ffffff' },
+        width: 512,
       });
-      if (!res.ok) throw new Error('Failed to fetch QR');
-      const blob = await res.blob();
+      const response = await fetch(dataUrl);
+      const blob = await response.blob();
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
