@@ -63,11 +63,20 @@ jobs:
       - name: Sync Capacitor to Android
         run: npx cap sync android
         working-directory: frontend
+      }
+      - name: Generate debug keystore if missing
+        run: |
+          if [ ! -f frontend/android/app/debug.keystore ]; then
+            keytool -genkey -v -keystore frontend/android/app/debug.keystore \
+              -alias androiddebugkey -keyalg RSA -keysize 2048 \
+              -validity 10000 -storepass android -keypass android \
+              -dname "CN=Android Debug,O=Android,C=US"
+          fi
+      - name: Fix gradlew permissions
 
       - name: Fix gradlew permissions
         run: |
-          sed -i 's/\r$//' ./gradlew
-          chmod +x ./gradlew
+          e:\n          if [ ! -f ../gradlew ]; then\n              chmod +x ./gradlew\n          fi\n          sed -i 's/\r$//' ./gradlew
         working-directory: frontend/android
 
       - name: Build Debug APK

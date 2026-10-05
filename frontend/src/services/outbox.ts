@@ -1,15 +1,7 @@
 import type { Socket } from 'socket.io-client';
 import { getSocket } from './socket';
 import { useChatStore } from '../store/chatStore';
-import {
-  queueOutgoing,
-  listPendingOutgoing,
-  getOutgoing,
-  removeOutgoing,
-  markOutgoingSending,
-  requeueAllSending,
-  saveOfflineMessage,
-} from '../utils/offlineDb';
+import { dbService } from './db';
 import { encryptOutgoingText, noteMessageSent } from './e2ee';
 import { playOutgoingPop } from '../utils/soundEffects';
 import type { OutgoingEntry } from '../utils/offlineDb';
@@ -97,7 +89,7 @@ export async function dispatchMessage(
     });
     noteMessageSent(conversationId, payload.recipientId);
     playOutgoingPop();
-    void saveOfflineMessage(message);
+    void dbService.saveMessage(message);
     return;
   }
 
@@ -127,7 +119,7 @@ export async function dispatchMessage(
     attempts: 0,
   };
 
-  await queueOutgoing(entry);
+  await dbService.enqueueOutgoing(entry);
 }
 
 // ─── Ack tracking ──────────────────────────────────────────────────────────────
@@ -145,7 +137,7 @@ const pendingAcks = new Map<string, (result: AckResult) => void>();
  * actually got it) — late acks are removed from the queue so a reconnect can
  * never produce a duplicate send.
  */
-export function handleSentAck(payload: { tempId?: string; id?: string }): void {
+export async function handleSentAck(payload: { tempId?: string; id?: string }): Promise<void> {
   const tempId = payload?.tempId;
   if (!tempId) return;
 
@@ -159,7 +151,7 @@ export function handleSentAck(payload: { tempId?: string; id?: string }): void {
   // Late ack: confirm + clean up without re-emitting.
   const state = useChatStore.getState();
   const conversationId = findConversationForMessage(tempId);
-  void removeOutgoing(tempId);
+  await dbService.removeOutgoingEntry(tempId);
   if (conversationId) {
     state.updateDeliveryStatus(conversationId, tempId, 'sent', payload.id || tempId);
   }
@@ -209,7 +201,7 @@ async function sendQueuedEntry(entry: OutgoingEntry): Promise<boolean> {
     await new Promise((resolve) => setTimeout(resolve, delay));
   }
 
-  await markOutgoingSending(entry.tempId);
+  await dbService.markOutgoingAsSending(entry.tempId);
 
   // Re-encrypt under the CURRENT epoch key. If keys rotated (or were rotated
   // by the peer) while this device was offline, the fresh epoch key is used
@@ -247,7 +239,7 @@ async function sendQueuedEntry(entry: OutgoingEntry): Promise<boolean> {
   const result = await ackPromise;
 
   if (result.ok) {
-    await removeOutgoing(entry.tempId);
+    await dbService.removeOutgoingEntry(entry.tempId);
     useChatStore
       .getState()
       .updateDeliveryStatus(entry.conversationId, entry.tempId, 'sent', result.canonicalId);
@@ -256,7 +248,7 @@ async function sendQueuedEntry(entry: OutgoingEntry): Promise<boolean> {
 
   // Timed out or connection dropped mid-send — put it back for next reconnect.
   console.warn('[Outbox] Send attempt failed for', entry.tempId, '- requeued');
-  await queueOutgoing({ ...entry, status: 'pending_sync' });
+  await dbService.enqueueOutgoing({ ...entry, status: 'pending_sync' });
   useChatStore.getState().updateDeliveryStatus(entry.conversationId, entry.tempId, 'pending_sync');
   return false;
 }
@@ -275,14 +267,14 @@ export async function processOutbox(): Promise<void> {
   try {
     // Crash recovery: items stuck mid-flight from a previous session go back
     // into the pending queue before we start draining.
-    await requeueAllSending();
+    await dbService.requeueStuckSending();
 
     // Sequential drain: one message at a time, stopping whenever the
     // connection drops. The while-loop picks up items queued DURING sync.
     for (;;) {
       if (!getSocket()?.connected) break;
 
-      const entries = await listPendingOutgoing();
+      const entries = await dbService.getPendingOutgoing();
       if (entries.length === 0) break;
 
       const succeeded = await sendQueuedEntry(entries[0]);
@@ -320,5 +312,4 @@ export function startNetworkListener(): void {
   }
 }
 
-// Re-export for convenience so socket.ts has a single import surface.
-export { getOutgoing };
+

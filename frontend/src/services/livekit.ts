@@ -7,6 +7,7 @@ import {
   ExternalE2EEKeyProvider,
   type E2EEOptions,
 } from 'livekit-client';
+import { getIceServers } from './webrtc';
 import { API_URL, isCapacitorNative } from '../config/webrtc-config';
 import { connectSocket, getSocket } from './socket';
 import { useAuthStore } from '../store/authStore';
@@ -55,10 +56,6 @@ interface LiveKitFallbackBody {
 
 const E2EE_KEY_SALT = 'silenx-e2ee-v1';
 
-/** STUN-only configuration for the direct P2P fallback (1-on-1 calls). */
-const P2P_ICE_SERVERS: RTCIceServer[] = [
-  { urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] },
-];
 const P2P_ANSWER_TIMEOUT_MS = 20_000;
 const P2P_CONNECT_TIMEOUT_MS = 15_000;
 
@@ -741,8 +738,9 @@ export class LiveKitService {
   // peer-to-peer over the existing Socket.io relay events (sdp-offer /
   // sdp-answer / ice-candidate). Group calls cannot use this mode.
 
-  private createP2pConnection(): void {
-    const pc = new RTCPeerConnection({ iceServers: P2P_ICE_SERVERS });
+  private async createP2pConnection(): Promise<void> {
+    const iceServers = await getIceServers();
+    const pc = new RTCPeerConnection({ iceServers });
     this.p2pConnection = pc;
     this.transportMode = 'p2p';
     this.pendingRemoteCandidates = [];
