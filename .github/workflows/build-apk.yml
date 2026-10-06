@@ -70,9 +70,13 @@ jobs:
         working-directory: frontend/android
         run: ./gradlew assembleRelease --no-daemon --stacktrace --info 2>&1 | grep -E '(FAILED|error:|> Task|What went wrong|Caused by|Execution failed)' || ./gradlew assembleRelease --no-daemon --stacktrace
 
+      - name: List built APKs
+        run: find frontend/android/app/build/outputs/apk -name '*.apk' 2>/dev/null || echo "No APKs found in expected location"
+
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: silenx-release-apk
-          path: frontend/android/app/build/outputs/apk/release/*.apk
+          path: frontend/android/app/build/outputs/apk/**/*.apk
           retention-days: 30
+          if-no-files-found: error
