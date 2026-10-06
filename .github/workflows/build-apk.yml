@@ -41,7 +41,13 @@ jobs:
         run: npx cap sync android
 
       - name: Write google-services.json
-        run: echo '${{ secrets.GOOGLE_SERVICES_JSON }}' > frontend/android/app/google-services.json
+        run: |
+          if [ -z '${{ secrets.GOOGLE_SERVICES_JSON }}' ]; then
+            echo "ERROR: GOOGLE_SERVICES_JSON secret is not set or is empty!"
+            exit 1
+          fi
+          echo '${{ secrets.GOOGLE_SERVICES_JSON }}' > frontend/android/app/google-services.json
+          echo "google-services.json written successfully."
 
       - name: Generate debug keystore
         run: |
@@ -62,7 +68,7 @@ jobs:
 
       - name: Build release APK
         working-directory: frontend/android
-        run: ./gradlew assembleRelease --no-daemon --stacktrace
+        run: ./gradlew assembleRelease --no-daemon --stacktrace --info 2>&1 | grep -E '(FAILED|error:|> Task|What went wrong|Caused by|Execution failed)' || ./gradlew assembleRelease --no-daemon --stacktrace
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
