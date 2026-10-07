@@ -8,7 +8,6 @@ import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import compression from 'compression';
-import crypto from 'crypto';
 import { config } from './config';
 import { registerSocketHandlers } from './websocket/handlers';
 import authRoutes from './routes/auth';
@@ -187,32 +186,61 @@ app.get('/api/status', (_req: Request, res: Response) => {
 
 // ICE Servers for WebRTC Calls
 app.get('/api/webrtc/ice-servers', (_req: Request, res: Response) => {
-  const secret = process.env.TURN_SECRET || 'silenx_turn_secret_2026';
-  const username = `${Math.floor(Date.now() / 1000) + 3600}:silenx_user`;
-  const hmac = crypto.createHmac('sha1', secret);
-  hmac.update(username);
-  const password = hmac.digest('base64');
-
-  const turnServerUrl = process.env.TURN_SERVER_URL || 'global.turn.twilio.com:3478';
-
-  // Build TURN URLs with UDP, TCP, and TLS/TTCP transports
-  const turnUrls = [
-    `turn:${turnServerUrl}?transport=udp`,
-    `turn:${turnServerUrl}?transport=tcp`,
-    `turns:${turnServerUrl}?transport=tcp`,
-  ];
-
-  const iceServers = [
-    // STUN servers
+  const iceServers: { urls: string | string[]; username?: string; credential?: string }[] = [
+    // ── STUN (multiple google servers for reliability) ──────────────────────
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' },
     { urls: 'stun:stun2.l.google.com:19302' },
     { urls: 'stun:stun3.l.google.com:19302' },
     { urls: 'stun:stun4.l.google.com:19302' },
-    // TURN server with credentials
-    { urls: turnUrls, username, credential: password },
+    // Cloudflare public STUN
+    { urls: 'stun:stun.cloudflare.com:3478' },
   ];
 
+  // ── TURN server — try to use a custom one first; fall back to OpenRelay ──
+  const customTurnUrl = process.env.TURN_SERVER_URL;
+  const customTurnUser = process.env.TURN_USERNAME;
+  const customTurnPass = process.env.TURN_PASSWORD;
+
+  if (customTurnUrl && customTurnUser && customTurnPass) {
+    // Custom TURN (e.g. Twilio, Xirsys, Metered, or self-hosted coturn)
+    iceServers.push({
+      urls: [
+        `turn:${customTurnUrl}?transport=udp`,
+        `turn:${customTurnUrl}?transport=tcp`,
+        `turns:${customTurnUrl}?transport=tcp`,
+      ],
+      username: customTurnUser,
+      credential: customTurnPass,
+    });
+  }
+
+  // ── OpenRelay — free public TURN, no credentials needed ─────────────────
+  // Works reliably for testing and low-traffic apps. Always include so calls
+  // work even on restrictive networks (carrier-grade NAT, corporate firewalls).
+  iceServers.push(
+    {
+      urls: 'stun:openrelay.metered.ca:80',
+    },
+    {
+      urls: 'turn:openrelay.metered.ca:80',
+      username: 'openrelayproject',
+      credential: 'openrelayproject',
+    },
+    {
+      urls: 'turn:openrelay.metered.ca:443',
+      username: 'openrelayproject',
+      credential: 'openrelayproject',
+    },
+    {
+      urls: 'turn:openrelay.metered.ca:443?transport=tcp',
+      username: 'openrelayproject',
+      credential: 'openrelayproject',
+    }
+  );
+
+  // Cache-Control: allow client to cache for 45s (matches frontend TTL)
+  res.setHeader('Cache-Control', 'public, max-age=45');
   res.status(200).json(iceServers);
 });
 

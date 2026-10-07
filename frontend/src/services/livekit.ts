@@ -7,7 +7,6 @@ import {
   ExternalE2EEKeyProvider,
   type E2EEOptions,
 } from 'livekit-client';
-import { getIceServers } from './webrtc';
 import { API_URL, isCapacitorNative } from '../config/webrtc-config';
 import { connectSocket, getSocket } from './socket';
 import { useAuthStore } from '../store/authStore';
@@ -739,8 +738,13 @@ export class LiveKitService {
   // sdp-answer / ice-candidate). Group calls cannot use this mode.
 
   private async createP2pConnection(): Promise<void> {
-    const iceServers = await getIceServers();
-    const pc = new RTCPeerConnection({ iceServers });
+    // Always fetch fresh ICE servers — never use the module-level cache which may
+    // have been populated from a failed previous call.
+    const { fetchIceServers, clearIceServersCache } = await import('../config/webrtc-config');
+    clearIceServersCache();
+    const iceServers = await fetchIceServers();
+    console.log('[P2P] ICE servers loaded:', iceServers.length, 'entries');
+    const pc = new RTCPeerConnection({ iceServers, iceCandidatePoolSize: 10 });
     this.p2pConnection = pc;
     this.transportMode = 'p2p';
     this.pendingRemoteCandidates = [];
@@ -805,11 +809,12 @@ export class LiveKitService {
     console.warn('[LiveKit] Falling back to direct P2P WebRTC (initiator)');
     this.lastCallError = null;
 
-    this.createP2pConnection();
-    const pc = this.p2pConnection!;
+    // MUST await — createP2pConnection fetches ICE servers asynchronously.
+    await this.createP2pConnection();
+    const pc = this.p2pConnection;
     const socket = getSocket();
-    if (!socket || !this.targetUserId) {
-      this.lastCallError = 'Direct connection failed: signaling socket unavailable.';
+    if (!pc || !socket || !this.targetUserId) {
+      this.lastCallError = 'Direct connection failed: signaling socket unavailable or ICE servers could not load.';
       return false;
     }
 
@@ -856,10 +861,15 @@ export class LiveKitService {
    * user accepts. The actual offer/answer exchange happens asynchronously in
    * completeP2pResponderHandshake() after call-accept is emitted.
    */
-  private prepareP2pResponder(): boolean {
+  private async prepareP2pResponder(): Promise<boolean> {
     console.warn('[LiveKit] Falling back to direct P2P WebRTC (responder)');
     this.lastCallError = null;
-    this.createP2pConnection();
+    // MUST await — ICE servers are fetched asynchronously.
+    await this.createP2pConnection();
+    if (!this.p2pConnection) {
+      this.lastCallError = 'Direct connection failed: could not initialise peer connection (ICE server load error).';
+      return false;
+    }
     return true;
   }
 
