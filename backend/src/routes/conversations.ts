@@ -8,7 +8,9 @@ import {
   saveDb,
 } from '../store/db';
 import { requireAuth, AuthenticatedRequest } from '../middleware/auth';
-import { getIoServer, getSocketIdForUser } from '../websocket/socketStore';
+import { getIoServer, getSocketIdForUser, shouldNotifyViaPush } from '../websocket/socketStore';
+import { sendPushToUser } from '../services/pushService';
+import { sendWebPushToUser, hasWebPushSubscriptions } from '../services/webPushService';
 
 const router = Router();
 
@@ -249,6 +251,31 @@ router.post('/:id/messages', (req: AuthenticatedRequest, res: Response) => {
       .forEach(m => {
         const sid = getSocketIdForUser(m.userId);
         if (sid) io.to(sid).emit('receive-message', outgoing);
+
+        if (shouldNotifyViaPush(m.userId)) {
+          const recipientUser = users.find(u => u.id === m.userId);
+          if (hasWebPushSubscriptions(m.userId)) {
+            sendWebPushToUser(m.userId, {
+              type: 'message',
+              title: sender?.displayName || 'SilenX User',
+              body: text,
+              icon: sender?.avatarUrl || undefined,
+              conversationId: convoId,
+              senderId: currentUserId,
+              messageId: newMsg.id,
+            }).catch(() => false);
+          }
+          if (recipientUser?.fcmTokens && recipientUser.fcmTokens.length > 0) {
+            sendPushToUser(m.userId, {
+              conversationId: convoId,
+              senderId: currentUserId,
+              senderDisplayName: sender?.displayName || 'SilenX User',
+              messageId: newMsg.id,
+              text,
+              contentType: 'text',
+            }).catch(() => false);
+          }
+        }
       });
   }
 

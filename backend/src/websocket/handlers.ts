@@ -317,10 +317,10 @@ export function registerSocketHandlers(io: any): void {
         // looking at the chat.
         if (!shouldNotifyViaPush(memberId)) return;
 
-        // One channel per recipient: browsers with a VAPID subscription get
-        // Web Push, everyone else (native, older web clients) gets Firebase.
-        // Sending both would alert the user twice for a single message.
+        // Dispatch to Web Push (browsers) and FCM Push (native Android/iOS)
         const sender = users.find(u => u.id === userId);
+        const recipientUser = users.find(u => u.id === memberId);
+
         if (hasWebPushSubscriptions(memberId)) {
           sendWebPushToUser(memberId, {
             type: 'message',
@@ -335,7 +335,9 @@ export function registerSocketHandlers(io: any): void {
             senderId: userId,
             messageId: newMsg.id,
           }).catch(() => false);
-        } else {
+        }
+
+        if (recipientUser?.fcmTokens && recipientUser.fcmTokens.length > 0) {
           sendPushToUser(memberId, {
             conversationId: data.conversationId,
             senderId: userId,
@@ -344,7 +346,7 @@ export function registerSocketHandlers(io: any): void {
             text: data.previewText,
             contentType: data.contentType,
             duration: data.duration,
-          });
+          }).catch(() => false);
         }
       });
     });
@@ -645,8 +647,9 @@ export function registerSocketHandlers(io: any): void {
       // Ringing alert for a hidden tab or a fully closed app
       if (shouldNotifyViaPush(data.targetUserId)) {
         const caller = users.find(u => u.id === userId);
+        const callee = users.find(u => u.id === data.targetUserId);
         const callLabel = data.callType === 'video' ? '📹 Video call' : '📞 Voice call';
-        // Same single-channel rule as messages: never alert twice.
+
         if (hasWebPushSubscriptions(data.targetUserId)) {
           sendWebPushToUser(data.targetUserId, {
             type: 'call',
@@ -656,7 +659,9 @@ export function registerSocketHandlers(io: any): void {
             senderId: userId,
             callType: data.callType,
           }).catch(() => false);
-        } else {
+        }
+
+        if (callee?.fcmTokens && callee.fcmTokens.length > 0) {
           sendPushToUser(data.targetUserId, {
             conversationId: `direct_${userId}_${data.targetUserId}`,
             senderId: userId,
@@ -664,7 +669,7 @@ export function registerSocketHandlers(io: any): void {
             messageId: logId,
             text: callLabel,
             contentType: 'call',
-          });
+          }).catch(() => false);
         }
       }
 

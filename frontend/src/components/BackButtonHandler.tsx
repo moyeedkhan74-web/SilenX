@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { App as CapacitorApp } from '@capacitor/app';
 import { useChatStore } from '../store/chatStore';
@@ -9,95 +9,114 @@ export const BackButtonHandler: React.FC = () => {
   const activeConversationId = useChatStore((s) => s.activeConversationId);
   const setActiveConversation = useChatStore((s) => s.setActiveConversation);
 
+  // Keep refs for callbacks so event listeners never get stale or need re-attaching
+  const locationRef = useRef(location);
+  const navigateRef = useRef(navigate);
+  const activeConversationIdRef = useRef(activeConversationId);
+  const setActiveConversationRef = useRef(setActiveConversation);
+
   useEffect(() => {
-    // 1. Handle Capacitor Android Native Back Button
-    let listenerHandle: any = null;
+    locationRef.current = location;
+  }, [location]);
 
-    const setupCapacitorBackButton = async () => {
-      try {
-        listenerHandle = await CapacitorApp.addListener('backButton', () => {
-          // Check if any open modal exists in DOM
-          const openModal = document.querySelector('.modal-overlay, .modal-backdrop, [role="dialog"]');
-          if (openModal) {
-            // Close active modal by triggering escape key or click
-            const closeBtn = openModal.querySelector<HTMLElement>('.modal-close, button[aria-label="Close"], .btn-close');
-            if (closeBtn) {
-              closeBtn.click();
-              return;
-            }
-          }
+  useEffect(() => {
+    navigateRef.current = navigate;
+  }, [navigate]);
 
-          // If active chat is open in mobile view -> go back to chat list
-          if (activeConversationId) {
-            setActiveConversation(null);
-            return;
-          }
+  useEffect(() => {
+    activeConversationIdRef.current = activeConversationId;
+  }, [activeConversationId]);
 
-          // If on a sub-page (/profile, /contacts, /settings, /calls) -> go to /chats
-          if (location.pathname !== '/chats' && location.pathname !== '/') {
-            navigate('/chats');
-            return;
-          }
+  useEffect(() => {
+    setActiveConversationRef.current = setActiveConversation;
+  }, [setActiveConversation]);
 
-          // At root home screen with no active chat -> minimize app on Android
-          CapacitorApp.minimizeApp();
-        });
-      } catch (err) {
-        // Not running in Capacitor native webview
+  // Central back-press processing logic
+  const processBackAction = (): boolean => {
+    // 1. Priority 1: Check if any open modal/dialog exists in DOM
+    const openModal = document.querySelector(
+      '.modal-overlay, .modal-backdrop, [role="dialog"], .media-lightbox-backdrop, .file-preview-overlay, .cropper-modal-overlay, .confirm-dialog-backdrop, .active-call-screen, .incoming-call-screen'
+    );
+    if (openModal) {
+      // Find close button or cancel button inside the modal
+      const closeBtn = openModal.querySelector<HTMLElement>(
+        '.modal-close, button[aria-label="Close"], button[aria-label="Close modal"], .btn-close, .lightbox-close, .icon-btn-back, .btn-cancel'
+      );
+      if (closeBtn) {
+        closeBtn.click();
+        return true;
       }
-    };
+      // Fallback: trigger Escape key
+      const escEvent = new KeyboardEvent('keydown', { key: 'Escape', keyCode: 27, bubbles: true });
+      document.dispatchEvent(escEvent);
+      return true;
+    }
 
-    setupCapacitorBackButton();
+    // 2. Priority 2: Clear active conversation if in mobile chat view
+    if (activeConversationIdRef.current) {
+      setActiveConversationRef.current(null);
+      return true;
+    }
+
+    // 3. Priority 3: Navigate back to `/chats` if on sub-pages (/profile, /contacts, /settings, /calls)
+    if (locationRef.current.pathname !== '/chats' && locationRef.current.pathname !== '/') {
+      navigateRef.current('/chats');
+      return true;
+    }
+
+    // 4. Priority 4: At root home screen with no active chat / modal -> return false (trigger minimize app)
+    return false;
+  };
+
+  // Setup Capacitor Android Native Back Button (registered ONCE on mount)
+  useEffect(() => {
+    let listenerPromise: Promise<any> | null = null;
+
+    try {
+      listenerPromise = CapacitorApp.addListener('backButton', () => {
+        const handled = processBackAction();
+        if (!handled) {
+          CapacitorApp.minimizeApp();
+        }
+      });
+    } catch {
+      // Not running in Capacitor native webview
+    }
 
     return () => {
-      if (listenerHandle && typeof listenerHandle.remove === 'function') {
-        listenerHandle.remove();
+      if (listenerPromise) {
+        listenerPromise
+          .then((handle) => {
+            if (handle && typeof handle.remove === 'function') {
+              handle.remove();
+            }
+          })
+          .catch(() => {});
       }
     };
-  }, [location.pathname, activeConversationId, navigate, setActiveConversation]);
+  }, []);
 
-   useEffect(() => {
-     // 2. Handle Mobile Web / PWA Browser Popstate Back Button
-     const handlePopState = (e: PopStateEvent) => {
-       // Priority 1: Close active modal if open
-       const openModal = document.querySelector('.modal-overlay, .modal-backdrop, [role="dialog"]');
-       if (openModal) {
-         // Close active modal by triggering escape key or click
-         const closeBtn = openModal.querySelector<HTMLElement>('.modal-close, button[aria-label="Close"], .btn-close');
-         if (closeBtn) {
-           closeBtn.click();
-           e.preventDefault();
-           return;
-         }
-       }
+  // Handle Mobile Web / PWA Browser Popstate Back Button
+  useEffect(() => {
+    const handlePopState = () => {
+      processBackAction();
+    };
 
-       // Priority 2: Clear active conversation if in chat view
-       if (activeConversationId) {
-         e.preventDefault();
-         setActiveConversation(null);
-         return;
-       }
+    window.addEventListener('popstate', handlePopState);
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, []);
 
-       // Priority 3: Navigate back to `/chats` if on sub-pages
-       if (location.pathname !== '/chats' && location.pathname !== '/') {
-         e.preventDefault();
-         navigate('/chats');
-         return;
-       }
-
-       // Priority 4: Minimize app ONLY if on `/chats` root with no open chat/modal
-       // Note: This is for native Capacitor apps only. In web/PWA, we let the browser handle it.
-       // For completeness, we could call window.minimize() but it's not reliably supported.
-       // So we do nothing here - let the browser's natural back behavior occur.
-     };
-
-     window.addEventListener('popstate', handlePopState);
-     return () => {
-       window.removeEventListener('popstate', handlePopState);
-     };
-   }, [location.pathname, activeConversationId, navigate, setActiveConversation]);
+  // Trap mobile browser back navigation when active chat is opened
+  useEffect(() => {
+    if (activeConversationId) {
+      window.history.pushState({ silenxChat: activeConversationId }, '');
+    }
+  }, [activeConversationId]);
 
   return null;
 };
 
 export default BackButtonHandler;
+
