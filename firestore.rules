@@ -1,21 +1,25 @@
-// firestore.rules
-// Firestore Rules for SilenX media metadata
-// Users can only create, read, update, delete their own media items.
-
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Media items collection
+    // User A cannot read/overwrite user B
     match /mediaItems/{mediaId} {
-      // Allow only if the user is authenticated and the ownerId matches the auth token
-      allow create, read, update, delete: if request.auth != null && request.auth.uid == resource.data.ownerId;
-
-      // Optional: validate fields on create and update
-      // We can do basic validation, but it's complex to match all types.
-      // For simplicity, we trust the client to send correct data.
-      // We at least ensure that the ownerId is not changed after creation.
-      // We can also validate that the size is within limits (duplicate of storage rules).
-      // We'll skip detailed validation for brevity.
+      // create must set ownerId == auth.uid, and id == mediaId
+      allow create: if request.auth != null
+                    && request.resource.data.ownerId == request.auth.uid
+                    && request.resource.data.id == mediaId
+                    && request.resource.data.keys().hasAll(['id','ownerId','kind','fileName','mimeType','size','storagePath','downloadUrl','createdAt','status'])
+                    && request.resource.data.storagePath.matches('uploads/' + request.auth.uid + '/[0-9]{4}/.+')
+                    && request.resource.data.kind in ['image','video','document']
+                    && request.resource.data.status in ['queued','uploading','paused','done','failed'];
+      // read/update/delete only owner
+      allow read, update, delete: if request.auth != null && resource.data.ownerId == request.auth.uid;
+      // on update, ownerId and id are immutable
+      allow update: if request.auth != null
+                    && resource.data.ownerId == request.auth.uid
+                    && request.resource.data.ownerId == resource.data.ownerId
+                    && request.resource.data.id == resource.data.id;
     }
+    // deny everything else by default (no open collection)
+    match /{document=**} { allow read, write: if false; }
   }
 }

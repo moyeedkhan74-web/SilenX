@@ -508,5 +508,39 @@ body {
   body, .chatview-messages, .sidebar {
     -webkit-overflow-scrolling: touch;
   }
+
+  /* Dark mode variables */
+  .dark {
+    --color-bg: #0b141a;
+    --color-panel-bg: #1a272e;
+    --color-border: #2a3842;
+    --color-text-primary: #e9edef;
+    --color-text-secondary: #8696a0;
+    --color-surface: #1a272e;
+    --color-surface-soft: #0b141a;
+    --color-surface-muted: rgba(255,255,255,0.05);
+    --color-overlay: rgba(0,0,0,0.6);
+
+    /* Attachment sheet & preview styles */
+    --attachment-sheet-bg: #1a272e;
+    --attachment-backdrop: rgba(0,0,0,0.7);
+    --preview-bg: #1a272e;
+    --preview-backdrop: rgba(0,0,0,0.7);
+
+    --card-bg: #1a272e;
+    --border-color: #2a3842;
+    --text-primary: #e9edef;
+    --text-secondary: #8696a0;
+    --error-color: #f15c6d;
+  }
+
+  /* Light mode aliases for media components */
+  .light {
+    --card-bg: #ffffff;
+    --border-color: #e2e8f0;
+    --text-primary: #1e293b;
+    --text-secondary: #64748b;
+    --error-color: #ef4444;
+  }
 }
 

@@ -57,7 +57,7 @@
         </provider>
     </application>
 
-    <!-- Permissions -->
+    <!-- Permissions for Step 2: Media picker (Photos) -->
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
@@ -67,8 +67,15 @@
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.BLUETOOTH" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+
+    <!-- Android 13+ (API 33+) uses Photo Picker (no broad storage permission needed) -->
+    <!-- For Android 12 and below, we still request READ_EXTERNAL_STORAGE as a fallback -->
+    <!-- This permission will NOT be requested on Android 13+ (maxSdkVersion 32) -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
+
+    <!-- Android 13+ explicit media permissions -->
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+
     <uses-feature android:name="android.hardware.camera" android:required="false" />
     <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
 </manifest>

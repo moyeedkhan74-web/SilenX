@@ -1,280 +1,166 @@
-/**
- * useMediaUpload - React hook for media uploads
- * Manages photo selection, upload progress, and state
- */
+// src/hooks/useMediaUpload.ts
+// React hook for managing media uploads
+// Exposes items, progress per item, pick, pause, resume, cancel, retry
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
-  createUploadTask,
-  startUpload,
+  createUpload,
+  pauseUpload,
+  resumeUpload,
   cancelUpload,
   retryUpload,
-} from '../services/mediaUploadService';
-import { downloadMedia, isCached } from '../services/mediaDownloadService';
-import { MediaFile, UploadResult } from '../config/mediaConfig';
-import { validateFile } from '../utils/mediaValidation';
-
-export interface UseMediaUploadOptions {
-  maxConcurrent?: number;
-  autoUpload?: boolean;
-}
-
-export interface MediaUploadState {
-  uploadId: string | null;
-  file: MediaFile | null;
-  progress: number;
-  status: 'idle' | 'pending' | 'uploading' | 'done' | 'failed' | 'cancelled';
-  error: string | null;
-  result: UploadResult | null;
-}
-
-export interface UseMediaUploadReturn {
-  state: MediaUploadState;
-  selectFile: (file: File) => Promise<void>;
-  startUpload: () => Promise<UploadResult | null>;
-  cancelUpload: () => boolean;
-  retryUpload: () => Promise<UploadResult | null>;
-  reset: () => void;
-  downloadAndCache: (url: string, fileName: string) => Promise<string | null>;
-  isCached: (fileName: string) => Promise<boolean>;
-}
+  addUploadListener,
+  removeUploadListener,
+  getUploads,
+  resumeForegroundUploads,
+  UploadItem,
+} from '../services/uploadService';
+import { takePhoto, pickFromGallery } from '../services/pickerService';
 
 /**
- * React hook for managing media uploads
+ * Hook for managing media uploads with progress tracking and controls.
+ * Usage:
+ *   const { items, pickPhoto, pickGallery, pause, resume, cancel, retry } = useMediaUpload();
  */
-export function useMediaUpload(
-  options: UseMediaUploadOptions = {}
-): UseMediaUploadReturn {
-  const { autoUpload = false } = options;
+export function useMediaUpload() {
+  const [items, setItems] = useState<UploadItem[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
-  const [state, setState] = useState<MediaUploadState>({
-    uploadId: null,
-    file: null,
-    progress: 0,
-    status: 'idle',
-    error: null,
-    result: null,
-  });
+  useEffect(() => {
+    // Initial load
+    setItems([...getUploads()]);
 
-  const uploadIdRef = useRef<string | null>(null);
-
-  /**
-   * Select a file and prepare for upload
-   */
-  const selectFile = useCallback(async (file: File) => {
-    try {
-      // Validate file
-      const validation = validateFile(file);
-      if (!validation.valid) {
-        setState({
-          uploadId: null,
-          file: null,
-          progress: 0,
-          status: 'failed',
-          error: validation.error || 'Invalid file',
-          result: null,
-        });
-        return;
-      }
-
-      // Create upload task
-      const mediaFile = await createUploadTask(file);
-      uploadIdRef.current = mediaFile.id;
-
-      setState({
-        uploadId: mediaFile.id,
-        file: mediaFile,
-        progress: 0,
-        status: 'pending',
-        error: null,
-        result: null,
-      });
-
-      // Auto-upload if enabled
-      if (autoUpload) {
-        await startUploadHandler(mediaFile.id);
-      }
-    } catch (error) {
-      setState({
-        uploadId: null,
-        file: null,
-        progress: 0,
-        status: 'failed',
-        error: (error as Error).message,
-        result: null,
-      });
-    }
-  }, [autoUpload]);
-
-  /**
-   * Internal upload handler with progress tracking
-   */
-  const startUploadHandler = useCallback(async (uploadId: string): Promise<UploadResult | null> => {
-    return new Promise((resolve, reject) => {
-      startUpload(
-        uploadId,
-        (progress) => {
-          setState((prev) => ({
-            ...prev,
-            progress,
-            status: 'uploading',
-            file: prev.file ? { ...prev.file, progress } : null,
-          }));
-        },
-        (result) => {
-          setState((prev) => ({
-            ...prev,
-            progress: 100,
-            status: 'done',
-            file: prev.file ? { ...prev.file, status: 'done', progress: 100 } : null,
-            result,
-            error: null,
-          }));
-          resolve(result);
-        },
-        (error) => {
-          setState((prev) => ({
-            ...prev,
-            status: 'failed',
-            error: error.message,
-            file: prev.file ? { ...prev.file, status: 'failed' } : null,
-          }));
-          reject(error);
-        }
+    // Add listeners
+    const onProgress = (item: UploadItem) => {
+      setItems((prev) =>
+        prev.map((i) => (i.id === item.id ? { ...item } : i))
       );
-    });
-  }, []);
+    };
 
-  /**
-   * Start upload for the currently selected file
-   */
-  const startUploadFn = useCallback(async (): Promise<UploadResult | null> => {
-    if (!uploadIdRef.current) {
-      setState((prev) => ({
-        ...prev,
-        status: 'failed',
-        error: 'No file selected',
-      }));
-      return null;
-    }
-
-    try {
-      return await startUploadHandler(uploadIdRef.current);
-    } catch (error) {
-      return null;
-    }
-  }, [startUploadHandler]);
-
-  /**
-   * Cancel current upload
-   */
-  const cancelUploadFn = useCallback((): boolean => {
-    if (!uploadIdRef.current) return false;
-
-    const cancelled = cancelUpload(uploadIdRef.current);
-    if (cancelled) {
-      setState((prev) => ({
-        ...prev,
-        status: 'cancelled',
-      }));
-    }
-    return cancelled;
-  }, []);
-
-  /**
-   * Retry failed upload
-   */
-  const retryUploadFn = useCallback(async (): Promise<UploadResult | null> => {
-    if (!uploadIdRef.current) return null;
-
-    try {
-      return await new Promise<UploadResult | null>((resolve, reject) => {
-        retryUpload(
-          uploadIdRef.current!,
-          (progress) => {
-            setState((prev) => ({
-              ...prev,
-              progress,
-              status: 'uploading',
-            }));
-          },
-          (result) => {
-            setState((prev) => ({
-              ...prev,
-              progress: 100,
-              status: 'done',
-              result,
-              error: null,
-            }));
-            resolve(result);
-          },
-          (error) => {
-            setState((prev) => ({
-              ...prev,
-              status: 'failed',
-              error: error.message,
-            }));
-            reject(error);
-          }
-        );
+    const onStatus = (item: UploadItem) => {
+      setItems((prev) => {
+        const exists = prev.some((i) => i.id === item.id);
+        if (!exists) {
+          return [...prev, item];
+        }
+        return prev.map((i) => (i.id === item.id ? { ...item } : i));
       });
-    } catch {
-      return null;
+    };
+
+    addUploadListener(onProgress, onStatus);
+
+    // Cleanup
+    return () => {
+      removeUploadListener(onProgress, onStatus);
+    };
+  }, []);
+
+  const pickCamera = useCallback(async () => {
+    setError(null);
+    const result = await takePhoto();
+
+    if ('type' in result && result.type !== undefined) {
+      // Error case
+      const msg = result.type === 'permission'
+        ? 'Camera permission denied. Please grant permission in your device settings.'
+        : result.type === 'cancelled'
+          ? 'No photo taken.'
+          : result.message;
+      setError(msg);
+      return;
+    }
+
+    // Success case: create upload item
+    try {
+      const item = await createUpload(result as File);
+      setItems((prev) => [...prev, item]);
+    } catch (err) {
+      setError((err as Error).message);
     }
   }, []);
 
-  /**
-   * Reset upload state
-   */
-  const reset = useCallback(() => {
-    if (uploadIdRef.current) {
-      cancelUpload(uploadIdRef.current);
-    }
-    uploadIdRef.current = null;
-    setState({
-      uploadId: null,
-      file: null,
-      progress: 0,
-      status: 'idle',
-      error: null,
-      result: null,
-    });
-  }, []);
+  const pickGallery = useCallback(async () => {
+    setError(null);
+    const results = await pickFromGallery();
 
-  /**
-   * Download and cache a media file
-   * Returns the local file URI
-   */
-  const downloadAndCache = useCallback(
-    async (url: string, fileName: string): Promise<string | null> => {
-      try {
-        const result = await downloadMedia(url, fileName, {
-          useCache: true,
-        });
-        return result.uri;
-      } catch (error) {
-        console.error('Download error:', error);
-        return null;
+    for (const result of results) {
+      if ('type' in result && result.type !== undefined) {
+        const msg = result.type === 'permission'
+          ? 'Gallery permission denied. Please grant permission in your device settings.'
+          : result.message;
+        setError(msg);
+        continue;
       }
-    },
-    []
-  );
 
-  /**
-   * Check if a file is cached
-   */
-  const isCachedFn = useCallback(async (fileName: string): Promise<boolean> => {
-    return isCached(fileName);
+      try {
+        const item = await createUpload(result as File);
+        setItems((prev) => [...prev, item]);
+      } catch (err) {
+        setError((err as Error).message);
+      }
+    }
+  }, []);
+
+  const pause = useCallback((itemId: string) => {
+    pauseUpload(itemId);
+  }, []);
+
+  const resume = useCallback((itemId: string) => {
+    resumeUpload(itemId);
+  }, []);
+
+  const cancel = useCallback((itemId: string) => {
+    cancelUpload(itemId);
+  }, []);
+
+  const retry = useCallback((itemId: string) => {
+    retryUpload(itemId);
+  }, []);
+
+  const retryAll = useCallback(() => {
+    items.forEach((item) => {
+      if (item.status === 'failed') {
+        retryUpload(item.id);
+      }
+    });
+  }, [items]);
+
+  // Resume uploads when app returns to foreground
+  useEffect(() => {
+    const handleResume = () => {
+      resumeForegroundUploads();
+    };
+
+    // Listen for app resume (Capacitor)
+    try {
+      const { App } = require('@capacitor/app');
+      const listener = App.addListener('resume', handleResume);
+
+      // Also listen for window focus (web)
+      window.addEventListener('focus', handleResume);
+
+      return () => {
+        listener.remove();
+        window.removeEventListener('focus', handleResume);
+      };
+    } catch {
+      // Fallback: window focus only
+      window.addEventListener('focus', handleResume);
+      return () => window.removeEventListener('focus', handleResume);
+    }
   }, []);
 
   return {
-    state,
-    selectFile,
-    startUpload: startUploadFn,
-    cancelUpload: cancelUploadFn,
-    retryUpload: retryUploadFn,
-    reset,
-    downloadAndCache,
-    isCached: isCachedFn,
+    items,
+    isUploading: items.some((i) => i.status === 'uploading'),
+    error,
+    pickCamera,
+    pickGallery,
+    pause,
+    resume,
+    cancel,
+    retry,
+    retryAll,
+    clearError: () => setError(null),
   };
 }

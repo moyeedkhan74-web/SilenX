@@ -52,6 +52,9 @@ export const MediaConfig = {
   // Upload constraints
   maxParallelUploads: 3,
   maxFilesPerPick: 10,
+  maxRetryAttempts: 3,
+  retryBaseDelayMs: 1000,
+  retryMaxDelayMs: 10000,
 
   // Storage paths
   storage: {
