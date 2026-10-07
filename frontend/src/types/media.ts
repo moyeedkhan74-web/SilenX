@@ -1,5 +1,4 @@
-// src/types/media.ts
-import { MediaConfig } from '../config/mediaConfig';
+import { ImageExtension, VideoExtension, DocExtension } from '../config/mediaConfig';
 
 export type MediaKind = 'image' | 'video' | 'document';
 export type MediaStatus = 'queued' | 'uploading' | 'paused' | 'done' | 'failed';
@@ -23,6 +22,6 @@ export interface MediaItem {
 
 // Helper type for allowed file extensions
 export type AllowedExtension =
-  | MediaConfig.ImageExtension
-  | MediaConfig.VideoExtension
-  | MediaConfig.DocExtension;
+  | ImageExtension
+  | VideoExtension
+  | DocExtension;

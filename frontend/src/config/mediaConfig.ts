@@ -52,6 +52,29 @@ export const MediaConfig = {
   // Upload constraints
   maxParallelUploads: 3,
   maxFilesPerPick: 10,
+
+  // Storage paths
+  storage: {
+    basePath: 'silenx_media',
+    thumbnailsFolder: 'silenx_media/thumbnails',
+  },
+
+  // Image compression defaults
+  imageCompression: {
+    maxWidthOrHeight: 1600,
+    initialQuality: 0.75,
+    useWebWorker: true,
+  },
+
+  // Thumbnail defaults
+  thumbnail: {
+    maxWidth: 300,
+    maxHeight: 300,
+    maxWidthOrHeight: 300,
+    quality: 0.7,
+    initialQuality: 0.7,
+    mimeType: 'image/jpeg',
+  },
 } as const;
 
 export type ImageExtension = typeof MediaConfig.allowedImageExtensions[number];
@@ -60,3 +83,24 @@ export type DocExtension = typeof MediaConfig.allowedDocExtensions[number];
 export type ImageMime = typeof MediaConfig.allowedImageMimes[number];
 export type VideoMime = typeof MediaConfig.allowedVideoMimes[number];
 export type DocMime = typeof MediaConfig.allowedDocMimes[number];
+
+export type MediaType = 'image' | 'video' | 'document';
+
+export interface MediaFile {
+  id: string;
+  name: string;
+  path: string;
+  size: number;
+  mimeType: string;
+  status: 'pending' | 'uploading' | 'done' | 'failed' | 'cancelled';
+  progress: number;
+}
+
+export interface UploadResult {
+  id: string;
+  storagePath: string;
+  downloadUrl: string;
+  thumbnailUrl?: string;
+  size: number;
+  mimeType: string;
+}

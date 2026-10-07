@@ -76,14 +76,8 @@ export function validateFile(file: File): ValidationResult {
   // Additional MIME type validation (already done above by checking allowed arrays, but double-check)
   // We already checked that the extension and MIME are in the allowed lists for the kind.
 
-  // Sanitize file name (just for reference; the File object's name cannot be changed)
-  const sanitizedName = sanitizeFileName(file.name);
-
   return {
     ok: true,
-    reason: undefined, // optional
-    // We could return the sanitized name, but the interface doesn't have a field for it.
-    // The caller can use sanitizeFileName(file.name) if needed.
   };
 }
 

@@ -6,8 +6,8 @@
 import {
   Filesystem,
   Directory,
-  Capacitor,
 } from '@capacitor/filesystem';
+import { Capacitor } from '@capacitor/core';
 import { MediaConfig } from '../config/mediaConfig';
 
 export interface DownloadOptions {
