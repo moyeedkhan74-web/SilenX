@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import ReactDOM from 'react-dom';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { MessageCircle, Users, Settings, LogOut, Phone, AlertTriangle, X } from 'lucide-react';
+import { MessageCircle, Users, Settings, LogOut, Phone, AlertTriangle, X, User } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { auth } from '../../config/firebase';
-import { getSocket } from '../../services/socket';
+import { getSocket, disconnectSocket } from '../../services/socket';
 import { API_URL } from '../../config/webrtc-config';
 import { clearKeys } from '../../utils/crypto';
 import { useIsMobile } from '../../hooks/useIsMobile';
@@ -85,11 +85,28 @@ export const Sidebar: React.FC<SidebarProps> = () => {
   const handleConfirmLogout = () => {
     setShowLogoutConfirm(false);
     console.log('[Auth] Confirmed sign out. Clearing session.');
+
+    try {
+      disconnectSocket();
+    } catch {}
+
     logout();
-    auth?.signOut().catch(() => {});
-    clearKeys(currentUser?.id ?? 'anonymous');
-    GoogleAuth.signOut().catch(() => {});
-    navigate('/login');
+
+    try {
+      auth?.signOut().catch(() => {});
+    } catch {}
+
+    try {
+      if (currentUser?.id) {
+        clearKeys(currentUser.id);
+      }
+    } catch {}
+
+    try {
+      GoogleAuth.signOut().catch(() => {});
+    } catch {}
+
+    navigate('/login', { replace: true });
   };
 
   const currentPath = location.pathname;
@@ -98,6 +115,7 @@ export const Sidebar: React.FC<SidebarProps> = () => {
     { path: '/chats', label: 'Chats', icon: <MessageCircle size={isMobile ? 22 : 20} />, badge: 0 },
     { path: '/contacts', label: 'Contacts', icon: <Users size={isMobile ? 22 : 20} />, badge: pendingCount },
     { path: '/calls', label: 'Calls', icon: <Phone size={isMobile ? 22 : 20} />, badge: 0 },
+    { path: '/profile', label: 'Profile', icon: <User size={isMobile ? 22 : 20} />, badge: 0 },
     { path: '/settings', label: 'Settings', icon: <Settings size={isMobile ? 22 : 20} />, badge: 0 },
   ];
 

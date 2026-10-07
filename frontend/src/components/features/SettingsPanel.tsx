@@ -1,15 +1,16 @@
 import React, { useState } from 'react';
-import { Edit3, Image as ImageIcon } from 'lucide-react';
+import { Edit3, Image as ImageIcon, QrCode, Copy, Download, Check } from 'lucide-react';
 import { useSettingsStore } from '../../store/settingsStore';
 import { useAuthStore } from '../../store/authStore';
 import { useTheme } from '../../theme/useTheme';
 import ThemeToggle from '../ThemeToggle';
 import AvatarDisplay from '../shared/AvatarDisplay';
+import UIDDisplay from '../shared/UIDDisplay';
+import QRCodeSection from '../shared/QRCodeSection';
 import EditProfileModal from '../EditProfileModal';
 import WallpaperPicker from '../WallpaperPicker';
 import { API_URL } from '../../config/webrtc-config';
 import '../../components/SettingsTab.css';
-
 
 interface SettingsPanelProps {
   onDeleteAccountClick?: () => void;
@@ -35,13 +36,54 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onDeleteAccountCli
 
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isWallpaperModalOpen, setIsWallpaperModalOpen] = useState(false);
+  const [showQrCode, setShowQrCode] = useState(false);
+  const [copiedUid, setCopiedUid] = useState(false);
+
+  const userUid = currentUser?.uid || currentUser?.id || '';
+
+  const handleCopyUid = async () => {
+    if (!userUid) return;
+    try {
+      await navigator.clipboard.writeText(userUid);
+      setCopiedUid(true);
+      setTimeout(() => setCopiedUid(false), 2000);
+    } catch {
+      alert('Failed to copy Secure ID');
+    }
+  };
+
+  const handleDownloadQr = async () => {
+    if (!userUid) return;
+    try {
+      const deepLink = `slienx://uid/${userUid}`;
+      const QRCode = (await import('qrcode')).default;
+      const dataUrl = await QRCode.toDataURL(deepLink, {
+        errorCorrectionLevel: 'H',
+        margin: 2,
+        color: { dark: '#0f172a', light: '#ffffff' },
+        width: 512,
+      });
+      const response = await fetch(dataUrl);
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${userUid}_qr.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch {
+      alert('Failed to download QR code');
+    }
+  };
 
   /**
    * Toggle showOnlineStatus: save locally, persist to backend, and update
    * the in-memory user record so other components (AvatarDisplay etc.) see the change.
    */
   const handleShowOnlineStatusChange = async (value: boolean) => {
-    setShowOnlineStatus(value);  // update local settings store immediately (optimistic)
+    setShowOnlineStatus(value); // update local settings store immediately (optimistic)
     if (!token || !currentUser) return;
     try {
       const res = await fetch(`${API_URL}/api/users/me`, {
@@ -114,7 +156,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onDeleteAccountCli
                 marginTop: 2,
               }}
             >
-              ID: {currentUser?.uid || currentUser?.id}
+              ID: {userUid}
             </span>
           </div>
           <button
@@ -138,6 +180,73 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onDeleteAccountCli
           >
             <Edit3 size={13} /> Edit Profile
           </button>
+        </div>
+      </div>
+
+      <div className="settings-group" style={{ marginBottom: 24 }}>
+        <h3>My Secure ID &amp; QR Code</h3>
+        <div style={{ marginTop: 8 }}>
+          <UIDDisplay uid={userUid} />
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(3, 1fr)',
+              gap: 8,
+              marginTop: 12,
+            }}
+          >
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={handleCopyUid}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 6,
+                fontSize: 12,
+                padding: '8px 12px',
+              }}
+            >
+              {copiedUid ? <Check size={13} style={{ color: '#22c55e' }} /> : <Copy size={13} />}
+              {copiedUid ? 'Copied!' : 'Copy UID'}
+            </button>
+            <button
+              type="button"
+              className={`btn-secondary ${showQrCode ? 'active' : ''}`}
+              onClick={() => setShowQrCode(!showQrCode)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 6,
+                fontSize: 12,
+                padding: '8px 12px',
+              }}
+            >
+              <QrCode size={13} /> {showQrCode ? 'Hide QR' : 'Show QR'}
+            </button>
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={handleDownloadQr}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 6,
+                fontSize: 12,
+                padding: '8px 12px',
+              }}
+            >
+              <Download size={13} /> Download
+            </button>
+          </div>
+          {showQrCode && (
+            <div style={{ marginTop: 16 }}>
+              <QRCodeSection uid={userUid} size={180} />
+            </div>
+          )}
         </div>
       </div>
 

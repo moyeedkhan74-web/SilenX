@@ -59,7 +59,11 @@ export const BackButtonHandler: React.FC = () => {
     }
 
     // 3. Priority 3: Navigate back to `/chats` if on sub-pages (/profile, /contacts, /settings, /calls)
-    if (locationRef.current.pathname !== '/chats' && locationRef.current.pathname !== '/') {
+    if (
+      locationRef.current.pathname !== '/chats' &&
+      locationRef.current.pathname !== '/' &&
+      locationRef.current.pathname !== '/login'
+    ) {
       navigateRef.current('/chats');
       return true;
     }
