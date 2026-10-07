@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Download, FileText, PlayCircle, Music, FileCode, Archive, FileSpreadsheet } from 'lucide-react';
 import type { ChatMessage } from '../types';
 import { useChatStore } from '../store/chatStore';
@@ -62,12 +62,22 @@ const getDocMeta = (fileName: string) => {
 export const MediaMessage: React.FC<MediaMessageProps> = ({ message }) => {
   const setActiveMediaMessage = useChatStore((state) => state.setActiveMediaMessage);
   const [viewOnceOpened, setViewOnceOpened] = useState(false);
+  const [animClass, setAnimClass] = useState('');
 
   // Mark view-once as opened
   const markViewOnceOpened = (messageId: string) => {
     setViewOnceOpened(true);
     console.log('[MediaMessage] View-once message opened:', messageId);
   };
+
+  // Incoming bubble animation
+  useEffect(() => {
+    if (!message.isSelf) {
+      const timer = setTimeout(() => setAnimClass('msg-bubble--receive-anim'), 50);
+      return () => clearTimeout(timer);
+    }
+    return undefined;
+  }, [message.isSelf]);
 
   // Render view-once media first
   if (message.contentType === 'view-once' && message.isViewOnce && !viewOnceOpened) {
@@ -80,30 +90,9 @@ export const MediaMessage: React.FC<MediaMessageProps> = ({ message }) => {
     setActiveMediaMessage(message);
   };
 
-  const downloadAttachment = async (event: React.MouseEvent<HTMLButtonElement>) => {
-    event.preventDefault();
-    event.stopPropagation();
-    if (!message.mediaUrl) return;
-
-    try {
-      const response = await fetch(message.mediaUrl);
-      const blob = await response.blob();
-      const blobUrl = URL.createObjectURL(blob);
-      const anchor = document.createElement('a');
-      anchor.href = blobUrl;
-      anchor.download = getAttachmentName(message);
-      document.body.appendChild(anchor);
-      anchor.click();
-      anchor.remove();
-      window.setTimeout(() => URL.revokeObjectURL(blobUrl), 0);
-    } catch (error) {
-      console.error('Failed to download attachment', error);
-    }
-  };
-
   if (isVoiceMessage(message) && message.mediaUrl) {
     return (
-      <div onClick={(event) => event.stopPropagation()}>
+      <div className={animClass} onClick={(event) => event.stopPropagation()}>
         <VoiceNotePlayer
           mediaUrl={message.mediaUrl}
           seedId={message.id || 'voice'}
@@ -114,22 +103,28 @@ export const MediaMessage: React.FC<MediaMessageProps> = ({ message }) => {
   }
 
   if (isImageMessage(message) && message.mediaUrl) {
+    const [imgLoaded, setImgLoaded] = useState(false);
     return (
-      <button className="media-message-trigger media-image-trigger" onClick={openViewer} type="button">
+      <button className={`media-message-trigger media-image-trigger ${animClass}`} onClick={openViewer} type="button">
+        {!imgLoaded && <div className="img-skeleton" style={{ width: '100%', maxWidth: 'min(320px, 72vw)', maxHeight: 260, borderRadius: 14 }} />}
         <img
           src={message.mediaUrl}
           alt={message.text || getAttachmentName(message)}
           loading="lazy"
           decoding="async"
           className="media-message-image"
+          onLoad={() => setImgLoaded(true)}
+          style={{ opacity: imgLoaded ? 1 : 0 }}
         />
+        <span className="img-label-chip">📷 Photo</span>
       </button>
     );
   }
 
   if (isVideoMessage(message) && message.mediaUrl) {
+    const [videoLoaded, setVideoLoaded] = useState(false);
     return (
-      <button className="media-message-trigger media-video-trigger" onClick={openViewer} type="button">
+      <button className={`media-message-trigger media-video-trigger ${animClass}`} onClick={openViewer} type="button">
         <video
           src={message.mediaUrl}
           className="media-message-video"
@@ -138,18 +133,49 @@ export const MediaMessage: React.FC<MediaMessageProps> = ({ message }) => {
           controls
           preload="metadata"
           poster={message.mediaUrl}
+          onLoadedData={() => setVideoLoaded(true)}
+          style={{ opacity: videoLoaded ? 1 : 0 }}
         />
+        {!videoLoaded && <div className="img-skeleton" style={{ width: '100%', maxWidth: 'min(320px, 72vw)', maxHeight: 260, borderRadius: 14 }} />}
         <span className="media-video-play-overlay">
           <PlayCircle size={28} />
         </span>
+        <span className="img-label-chip">🎬 Video</span>
+        {message.duration && <span className="video-duration-chip">{message.duration}</span>}
       </button>
     );
   }
 
   if (message.mediaUrl) {
     const docMeta = getDocMeta(getAttachmentName(message));
+    const [downloading, setDownloading] = useState(false);
+    const [downloaded, setDownloaded] = useState(false);
+    const handleDownload = async (event: React.MouseEvent<HTMLButtonElement>) => {
+      event.preventDefault();
+      event.stopPropagation();
+      if (!message.mediaUrl) return;
+      setDownloading(true);
+      try {
+        const response = await fetch(message.mediaUrl);
+        const blob = await response.blob();
+        const blobUrl = URL.createObjectURL(blob);
+        const anchor = document.createElement('a');
+        anchor.href = blobUrl;
+        anchor.download = getAttachmentName(message);
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+        window.setTimeout(() => URL.revokeObjectURL(blobUrl), 0);
+        setDownloaded(true);
+        setTimeout(() => setDownloaded(false), 2000);
+      } catch (error) {
+        console.error('Failed to download attachment', error);
+      } finally {
+        setDownloading(false);
+      }
+    };
     return (
-      <div className="media-file-card" onClick={(event) => event.stopPropagation()}>
+      <div className={`media-file-card ${animClass}`} onClick={(event) => event.stopPropagation()}>
         <div className="media-file-icon-wrap" style={{ background: docMeta.bg, color: docMeta.color }}>
           {docMeta.icon}
         </div>
@@ -162,9 +188,14 @@ export const MediaMessage: React.FC<MediaMessageProps> = ({ message }) => {
             <span>{formatFileSize(message)}</span>
           </div>
         </div>
-        <button className="media-file-download-btn" onClick={downloadAttachment} type="button">
-          <Download size={15} />
-          <span>Download</span>
+        <button className="media-file-download-btn" onClick={handleDownload} type="button" disabled={downloading}>
+          {downloading ? (
+            <span className="download-spinner"><Download size={15} /></span>
+          ) : downloaded ? (
+            <span style={{ color: '#10b981', fontWeight: 700 }}>✓</span>
+          ) : (
+            <Download size={15} />
+          )}
         </button>
       </div>
     );

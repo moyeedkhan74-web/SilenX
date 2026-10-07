@@ -1658,3 +1658,123 @@
   color: #a5b4fc;
 }
 
+/* ─── Bubble entry animations ─── */
+@keyframes bubble-in-right {
+  from { opacity: 0; transform: translateX(40px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes bubble-in-left {
+  from { opacity: 0; transform: translateX(-40px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+.msg-bubble--send-anim    { animation: bubble-in-right 280ms ease-out forwards; }
+.msg-bubble--receive-anim { animation: bubble-in-left  280ms ease-out forwards; }
+
+/* ─── File preview pill ─── */
+@keyframes pill-in {
+  from { opacity: 0; transform: scale(0.8); }
+  to   { opacity: 1; transform: scale(1); }
+}
+@keyframes pill-out {
+  from { opacity: 1; transform: scale(1); }
+  to   { opacity: 0; transform: scale(0.8); }
+}
+.media-preview-pill        { animation: pill-in  250ms cubic-bezier(0.34,1.56,0.64,1) forwards; }
+.media-preview-pill--exit  { animation: pill-out 300ms ease-in forwards; }
+
+.file-preview-pill {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 8px 12px;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.file-preview-pill-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+.file-preview-filename {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+  min-width: 0;
+}
+.file-preview-close {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+.file-preview-close:hover {
+  background: var(--bg-tertiary);
+}
+
+/* ─── Image shimmer skeleton ─── */
+@keyframes shimmer {
+  0%   { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+.img-skeleton {
+  background: linear-gradient(90deg, var(--bg-secondary) 25%, var(--bg-primary) 50%, var(--bg-secondary) 75%);
+  background-size: 800px 100%;
+  animation: shimmer 1.4s infinite linear;
+}
+
+/* ─── Download spinner ring ─── */
+@keyframes spin { to { transform: rotate(360deg); } }
+.download-spinner { animation: spin 0.7s linear infinite; }
+
+/* ─── prefers-reduced-motion ─── */
+@media (prefers-reduced-motion: reduce) {
+  .msg-bubble--send-anim,
+  .msg-bubble--receive-anim,
+  .media-preview-pill {
+    animation: none;
+  }
+}
+
+/* ─── Image label chip ─── */
+.img-label-chip {
+  position: absolute;
+  bottom: 8px;
+  left: 8px;
+  background: rgba(0, 0, 0, 0.6);
+  color: white;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  pointer-events: none;
+}
+
+/* ─── Video duration chip ─── */
+.video-duration-chip {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  background: rgba(0, 0, 0, 0.7);
+  color: white;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+  pointer-events: none;
+}
+

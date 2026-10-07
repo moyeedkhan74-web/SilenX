@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState, useEffect, useCallback } from 'react';
-import { Send, Smile, X, Paperclip, Mic, Sticker } from 'lucide-react';
+import { Send, Smile, X, Paperclip, Mic, Sticker, FileText, PlayCircle } from 'lucide-react';
 import Picker from '@emoji-mart/react';
 import data from '@emoji-mart/data';
 import { AttachmentMenu } from './AttachmentMenu';
@@ -43,6 +43,11 @@ export function MessageInputBar({ onSend, onSendRichMessage, replyTo, onCancelRe
   const [gifError, setGifError] = useState('');
   const [uploadProgress, setUploadProgress] = useState<number>(0);
   const [stagedFiles, setStagedFiles] = useState<File[]>([]);
+  const [filePreviewPill, setFilePreviewPill] = useState<{
+    type: 'image' | 'video' | 'file' | 'voice' | 'none';
+    data: { fileName: string; preview?: string; duration?: string };
+    animation: string;
+  } | null>(null);
   const textRef = useRef<HTMLTextAreaElement>(null);
   const giphyRequestId = useRef(0);
 
@@ -131,6 +136,7 @@ export function MessageInputBar({ onSend, onSendRichMessage, replyTo, onCancelRe
     setPickerOpen(false);
     setAttachOpen(false);
     onCancelReply?.();
+    setUploadProgress(0);
   };
 
   // ─── Voice notes ───
@@ -217,6 +223,24 @@ export function MessageInputBar({ onSend, onSendRichMessage, replyTo, onCancelRe
     const mediaGroupId = crypto.randomUUID();
     setStagedFiles([]);
 
+    // Determine file type for preview pill
+    const firstFile = files[0];
+    let pillType: 'image' | 'video' | 'file' | 'none' = 'none';
+    let pillData: { fileName: string; preview?: string; duration?: string } = { fileName: firstFile.name };
+
+    if (firstFile.type.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(firstFile.name)) {
+      pillType = 'image';
+      pillData = { fileName: firstFile.name, preview: URL.createObjectURL(firstFile) };
+    } else if (firstFile.type.startsWith('video/') || /\.(mp4|webm|mov|mkv)$/i.test(firstFile.name)) {
+      pillType = 'video';
+      pillData = { fileName: firstFile.name };
+    } else {
+      pillType = 'file';
+      pillData = { fileName: firstFile.name };
+    }
+
+    setFilePreviewPill({ type: pillType, data: pillData, animation: 'media-preview-pill' });
+
     for (let index = 0; index < files.length; index++) {
       const file = files[index];
       const dataUrl = await new Promise<string>((resolve) => {
@@ -245,6 +269,12 @@ export function MessageInputBar({ onSend, onSendRichMessage, replyTo, onCancelRe
         isViewOnce,
       });
     }
+
+    // Animate pill out after a short delay
+    setTimeout(() => {
+      setFilePreviewPill({ type: pillType, data: pillData, animation: 'media-preview-pill--exit' });
+      setTimeout(() => setFilePreviewPill(null), 300);
+    }, 800);
   };
 
   return (
@@ -252,6 +282,72 @@ export function MessageInputBar({ onSend, onSendRichMessage, replyTo, onCancelRe
       {uploadProgress > 0 && (
         <div style={{ position: 'absolute', top: -56, right: 16, zIndex: 100, background: 'rgba(0,0,0,0.6)', padding: 6, borderRadius: 28 }}>
           <MediaProgressRing progress={uploadProgress} onCancel={() => setUploadProgress(0)} />
+        </div>
+      )}
+      {filePreviewPill && (
+        <div
+          className="file-preview-pill"
+          style={{ marginBottom: 8, animation: filePreviewPill.animation }}
+        >
+          <div className="file-preview-pill-header" onClick={(e) => e.stopPropagation()}>
+            {filePreviewPill.type === 'image' ? (
+              <img
+                src={filePreviewPill.data?.preview || ''}
+                alt=""
+                style={{
+                  width: 48,
+                  height: 48,
+                  borderRadius: 8,
+                  objectFit: 'cover',
+                  marginRight: 8,
+                }}
+              />
+            ) : filePreviewPill.type === 'video' ? (
+              <div
+                style={{
+                  width: 48,
+                  height: 48,
+                  borderRadius: 8,
+                  background: 'var(--bg-secondary)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <PlayCircle size={20} style={{ color: 'white' }} />
+              </div>
+            ) : (
+              <FileText size={24} style={{ color: 'var(--muted-foreground)' }} />
+            )}
+            <span className="file-preview-filename">{filePreviewPill.data?.fileName || 'File'}</span>
+            <button
+              className="file-preview-close"
+              onClick={() => setFilePreviewPill(null)}
+              aria-label="Close preview"
+            >
+              <X size={14} />
+            </button>
+          </div>
+          {filePreviewPill.type === 'voice' ? (
+            <div style={{ fontSize: 12, color: 'var(--muted-foreground)' }}>
+              {filePreviewPill.data?.duration ? `${filePreviewPill.data.duration}s` : ''}
+            </div>
+          ) : null}
+          <div
+            style={{
+              marginTop: 4,
+              fontSize: 12,
+              color: 'var(--muted-foreground)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 4,
+            }}
+          >
+            {filePreviewPill.type === 'image' && <span>Image</span>}
+            {filePreviewPill.type === 'video' && <span>Video</span>}
+            {filePreviewPill.type === 'file' && <span>File</span>}
+            {filePreviewPill.type === 'voice' && <span>Voice</span>}
+          </div>
         </div>
       )}
       {replyTo && (
@@ -429,7 +525,9 @@ export function MessageInputBar({ onSend, onSendRichMessage, replyTo, onCancelRe
             </button>
 
             {text.trim() ? (
-              <button className="send-btn active" onClick={handleSend} type="button">
+              <button
+                className="send-btn active" onClick={handleSend} type="button" disabled={uploadProgress > 0}
+              >
                 <Send size={18} />
               </button>
             ) : (
