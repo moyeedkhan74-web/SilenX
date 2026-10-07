@@ -2,13 +2,13 @@
 // Media picker service using Capacitor Camera plugin
 // Handles photo picking from gallery (Android Photo Picker) and taking photos
 
-import { Camera, CameraResultType, CameraSource, Photo } from '@capacitor/camera';
+import { Camera, CameraResultType, CameraSource, Photo, GalleryPhoto } from '@capacitor/camera';
 import { validateFile } from '../utils/validateFile';
 
 // Error types for handling user cancellation and permission denial
 export type PickerError =
-  | { type: 'cancelled'; message: 'User cancelled selection' }
-  | { type: 'permission'; message: 'Permission denied' }
+  | { type: 'cancelled'; message: string }
+  | { type: 'permission'; message: string }
   | { type: 'validation'; message: string }
   | { type: 'system'; message: string };
 
@@ -42,18 +42,13 @@ export async function pickFromGallery(): Promise<PickerResult[]> {
   const results: PickerResult[] = [];
 
   try {
-    const photos: Photo[] = await Camera.pickImages({
+    const galleryResult = await Camera.pickImages({
       quality: 80,
-      resultType: CameraResultType.Uri,
-      source: CameraSource.Photos,
       correctOrientation: true,
-      // On iOS, allows selecting multiple images
-      // On Android, this uses the Photo Picker (no SCOPED_STORAGE permission)
-      presentationButtonStyle: 'plain',
     });
 
     // Map each photo to a File, with a max of 10
-    const limitedPhotos = photos.slice(0, 10);
+    const limitedPhotos = (galleryResult.photos || []).slice(0, 10);
     for (const photo of limitedPhotos) {
       results.push(await convertPhotoToFile(photo));
     }
@@ -69,7 +64,7 @@ export async function pickFromGallery(): Promise<PickerResult[]> {
  * Convert a Capacitor Photo object to a File object.
  * Uses fetch to retrieve the blob from the webPath.
  */
-async function convertPhotoToFile(photo: Photo): Promise<PickerResult> {
+async function convertPhotoToFile(photo: Photo | GalleryPhoto): Promise<PickerResult> {
   if (!photo.webPath) {
     return { type: 'system', message: 'No image path returned from camera' };
   }

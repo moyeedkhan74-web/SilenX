@@ -3,9 +3,7 @@
 // Bottom sheet for choosing media source
 // Camera, Gallery, Document options (Step 2: Camera & Gallery for photos only)
 
-import { useState } from 'react';
 import { Camera, Image, FileText } from 'lucide-react';
-import { useMediaUpload } from '../hooks/useMediaUpload';
 
 export interface AttachmentSheetProps {
   isOpen: boolean;

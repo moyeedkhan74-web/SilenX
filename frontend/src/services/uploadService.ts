@@ -87,7 +87,7 @@ export async function createUpload(
   const storagePath = `uploads/${user.uid}/${year}/${id}.${ext}`;
 
   // Compress image first (if not sendOriginal)
-  let blob = file;
+  let blob: Blob = file;
   let width = 0, height = 0;
   let thumbnailBlob: Blob | null = null;
   let thumbWidth = 0, thumbHeight = 0;
@@ -463,27 +463,4 @@ export async function resumeForegroundUploads() {
   if (items.length > 0) {
     processQueue();
   }
-}
-
-/**
- * Get image dimensions from a Blob (used when sendOriginal is true).
- */
-async function blobToImageSize(file: File): Promise<{ width: number; height: number }> {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    const objectUrl = URL.createObjectURL(file);
-
-    img.onload = () => {
-      resolve({ width: img.width, height: img.height });
-      URL.revokeObjectURL(objectUrl);
-      img.remove();
-    };
-
-    img.onerror = () => {
-      URL.revokeObjectURL(objectUrl);
-      reject(new Error('Failed to load image'));
-    };
-
-    img.src = objectUrl;
-  });
 }

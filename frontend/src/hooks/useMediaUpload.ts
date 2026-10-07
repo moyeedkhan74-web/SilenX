@@ -1,6 +1,6 @@
 // src/hooks/useMediaUpload.ts
 // React hook for managing media uploads
-// Exposes items, progress per item, pick, pause, resume, cancel, retry
+// Exposes items, progress per item, pick, pause, resume, cancel, retry.
 
 import { useState, useEffect, useCallback } from 'react';
 import {
@@ -20,7 +20,7 @@ import { takePhoto, pickFromGallery } from '../services/pickerService';
 /**
  * Hook for managing media uploads with progress tracking and controls.
  * Usage:
- *   const { items, pickPhoto, pickGallery, pause, resume, cancel, retry } = useMediaUpload();
+ *   const { items, isUploading, error, pickCamera, pickGallery, pause, resume, cancel, retry, reset } = useMediaUpload();
  */
 export function useMediaUpload() {
   const [items, setItems] = useState<UploadItem[]>([]);
@@ -51,16 +51,15 @@ export function useMediaUpload() {
 
     // Cleanup
     return () => {
-      removeUploadListener(onProgress, onStatus);
+      removeUploadListener(onProgress);
+      removeUploadListener(onStatus);
     };
   }, []);
 
   const pickCamera = useCallback(async () => {
     setError(null);
     const result = await takePhoto();
-
-    if ('type' in result && result.type !== undefined) {
-      // Error case
+    if (!(result instanceof File)) {
       const msg = result.type === 'permission'
         ? 'Camera permission denied. Please grant permission in your device settings.'
         : result.type === 'cancelled'
@@ -69,10 +68,9 @@ export function useMediaUpload() {
       setError(msg);
       return;
     }
-
     // Success case: create upload item
     try {
-      const item = await createUpload(result as File);
+      const item = await createUpload(result);
       setItems((prev) => [...prev, item]);
     } catch (err) {
       setError((err as Error).message);
@@ -82,18 +80,16 @@ export function useMediaUpload() {
   const pickGallery = useCallback(async () => {
     setError(null);
     const results = await pickFromGallery();
-
     for (const result of results) {
-      if ('type' in result && result.type !== undefined) {
+      if (!(result instanceof File)) {
         const msg = result.type === 'permission'
           ? 'Gallery permission denied. Please grant permission in your device settings.'
           : result.message;
         setError(msg);
         continue;
       }
-
       try {
-        const item = await createUpload(result as File);
+        const item = await createUpload(result);
         setItems((prev) => [...prev, item]);
       } catch (err) {
         setError((err as Error).message);
@@ -124,6 +120,11 @@ export function useMediaUpload() {
       }
     });
   }, [items]);
+
+  const reset = useCallback(() => {
+    setItems([]);
+    setError(null);
+  }, []);
 
   // Resume uploads when app returns to foreground
   useEffect(() => {
@@ -161,6 +162,7 @@ export function useMediaUpload() {
     cancel,
     retry,
     retryAll,
+    reset,
     clearError: () => setError(null),
   };
 }

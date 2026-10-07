@@ -18,6 +18,8 @@ export interface MediaItem {
   duration?: number; // for videos in seconds
   createdAt: number; // timestamp
   status: MediaStatus;
+  progress?: number;
+  error?: string;
 }
 
 // Helper type for allowed file extensions

@@ -3,12 +3,12 @@
  * Integrates AttachmentSheet, PhotoPreview, and useMediaUpload hook
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Paperclip } from 'lucide-react';
 import { AttachmentSheet } from './AttachmentSheet';
 import { PhotoPreview } from './PhotoPreview';
 import { useMediaUpload } from '../hooks/useMediaUpload';
-import { UploadResult } from '../config/mediaConfig';
+import { UploadResult, MediaFile } from '../config/mediaConfig';
 
 export interface PhotoUploaderProps {
   onUploadComplete?: (result: UploadResult) => void;
@@ -27,69 +27,96 @@ export const PhotoUploader = ({
   const [showPreview, setShowPreview] = useState(false);
 
   const {
-    state,
-    selectFile,
-    startUpload,
-    cancelUpload,
-    retryUpload,
-    reset,
-  } = useMediaUpload({
-    autoUpload: false,
-  });
+    items,
+    error: hookError,
+    pickCamera,
+    pickGallery,
+    cancel,
+    retry,
+    clearError,
+  } = useMediaUpload();
 
-  /**
-   * Handle file selection from attachment sheet
-   */
-  const handleFileSelected = async (file: File) => {
-    await selectFile(file);
+  useEffect(() => {
+    if (hookError && onError) {
+      onError(hookError);
+    }
+  }, [hookError, onError]);
+
+  // Determine the most recent item (last in array) as the preview item
+  const previewItem = items.length > 0 ? items[items.length - 1] : null;
+
+  const handlePickCamera = async () => {
+    clearError();
+    await pickCamera();
     setShowPreview(true);
   };
 
-  /**
-   * Handle send action
-   */
-  const handleSend = async () => {
-    try {
-      const result = await startUpload();
-      if (result) {
-        onUploadComplete?.(result);
-        // Close preview after a short delay to show "Sent" state
-        setTimeout(() => {
-          setShowPreview(false);
-          reset();
-        }, 1500);
-      }
-    } catch (error) {
-      onError?.((error as Error).message);
-    }
+  const handlePickGallery = async () => {
+    clearError();
+    await pickGallery();
+    setShowPreview(true);
   };
 
-  /**
-   * Handle cancel
-   */
+  const handleCloseSheet = () => {
+    setShowAttachmentSheet(false);
+  };
+
   const handleCancel = () => {
-    cancelUpload();
-  };
-
-  /**
-   * Handle retry
-   */
-  const handleRetry = async () => {
-    try {
-      await retryUpload();
-    } catch (error) {
-      onError?.((error as Error).message);
+    if (previewItem) {
+      cancel(previewItem.id);
     }
   };
 
-  /**
-   * Handle remove (close preview without sending)
-   */
-  const handleRemove = () => {
-    cancelUpload();
-    setShowPreview(false);
-    reset();
+  const handleRetry = () => {
+    if (previewItem) {
+      retry(previewItem.id);
+    }
   };
+
+  const handleRemove = () => {
+    if (previewItem) {
+      cancel(previewItem.id);
+    }
+    setShowPreview(false);
+  };
+
+  const handleSend = () => {
+    if (previewItem && previewItem.status === 'done' && onUploadComplete) {
+      onUploadComplete({
+        id: previewItem.id,
+        storagePath: previewItem.storagePath,
+        downloadUrl: (previewItem as any).downloadUrl || '',
+        size: previewItem.file.size,
+        mimeType: previewItem.file.type,
+      });
+    }
+    setShowPreview(false);
+  };
+
+  const getMediaFileStatus = (status: string): MediaFile['status'] => {
+    switch (status) {
+      case 'uploading':
+        return 'uploading';
+      case 'done':
+        return 'done';
+      case 'failed':
+        return 'failed';
+      default:
+        return 'pending';
+    }
+  };
+
+  const mediaFile: MediaFile | null = previewItem
+    ? {
+        id: previewItem.id,
+        name: previewItem.file.name,
+        path: URL.createObjectURL(previewItem.file),
+        size: previewItem.file.size,
+        mimeType: previewItem.file.type,
+        status: getMediaFileStatus(previewItem.status),
+        progress: previewItem.progress,
+      }
+    : null;
 
   return (
     <>
@@ -124,18 +151,19 @@ export const PhotoUploader = ({
       {/* Attachment Sheet */}
       <AttachmentSheet
         isOpen={showAttachmentSheet}
-        onClose={() => setShowAttachmentSheet(false)}
-        onFileSelected={handleFileSelected}
-        onError={(error) => onError?.(error)}
+        onClose={handleCloseSheet}
+        onPickCamera={handlePickCamera}
+        onPickGallery={handlePickGallery}
+        onPickDocument={() => {}}
       />
 
       {/* Photo Preview */}
-      {showPreview && state.file && (
+      {showPreview && mediaFile && previewItem && (
         <PhotoPreview
-          file={state.file}
-          progress={state.progress}
-          status={state.status === 'idle' ? 'pending' : state.status}
-          error={state.error || undefined}
+          file={mediaFile}
+          progress={previewItem.progress}
+          status={mediaFile.status}
+          error={previewItem.error}
           onCancel={handleCancel}
           onRetry={handleRetry}
           onSend={handleSend}

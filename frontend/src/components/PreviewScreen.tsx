@@ -4,9 +4,8 @@
 // Shows thumbnails, remove button, caption input, and Send button
 
 import { useState, useEffect } from 'react';
-import { X, Send, ImagePlay } from 'lucide-react';
-import { MediaItem } from '../types/media';
-import { compressImage, makeThumbnail, blobToDataUrl } from '../utils/imageUtils';
+import { X, Send } from 'lucide-react';
+import { makeThumbnail, blobToDataUrl } from '../utils/imageUtils';
 
 export interface PreviewScreenProps {
   visible: boolean;

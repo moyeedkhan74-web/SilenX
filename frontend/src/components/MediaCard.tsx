@@ -3,7 +3,7 @@
 // Media card for displaying an uploading/uploaded photo with progress and controls
 
 import { Pause, Play, Download, X, RefreshCw, AlertCircle } from 'lucide-react';
-import { MediaItem, MediaStatus } from '../types/media';
+import { MediaItem } from '../types/media';
 
 export interface MediaCardProps {
   item: MediaItem;
@@ -24,8 +24,8 @@ export const MediaCard = ({
   onRetry,
   onDownload,
 }: MediaCardProps) => {
-  const isImage = item.mimeType.startsWith('image/');
   const isVideo = item.mimeType.startsWith('video/');
+  const progress = item.progress ?? 0;
 
   const getStatusColor = (): string => {
     switch (item.status) {
@@ -61,10 +61,10 @@ export const MediaCard = ({
             className="media-card-thumbnail"
             loading="lazy"
           />
-          {(item.status === 'queued' || item.status === 'uploading') && item.progress < 100 && (
+          {(item.status === 'queued' || item.status === 'uploading') && progress < 100 && (
             <div
               className="media-card-progress-overlay"
-              style={{ '--progress': `${item.progress}%`} as React.CSSProperties}
+              style={{ '--progress': `${progress}%`} as React.CSSProperties}
             />
           )}
         </div>
@@ -88,7 +88,7 @@ export const MediaCard = ({
 
       {/* Status */}
       <div className="media-card-status" style={{ color: getStatusColor() }}>
-        {item.status === 'uploading' && `${item.progress}% uploading`}
+        {item.status === 'uploading' && `${progress}% uploading`}
         {item.status === 'queued' && 'Queued'}
         {item.status === 'paused' && 'Paused'}
         {item.status === 'done' && 'Done'}
