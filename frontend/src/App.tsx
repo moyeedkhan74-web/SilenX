@@ -5,7 +5,6 @@ import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
 import ChatsPage from './pages/ChatsPage';
 import ContactsPage from './pages/ContactsPage';
-import ProfilePage from './pages/ProfilePage';
 import SettingsPage from './pages/SettingsPage';
 import CallsPage from './pages/CallsPage';
 import CallOverlay from './components/CallOverlay';
@@ -320,7 +319,7 @@ useEffect(() => {
             <Route path="chats" element={<ChatsPage />} />
             <Route path="contacts" element={<ContactsPage />} />
             <Route path="calls" element={<CallsPage />} />
-            <Route path="profile" element={<ProfilePage />} />
+            <Route path="profile" element={<Navigate to="/settings" replace />} />
             <Route path="settings" element={<SettingsPage />} />
           </Route>
         </Routes>

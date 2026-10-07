@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import ReactDOM from 'react-dom';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { MessageCircle, Users, Settings, LogOut, Phone, AlertTriangle, X, User } from 'lucide-react';
+import { MessageCircle, Users, Settings, LogOut, Phone, AlertTriangle, X } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { auth } from '../../config/firebase';
 import { getSocket, disconnectSocket } from '../../services/socket';
@@ -115,7 +115,6 @@ export const Sidebar: React.FC<SidebarProps> = () => {
     { path: '/chats', label: 'Chats', icon: <MessageCircle size={isMobile ? 22 : 20} />, badge: 0 },
     { path: '/contacts', label: 'Contacts', icon: <Users size={isMobile ? 22 : 20} />, badge: pendingCount },
     { path: '/calls', label: 'Calls', icon: <Phone size={isMobile ? 22 : 20} />, badge: 0 },
-    { path: '/profile', label: 'Profile', icon: <User size={isMobile ? 22 : 20} />, badge: 0 },
     { path: '/settings', label: 'Settings', icon: <Settings size={isMobile ? 22 : 20} />, badge: 0 },
   ];
 
