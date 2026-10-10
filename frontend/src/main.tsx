@@ -35,7 +35,7 @@ class ErrorBoundary extends Component<Props, State> {
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
-          height: '100vh',
+          height: '100dvh',
           backgroundColor: '#0b1120',
           color: '#ffffff',
           padding: '24px',

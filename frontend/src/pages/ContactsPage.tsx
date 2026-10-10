@@ -274,21 +274,19 @@ export const ContactsPage: React.FC = () => {
   };
 
   return (
-    <div className="contacts-tab" style={{ padding: '24px', overflowY: 'auto', height: '100%', boxSizing: 'border-box' }}>
-      <div className="contacts-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '16px' }}>
+    <div className="contacts-tab">
+      <div className="contacts-header contacts-header-content">
         <h2>Contacts</h2>
-        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+        <div className="contacts-flex-row">
           <button 
-            className="add-contact-btn" 
+            className="add-contact-btn group-btn" 
             onClick={() => setIsGroupOpen(true)}
-            style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
           >
             <UserPlus size={16} /> Create Group
           </button>
           <button 
-            className="add-contact-btn" 
+            className="add-contact-btn group-btn" 
             onClick={() => setIsAddOpen(true)}
-            style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
           >
             <UserPlus size={16} /> Add Contact
           </button>
@@ -297,24 +295,14 @@ export const ContactsPage: React.FC = () => {
 
       {/* Search Bar */}
       {requests.length > 0 && (
-        <div style={{ marginBottom: '20px', position: 'relative' }}>
-          <Search size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'rgba(255,255,255,0.4)' }} />
+        <div className="search-container">
+          <Search size={18} className="search-icon" />
           <input
             type="text"
             placeholder="Search contacts by name or Secure ID..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            style={{
-              width: '100%',
-              padding: '10px 12px 10px 40px',
-              borderRadius: '8px',
-              border: '1px solid rgba(255,255,255,0.15)',
-              background: 'rgba(255,255,255,0.05)',
-              color: '#fff',
-              fontSize: '14px',
-              outline: 'none',
-              boxSizing: 'border-box',
-            }}
+            className="search-input"
           />
         </div>
       )}
@@ -325,7 +313,7 @@ export const ContactsPage: React.FC = () => {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
           {pendingRequests.length > 0 && (
             <div className="requests-list">
-              <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px', fontSize: '15px' }}>
+              <h3 className="contact-h3">
                 <Inbox size={16} /> Incoming Requests ({pendingRequests.length})
               </h3>
               {pendingRequests.map((r) => {
@@ -342,11 +330,11 @@ export const ContactsPage: React.FC = () => {
                     status="pending"
                     lastSeen={when ? `Requested ${when}` : undefined}
                     actions={
-                      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                        <button className="btn" onClick={() => handleDecline(r.id)} style={{ padding: '6px 12px', fontSize: '13px' }}>
+                      <div className="contacts-flex-row">
+                        <button className="btn action-btn" onClick={() => handleDecline(r.id)}>
                           Decline
                         </button>
-                        <button className="btn btn-primary" onClick={() => handleAccept(r.id)} style={{ padding: '6px 12px', fontSize: '13px' }}>
+                        <button className="btn btn-primary action-btn" onClick={() => handleAccept(r.id)}>
                           Accept
                         </button>
                       </div>

@@ -260,7 +260,7 @@
   right: 12px;
   bottom: calc(100% + 8px);
   max-width: 420px;
-  max-height: min(380px, calc(100vh - 180px));
+  max-height: min(50vh, 50dvh);
   background: var(--bg-primary);
   border: 1px solid var(--border-color);
   border-radius: 20px;
@@ -276,7 +276,7 @@
   width: 100% !important;
   max-width: 100% !important;
   height: 320px !important;
-  max-height: min(320px, calc(100vh - 230px)) !important;
+  max-height: min(320px, calc(100dvh - 230px)) !important;
   border: none !important;
   --category-icon-size: 18px;
   --font-size: 14px;
@@ -422,10 +422,16 @@
 .msg-wrapper {
   display: flex;
   flex-direction: column;
-  max-width: min(80%, 320px);
+  max-width: min(80%, calc(100% - 32px));
   user-select: none;
   -webkit-user-select: none;
   -webkit-touch-callout: none;
+}
+
+@media (max-width: 768px) {
+  .msg-wrapper {
+    max-width: min(95%, calc(100% - 16px));
+  }
 }
 .msg-wrapper.self {
   align-self: flex-end;
@@ -1180,6 +1186,8 @@
 .input-icon-btn {
   width: 36px;
   height: 36px;
+  min-width: 44px;
+  min-height: 44px;
   border-radius: 50%;
   border: none;
   background: transparent;

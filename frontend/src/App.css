@@ -211,6 +211,7 @@ body {
 }
 
 .app-container {
+  height: 100dvh;
   height: 100vh;
   width: 100vw;
   overflow: hidden;
@@ -472,7 +473,7 @@ body {
 
   /* Tap targets for mobile touch optimization */
   button, .btn, .icon-btn, .input-icon-btn {
-    min-height: 40px;
+    min-height: 44px;
     touch-action: manipulation;
   }
 
