@@ -4,6 +4,9 @@
   height: 100%;
   background: var(--bg-primary);
   animation: fadeIn 0.4s ease-out;
+  padding: 24px;
+  overflow-y: auto;
+  box-sizing: border-box;
 }
 
 .contacts-header {
@@ -126,6 +129,95 @@
   gap: 8px;
   justify-content: flex-end;
   flex-wrap: wrap;
+}
+
+/* Inline-style replacements for ContactsPage.tsx */
+.contacts-header-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.contacts-flex-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.contacts-flex-row-tight {
+  display: flex;
+  gap: 8px;
+}
+
+.contacts-section-column {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+.contact-h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  font-size: 15px;
+}
+
+.search-container {
+  margin-bottom: 20px;
+  position: relative;
+}
+
+.search-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.search-input {
+  width: 100%;
+  padding: 10px 12px 10px 40px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.05);
+  color: #fff;
+  font-size: 14px;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.action-btn {
+  padding: 6px 12px;
+  font-size: 13px;
+}
+
+.action-btn-destructive {
+  padding: 6px 12px;
+  font-size: 13px;
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.unfriend-btn {
+  padding: 6px 12px;
+  font-size: 13px;
+  background: rgba(239, 68, 68, 0.12);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.group-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 @media (max-width: 768px) {

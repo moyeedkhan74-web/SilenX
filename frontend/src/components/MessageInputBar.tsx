@@ -512,6 +512,7 @@ export function MessageInputBar({ onSend, onSendRichMessage, replyTo, onCancelRe
                 placeholder="Type a secure message (or paste files)..."
                 rows={1}
                 className="msg-textarea"
+                style={{ fontSize: '16px', minHeight: '16px' }}
               />
             </div>
 

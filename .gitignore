@@ -36,3 +36,5 @@ frontend/android/captures/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+design-ref/
