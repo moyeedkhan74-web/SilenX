@@ -5,17 +5,11 @@
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
   animation: fadeIn 0.4s ease-out;
   transition: background 0.3s ease, border-color 0.3s ease;
-}
-
-@media (max-width: 768px) {
-  .conversation-list {
-    width: 100% !important;
-    max-width: 100% !important;
-    border-right: none;
-    padding-bottom: 64px; /* Leave room for bottom tab bar */
-  }
 }
 
 .convo-list-header {
@@ -60,7 +54,9 @@
 
 .convo-list-items {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
+  overflow-x: hidden;
   padding: 8px;
   display: flex;
   flex-direction: column;
@@ -332,17 +328,18 @@
     width: 100% !important;
     max-width: 100% !important;
     height: 100% !important;
+    min-height: 0;
     border-right: none;
     background: var(--color-bg);
     display: flex;
     flex-direction: column;
-    padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px));
-    overflow-y: auto;
+    overflow: hidden;
   }
 
   .convo-list-items {
     padding: 0;
     gap: 0;
+    padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px));
   }
 
   /* Stick filter chips below the 56px mobile header */
