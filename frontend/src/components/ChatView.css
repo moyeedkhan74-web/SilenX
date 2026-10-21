@@ -113,11 +113,36 @@
   margin-right: 6px;
 }
 
+.chatview-header-left {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+
+.chatview-header-profile-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+  padding: 4px 6px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background var(--transition);
+}
+
+.chatview-header-profile-btn:hover {
+  background: rgba(var(--color-text-primary-rgb, 255, 255, 255), 0.06);
+}
+
 .chatview-header-actions {
   display: flex;
   align-items: center;
   gap: 2px;
   padding-right: 2px;
+  flex-shrink: 0;
 }
 
 /* â”€â”€ Selection Header Bar â”€â”€ */
