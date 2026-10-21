@@ -91,13 +91,13 @@ export const PhotoPreview = ({
   const getStatusColor = (): string => {
     switch (status) {
       case 'done':
-        return '#00a884';
+        return 'var(--color-accent)';
       case 'failed':
         return '#f15c6d';
       case 'uploading':
-        return '#8696a0';
+        return 'var(--color-text-secondary)';
       default:
-        return '#8696a0';
+        return 'var(--color-text-secondary)';
     }
   };
 
@@ -109,7 +109,7 @@ export const PhotoPreview = ({
         left: 0,
         right: 0,
         bottom: 0,
-        background: '#0b141a',
+        background: 'var(--color-bg)',
         zIndex: 1001,
         display: 'flex',
         flexDirection: 'column',
@@ -123,8 +123,8 @@ export const PhotoPreview = ({
           alignItems: 'center',
           justifyContent: 'space-between',
           padding: '16px',
-          background: '#1f2c34',
-          borderBottom: '1px solid #374045',
+          background: 'var(--color-panel-bg)',
+          borderBottom: '1px solid var(--color-border)',
         }}
       >
         <button
@@ -140,7 +140,7 @@ export const PhotoPreview = ({
             border: 'none',
             borderRadius: '50%',
             cursor: 'pointer',
-            color: '#e9edef',
+            color: 'var(--color-text-primary)',
           }}
           aria-label="Remove"
         >
@@ -148,10 +148,10 @@ export const PhotoPreview = ({
         </button>
 
         <div style={{ flex: 1, textAlign: 'center' }}>
-          <div style={{ color: '#e9edef', fontSize: '16px', fontWeight: 600 }}>
+          <div style={{ color: 'var(--color-text-primary)', fontSize: '16px', fontWeight: 600 }}>
             Photo Preview
           </div>
-          <div style={{ color: '#8696a0', fontSize: '12px', marginTop: '2px' }}>
+          <div style={{ color: 'var(--color-text-secondary)', fontSize: '12px', marginTop: '2px' }}>
             {formatFileSize(file.size)} • {file.mimeType}
           </div>
         </div>
@@ -166,7 +166,7 @@ export const PhotoPreview = ({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          background: '#0b141a',
+          background: 'var(--color-bg)',
           padding: '16px',
           overflow: 'hidden',
         }}
@@ -193,9 +193,9 @@ export const PhotoPreview = ({
               justifyContent: 'center',
               width: '200px',
               height: '200px',
-              background: '#1f2c34',
+              background: 'var(--color-panel-bg)',
               borderRadius: '8px',
-              color: '#8696a0',
+              color: 'var(--color-text-secondary)',
             }}
           >
             Loading...
@@ -210,7 +210,7 @@ export const PhotoPreview = ({
             style={{
               width: '100%',
               height: '4px',
-              background: '#374045',
+              background: 'var(--color-surface-soft)',
               borderRadius: '2px',
               overflow: 'hidden',
             }}
@@ -246,8 +246,8 @@ export const PhotoPreview = ({
           display: 'flex',
           gap: '12px',
           padding: '16px',
-          background: '#1f2c34',
-          borderTop: '1px solid #374045',
+          background: 'var(--color-panel-bg)',
+          borderTop: '1px solid var(--color-border)',
         }}
       >
         {status === 'uploading' && (
@@ -257,10 +257,10 @@ export const PhotoPreview = ({
             style={{
               flex: 1,
               padding: '14px',
-              background: '#374045',
+              background: 'var(--color-surface-soft)',
               border: 'none',
               borderRadius: '24px',
-              color: '#e9edef',
+              color: 'var(--color-text-primary)',
               fontSize: '15px',
               fontWeight: 500,
               cursor: 'pointer',
@@ -277,10 +277,10 @@ export const PhotoPreview = ({
             style={{
               flex: 1,
               padding: '14px',
-              background: '#374045',
+              background: 'var(--color-surface-soft)',
               border: 'none',
               borderRadius: '24px',
-              color: '#e9edef',
+              color: 'var(--color-text-primary)',
               fontSize: '15px',
               fontWeight: 500,
               cursor: 'pointer',
@@ -303,10 +303,10 @@ export const PhotoPreview = ({
             style={{
               flex: 1,
               padding: '14px',
-              background: status === 'done' ? '#374045' : 'linear-gradient(135deg, #00a884 0%, #008f72 100%)',
+              background: status === 'done' ? 'var(--color-surface-soft)' : 'var(--color-accent)',
               border: 'none',
               borderRadius: '24px',
-              color: '#fff',
+              color: 'var(--color-on-accent)',
               fontSize: '15px',
               fontWeight: 600,
               cursor: status === 'done' ? 'default' : 'pointer',

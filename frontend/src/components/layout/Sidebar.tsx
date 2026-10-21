@@ -6,6 +6,7 @@ import { useAuthStore } from '../../store/authStore';
 import { auth } from '../../config/firebase';
 import { getSocket, disconnectSocket } from '../../services/socket';
 import { API_URL } from '../../config/webrtc-config';
+import { useChatStore } from '../../store/chatStore';
 import { clearKeys } from '../../utils/crypto';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import '../Sidebar.css';
@@ -20,8 +21,14 @@ export const Sidebar: React.FC<SidebarProps> = () => {
   const currentUser = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
   const [pendingCount, setPendingCount] = useState(0);
+  const [hasMissedCall, setHasMissedCall] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const isMobile = useIsMobile();
+
+  // Aggregate unread message count across all conversations
+  const unreadChatsCount = useChatStore((s) =>
+    s.conversations.reduce((sum, c) => sum + (c.unreadCount || 0), 0)
+  );
 
   // Fetch pending request count & listen for live updates
   useEffect(() => {
@@ -69,13 +76,45 @@ export const Sidebar: React.FC<SidebarProps> = () => {
     };
   }, [currentUser]);
 
-  // Re-fetch count when navigating away from contacts (in case user accepted/declined inline)
+  // Check for missed calls to show dot indicator on Calls tab
   useEffect(() => {
-    if (location.pathname !== '/contacts') return;
-    const handleVisibility = () => {
-      // Refetch when user leaves contacts page
+    const checkMissedCalls = async () => {
+      try {
+        const token = useAuthStore.getState().token;
+        if (!token) return;
+        const res = await fetch(`${API_URL}/api/calls/history`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data)) {
+            const hasMissed = data.some((call: any) => call.status === 'missed');
+            setHasMissedCall(hasMissed);
+          }
+        }
+      } catch {
+        // silent fail
+      }
     };
-    return handleVisibility;
+
+    checkMissedCalls();
+
+    const socket = getSocket();
+    if (!socket) return;
+    const onCallEnded = () => checkMissedCalls();
+    socket.on('call:ended', onCallEnded);
+    socket.on('call:rejected', onCallEnded);
+    return () => {
+      socket.off('call:ended', onCallEnded);
+      socket.off('call:rejected', onCallEnded);
+    };
+  }, [currentUser]);
+
+  // Clear missed-call dot when viewing calls page
+  useEffect(() => {
+    if (location.pathname === '/calls') {
+      setHasMissedCall(false);
+    }
   }, [location.pathname]);
 
   const handleLogoutClick = () => {
@@ -112,10 +151,10 @@ export const Sidebar: React.FC<SidebarProps> = () => {
   const currentPath = location.pathname;
 
   const tabs = [
-    { path: '/chats', label: 'Chats', icon: <MessageCircle size={isMobile ? 22 : 20} />, badge: 0 },
-    { path: '/contacts', label: 'Contacts', icon: <Users size={isMobile ? 22 : 20} />, badge: pendingCount },
-    { path: '/calls', label: 'Calls', icon: <Phone size={isMobile ? 22 : 20} />, badge: 0 },
-    { path: '/settings', label: 'Settings', icon: <Settings size={isMobile ? 22 : 20} />, badge: 0 },
+    { path: '/chats', label: 'Chats', icon: <MessageCircle size={isMobile ? 22 : 20} />, badge: unreadChatsCount, hasDot: false },
+    { path: '/contacts', label: 'Contacts', icon: <Users size={isMobile ? 22 : 20} />, badge: pendingCount, hasDot: false },
+    { path: '/calls', label: 'Calls', icon: <Phone size={isMobile ? 22 : 20} />, badge: 0, hasDot: hasMissedCall },
+    { path: '/settings', label: 'Settings', icon: <Settings size={isMobile ? 22 : 20} />, badge: 0, hasDot: false },
   ];
 
   return (
@@ -201,21 +240,16 @@ export const Sidebar: React.FC<SidebarProps> = () => {
               <div className="nav-icon-wrapper">
                 {tab.icon}
                 {tab.badge > 0 && (
-                  <span key={tab.badge} className="nav-badge">{tab.badge > 9 ? '9+' : tab.badge}</span>
+                  <span key={tab.badge} className="nav-badge">{tab.badge > 99 ? '99+' : tab.badge}</span>
+                )}
+                {tab.hasDot && !tab.badge && (
+                  <span className="nav-dot missed-call-dot" />
                 )}
               </div>
               {isMobile && <span className="nav-label">{tab.label}</span>}
             </button>
           );
         })}
-        {isMobile && (
-          <button className="nav-item logout-nav-item" onClick={handleLogoutClick} type="button">
-            <div className="nav-icon-wrapper">
-              <LogOut size={20} />
-            </div>
-            <span className="nav-label">Logout</span>
-          </button>
-        )}
       </nav>
 
       {!isMobile && (

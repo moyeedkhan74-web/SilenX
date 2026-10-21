@@ -170,7 +170,7 @@ export const EditProfileModal: React.FC<Props> = ({ isOpen, onClose, profile, on
   const isBioTooLong = bioCharCount > BIO_MAX_LENGTH;
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} className="edit-profile-modal dark">
+    <Modal isOpen={isOpen} onClose={onClose} className="edit-profile-modal">
       {/* Modal Ambient Glow Layer */}
       <div className="modal-glow-ambient" />
 
@@ -379,5 +379,3 @@ export const EditProfileModal: React.FC<Props> = ({ isOpen, onClose, profile, on
 };
 
 export default EditProfileModal;
-
-

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Image, Camera, MapPin, User, FileText, BarChart3, CalendarDays, Video, X } from 'lucide-react';
+import { Image, Camera, MapPin, User, FileText, BarChart3, CalendarDays, Video, X, Lock } from 'lucide-react';
 import { capturePhoto } from '../services/camera';
 import './AttachmentMenu.css';
 
@@ -166,25 +166,68 @@ export const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
   };
 
   const items = [
-    { icon: <Image size={22} />, label: 'Gallery', color: '#7c4dff', onClick: () => fileInputRef.current?.click() },
-    { icon: <Video size={22} />, label: 'Video', color: '#009688', onClick: () => videoInputRef.current?.click() },
+     {
+       icon: <Camera size={56} />,
+       label: 'Camera',
+       desc: 'Instant capture',
+       color: 'var(--color-accent)',
+       onClick: async () => {
+         const photo = await capturePhoto();
+         if (photo?.dataUrl) {
+           onSendCamera(photo.dataUrl);
+           closeAndReset();
+         }
+       }
+     },
     {
-      icon: <Camera size={22} />,
-      label: 'Camera',
-      color: '#e91e63',
-      onClick: async () => {
-        const photo = await capturePhoto();
-        if (photo?.dataUrl) {
-          onSendCamera(photo.dataUrl);
-          closeAndReset();
-        }
-      }
+      icon: <Image size={24} />,
+      label: 'Gallery',
+      desc: 'Photos & video',
+      color: 'var(--color-text-primary)',
+      onClick: () => fileInputRef.current?.click()
     },
-    { icon: <MapPin size={22} />, label: 'Location', color: '#00c853', onClick: () => setSubModal('location') },
-    { icon: <User size={22} />, label: 'Contact', color: '#2979ff', onClick: () => setSubModal('contact') },
-    { icon: <FileText size={22} />, label: 'Document', color: '#6d4c9e', onClick: () => docInputRef.current?.click() },
-    { icon: <BarChart3 size={22} />, label: 'Poll', color: '#ff6d00', onClick: () => setSubModal('poll') },
-    { icon: <CalendarDays size={22} />, label: 'Event', color: '#e53935', onClick: () => setSubModal('event') },
+    {
+      icon: <FileText size={24} />,
+      label: 'Document',
+      desc: 'Files & PDF',
+      color: 'var(--color-accent)',
+      onClick: () => docInputRef.current?.click()
+    },
+    {
+      icon: <MapPin size={24} />,
+      label: 'Location',
+      desc: 'Live or pinned',
+      color: 'var(--color-text-primary)',
+      onClick: () => setSubModal('location')
+    },
+    {
+      icon: <User size={24} />,
+      label: 'Contact',
+      desc: 'vCard export',
+      color: 'var(--color-accent)',
+      onClick: () => setSubModal('contact')
+    },
+    {
+      icon: <BarChart3 size={24} />,
+      label: 'Poll',
+      desc: 'Anonymous',
+      color: 'var(--color-text-primary)',
+      onClick: () => setSubModal('poll')
+    },
+    {
+      icon: <Video size={24} />,
+      label: 'Video',
+      desc: 'Clips & media',
+      color: 'var(--color-accent)',
+      onClick: () => videoInputRef.current?.click()
+    },
+    {
+      icon: <CalendarDays size={24} />,
+      label: 'Event',
+      desc: 'Calendar date',
+      color: 'var(--color-text-primary)',
+      onClick: () => setSubModal('event')
+    },
   ];
 
   const renderSubModal = () => {
@@ -305,30 +348,52 @@ export const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
   };
 
   return (
-    <div className="attach-menu-container" ref={menuRef}>
-      {subModal !== 'none' ? renderSubModal() : (
-        <div className="attach-menu-grid">
-          {items.map((item) => (
-            <button key={item.label} className="attach-menu-item" type="button" onClick={item.onClick}>
-              <div className="attach-menu-icon" style={{ background: item.color }}>{item.icon}</div>
-              <span className="attach-menu-label">{item.label}</span>
-            </button>
-          ))}
+    <>
+      <div className="attach-backdrop" onClick={closeAndReset} />
+      <div className="attach-menu-container" ref={menuRef}>
+        <div className="attach-sheet-handle" />
+        <div className="attach-sheet-header">
+          <div className="attach-sheet-header-title">
+            <Lock size={18} className="attach-sheet-lock" />
+            <span>Share Encrypted Content</span>
+          </div>
+          <button className="attach-sheet-close" onClick={closeAndReset} type="button" aria-label="Close sheet">
+            <X size={20} />
+          </button>
         </div>
-      )}
-      {/* Hidden file inputs */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*,video/*"
-        multiple
-        hidden
-        onChange={(e) => handleFileSelected(e, 'image')}
-      />
-      <input ref={videoInputRef} type="file" accept="video/*" multiple hidden onChange={(e) => handleFileSelected(e, 'video')} />
-      <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" hidden onChange={(e) => handleFileSelected(e, 'camera')} />
-      <input ref={docInputRef} type="file" accept="*/*" multiple hidden onChange={(e) => handleFileSelected(e, 'document')} />
-    </div>
+
+        {subModal !== 'none' ? renderSubModal() : (
+          <div className="attach-menu-grid">
+            {items.map((item) => (
+              <button key={item.label} className="attach-menu-item" type="button" onClick={item.onClick}>
+                <div className="attach-menu-icon" style={{ background: item.color }}>
+                  {item.icon}
+                </div>
+                <span className="attach-menu-label">{item.label}</span>
+                {item.desc && <span className="attach-menu-desc">{item.desc}</span>}
+              </button>
+            ))}
+          </div>
+        )}
+
+        <button className="attach-sheet-cancel-btn" type="button" onClick={closeAndReset}>
+          Cancel
+        </button>
+
+        {/* Hidden file inputs */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*,video/*"
+          multiple
+          hidden
+          onChange={(e) => handleFileSelected(e, 'image')}
+        />
+        <input ref={videoInputRef} type="file" accept="video/*" multiple hidden onChange={(e) => handleFileSelected(e, 'video')} />
+        <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" hidden onChange={(e) => handleFileSelected(e, 'camera')} />
+        <input ref={docInputRef} type="file" accept="*/*" multiple hidden onChange={(e) => handleFileSelected(e, 'document')} />
+      </div>
+    </>
   );
 };
 

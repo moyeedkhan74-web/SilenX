@@ -109,7 +109,7 @@
 
 /* Glassmorphic active-chat highlight with smooth 200ms glow transition */
 .convo-card.active {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(var(--color-text-primary-rgb), 0.08);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   border-color: rgba(var(--color-accent-rgb), 0.25);
@@ -133,7 +133,7 @@
   font-weight: 600;
   font-size: 15px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(var(--color-text-primary-rgb), 0.05);
 }
 
 /* Status Indicator Dot on Avatar */
@@ -212,15 +212,16 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 20px;
-  height: 20px;
-  padding: 0 6px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
   border-radius: var(--radius-full);
   background: var(--color-badge);
-  color: #FFFFFF;
+  color: var(--color-badge-text);
   font-size: 11px;
   font-weight: 700;
-  box-shadow: 0 2px 6px rgba(99, 102, 241, 0.25);
+  line-height: 18px;
+  box-shadow: none;
   will-change: transform, opacity;
   animation: unreadBounceElastic 280ms cubic-bezier(0.68, -0.55, 0.265, 1.55) both;
 }
@@ -233,7 +234,71 @@
   100% { transform: scale(1); }
 }
 
-/* ── Search bar focus expansion + glow (180ms spring ease-out) ── */
+/* ── Filter Chips Bar (All, Unread, Direct, Groups) ── */
+.filter-chips-bar {
+  padding: 10px 16px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.filter-chips-scroll {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.filter-chips-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.filter-chip {
+  padding: 6px 14px;
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 500;
+  border: 1px solid var(--border-color);
+  background: var(--color-surface);
+  color: var(--text-secondary);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all 150ms ease;
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.filter-chip:hover {
+  color: var(--text-primary);
+  border-color: var(--border-subtle);
+}
+
+.filter-chip.active {
+  background: var(--color-accent);
+  color: var(--color-bg); /* Rule: Text on teal, sky-blue and badge fills is #0F172A */
+  border-color: var(--color-accent);
+  font-weight: 600;
+}
+
+/* ── Preview Snippet with Icon ── */
+.convo-preview-with-icon {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.convo-preview-icon {
+  flex-shrink: 0;
+  color: var(--text-tertiary);
+}
+
+/* ── Search bar focus expansion + glow ── */
 .convo-search-input {
   width: 100%;
   padding: 8px 12px 8px 36px;
@@ -241,22 +306,210 @@
   border: 1px solid var(--border-color);
   background-color: var(--bg-secondary);
   color: var(--text-primary);
-  font-size: 13px;
+  font-size: 14px;
   outline: none;
   box-sizing: border-box;
   transition:
     border-color 180ms cubic-bezier(0.16, 1, 0.3, 1),
-    box-shadow 180ms cubic-bezier(0.16, 1, 0.3, 1),
-    transform 180ms cubic-bezier(0.16, 1, 0.3, 1),
-    background-color 180ms cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow 180ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .convo-search-input:focus {
   border-color: rgba(var(--color-accent-rgb), 0.55);
-  box-shadow: 0 0 0 3px rgba(var(--color-accent-rgb), 0.14), 0 4px 14px rgba(var(--color-accent-rgb), 0.12);
-  transform: scale(1.02);
+  box-shadow: 0 0 0 3px rgba(var(--color-accent-rgb), 0.14);
 }
 
 .convo-search-input::placeholder {
   color: var(--text-placeholder);
+}
+
+/* ── Mobile-Specific Layout (<=768px, Stitch Specifications) ──
+   Stitch tokens: bg=#0F172A, surface=#131C2E, border=#1E293B,
+   accent=#14B8A6, badge=#818CF8, text=#F1F5F9, muted=#94A3B8
+── */
+@media (max-width: 768px) {
+  .conversation-list {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: 100% !important;
+    border-right: none;
+    background: var(--color-bg);
+    display: flex;
+    flex-direction: column;
+    padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+    overflow-y: auto;
+  }
+
+  .convo-list-items {
+    padding: 0;
+    gap: 0;
+  }
+
+  /* Stick filter chips below the 56px mobile header */
+  .filter-chips-bar {
+    position: sticky;
+    top: 56px;
+    z-index: 15;
+    background: var(--color-bg);
+    border-bottom: 1px solid var(--color-border);
+    padding: 8px 16px;
+  }
+
+  .convo-card {
+    border-radius: 0;
+    border: none;
+    border-bottom: 1px solid var(--color-border);
+    padding: 14px 16px;
+    gap: 14px;
+    min-height: 70px;
+    background: transparent;
+    transform: none !important;
+  }
+
+  .convo-card:hover {
+    background: transparent;
+    border-color: var(--color-border);
+    transform: none !important;
+  }
+
+  .convo-card:active {
+    background: var(--color-panel-bg);
+  }
+
+  .convo-card.active {
+    background: var(--color-panel-bg);
+    border-bottom-color: var(--color-border);
+    box-shadow: none;
+    backdrop-filter: none;
+  }
+
+  /* Fixed Mobile Header */
+  .mobile-chat-header {
+    background: var(--color-bg);
+    border-bottom: 1px solid var(--color-border);
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+
+  .mobile-chat-header-main {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 56px;
+    padding: 0 16px;
+  }
+
+  .mobile-chat-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .mobile-chat-logo {
+    height: 26px;
+    width: auto;
+    object-fit: contain;
+  }
+
+  .mobile-chat-title {
+    font-size: 19px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0;
+    letter-spacing: -0.3px;
+  }
+
+  .mobile-chat-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .mobile-header-icon-btn {
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+  }
+
+  .mobile-header-icon-btn:active {
+    color: var(--text-primary);
+    background: var(--color-surface);
+  }
+
+  .mobile-search-bar-row {
+    padding: 4px 16px 12px;
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+
+  .mobile-search-bar-row .convo-search-input {
+    padding-left: 36px;
+    padding-right: 36px;
+    background: var(--color-panel-bg);
+    border-color: var(--color-border);
+  }
+
+  .mobile-search-bar-row .convo-search-input:focus {
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 1px rgba(20, 184, 166, 0.2);
+  }
+
+  .search-icon-inside {
+    position: absolute;
+    left: 28px;
+    color: var(--text-tertiary);
+    pointer-events: none;
+  }
+
+  .search-clear-btn {
+    position: absolute;
+    right: 26px;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+  }
+
+  /* Floating Action Button (FAB) */
+  .mobile-chat-fab {
+    position: fixed;
+    right: 18px;
+    bottom: calc(78px + env(safe-area-inset-bottom, 0px));
+    z-index: 850;
+  }
+
+  .mobile-fab-btn {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: var(--color-accent);
+    color: var(--color-bg); /* Rule: Text on teal, sky-blue and badge fills is #0F172A */
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+
+  .mobile-fab-btn:active {
+    transform: scale(0.92);
+    opacity: 0.92;
+  }
 }

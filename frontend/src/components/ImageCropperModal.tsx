@@ -122,7 +122,7 @@ export const ImageCropperModal: React.FC<ImageCropperModalProps> = ({
       style={{
         position: 'fixed',
         inset: 0,
-        backgroundColor: 'rgba(0,0,0,0.85)',
+        backgroundColor: 'var(--color-overlay)',
         backdropFilter: 'blur(12px)',
         zIndex: 10000,
         display: 'flex',
@@ -133,8 +133,8 @@ export const ImageCropperModal: React.FC<ImageCropperModalProps> = ({
     >
       <div
         style={{
-          backgroundColor: '#111b21',
-          border: '1px solid rgba(255,255,255,0.12)',
+          backgroundColor: 'var(--color-panel-bg)',
+          border: '1px solid var(--color-border)',
           borderRadius: '20px',
           width: '100%',
           maxWidth: '480px',
@@ -151,12 +151,12 @@ export const ImageCropperModal: React.FC<ImageCropperModalProps> = ({
             alignItems: 'center',
             justifyContent: 'space-between',
             padding: '16px 20px',
-            borderBottom: '1px solid rgba(255,255,255,0.08)',
+            borderBottom: '1px solid var(--color-border)',
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Move size={18} color="var(--color-accent, #00a884)" />
-            <h3 style={{ margin: 0, color: '#e9edef', fontSize: '17px', fontWeight: 600 }}>
+            <h3 style={{ margin: 0, color: 'var(--color-text-primary)', fontSize: '17px', fontWeight: 600 }}>
               Arrange Profile Picture
             </h3>
           </div>
@@ -164,9 +164,9 @@ export const ImageCropperModal: React.FC<ImageCropperModalProps> = ({
             type="button"
             onClick={onClose}
             style={{
-              background: 'rgba(255,255,255,0.08)',
+              background: 'var(--color-surface-soft)',
               border: 'none',
-              color: '#8696a0',
+              color: 'var(--color-text-secondary)',
               cursor: 'pointer',
               padding: '6px',
               borderRadius: '50%',
@@ -193,7 +193,7 @@ export const ImageCropperModal: React.FC<ImageCropperModalProps> = ({
             flexDirection: 'column',
             justifyContent: 'center',
             alignItems: 'center',
-            backgroundColor: '#0b141a',
+            backgroundColor: 'var(--color-bg)',
             position: 'relative',
             cursor: isDragging ? 'grabbing' : 'grab',
             userSelect: 'none',
@@ -220,7 +220,7 @@ export const ImageCropperModal: React.FC<ImageCropperModalProps> = ({
               }}
             />
           </div>
-          <p style={{ margin: '12px 0 0 0', fontSize: '12px', color: '#8696a0' }}>
+          <p style={{ margin: '12px 0 0 0', fontSize: '12px', color: 'var(--color-text-secondary)' }}>
             Drag image to center • Pinch / slider to zoom
           </p>
         </div>
@@ -232,13 +232,13 @@ export const ImageCropperModal: React.FC<ImageCropperModalProps> = ({
             display: 'flex',
             flexDirection: 'column',
             gap: '16px',
-            borderTop: '1px solid rgba(255,255,255,0.08)',
-            backgroundColor: '#111b21',
+            borderTop: '1px solid var(--color-border)',
+            backgroundColor: 'var(--color-panel-bg)',
           }}
         >
           {/* Zoom Slider */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <ZoomOut size={16} color="#8696a0" />
+            <ZoomOut size={16} color="var(--color-text-secondary)" />
             <input
               type="range"
               min="0.5"
@@ -252,15 +252,15 @@ export const ImageCropperModal: React.FC<ImageCropperModalProps> = ({
                 cursor: 'pointer',
               }}
             />
-            <ZoomIn size={16} color="#8696a0" />
+            <ZoomIn size={16} color="var(--color-text-secondary)" />
             <button
               type="button"
               onClick={() => setRotation((r) => (r + 90) % 360)}
               title="Rotate 90°"
               style={{
-                background: 'rgba(255,255,255,0.08)',
+                background: 'var(--color-surface-soft)',
                 border: 'none',
-                color: '#e9edef',
+                color: 'var(--color-text-primary)',
                 padding: '8px',
                 borderRadius: '8px',
                 cursor: 'pointer',
@@ -282,9 +282,9 @@ export const ImageCropperModal: React.FC<ImageCropperModalProps> = ({
               style={{
                 padding: '10px 20px',
                 borderRadius: '24px',
-                border: '1px solid rgba(255,255,255,0.15)',
+                border: '1px solid var(--color-border)',
                 background: 'transparent',
-                color: '#8696a0',
+                color: 'var(--color-text-secondary)',
                 cursor: 'pointer',
                 fontWeight: 600,
                 fontSize: '14px',
@@ -300,7 +300,7 @@ export const ImageCropperModal: React.FC<ImageCropperModalProps> = ({
                 borderRadius: '24px',
                 border: 'none',
                 background: 'var(--color-accent, #00a884)',
-                color: '#111b21',
+                color: 'var(--color-on-accent)',
                 cursor: 'pointer',
                 fontWeight: 700,
                 fontSize: '14px',

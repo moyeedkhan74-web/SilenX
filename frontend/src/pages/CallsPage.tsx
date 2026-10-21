@@ -354,9 +354,126 @@ const CallsPage: React.FC = () => {
           padding: 40px;
           text-align: center;
         }
+
+        .mobile-calls-logo {
+          display: none;
+        }
+
+        @media (max-width: 768px) {
+          .calls-page {
+            background-color: var(--color-bg);
+          }
+
+          .calls-header {
+            padding: calc(12px + env(safe-area-inset-top, 0px)) 16px 12px;
+            background: var(--color-bg);
+            border-bottom: 1px solid var(--color-border);
+            position: sticky;
+            top: 0;
+            z-index: 30;
+          }
+
+          .mobile-calls-logo {
+            display: block;
+            width: 28px;
+            height: 28px;
+            object-fit: contain;
+          }
+
+          .desktop-calls-icon {
+            display: none;
+          }
+
+          .calls-header h1 {
+            font-size: 1.15rem;
+            color: var(--color-text-primary);
+            letter-spacing: -0.01em;
+          }
+
+          .calls-refresh-btn {
+            background: var(--color-panel-bg);
+            border-color: var(--color-border);
+            color: var(--color-accent);
+            min-width: 38px;
+            min-height: 38px;
+          }
+
+          .calls-list {
+            padding: 14px 14px calc(84px + env(safe-area-inset-bottom, 0px));
+            max-width: 480px;
+            margin: 0 auto;
+            width: 100%;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+          }
+
+          .call-log-item {
+            background: var(--color-panel-bg);
+            border: 1px solid var(--color-border);
+            border-radius: 12px;
+            padding: 12px 14px;
+            min-height: 60px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+          }
+
+          .call-log-item:active {
+            background: var(--color-surface-soft);
+          }
+
+          .call-log-name {
+            color: var(--color-text-primary);
+            font-size: 0.95rem;
+          }
+
+          .call-log-meta {
+            color: var(--color-text-secondary);
+          }
+
+          .call-log-delete-btn {
+            opacity: 1 !important;
+            color: var(--color-text-secondary) !important;
+          }
+
+          .call-type-badge {
+            background: var(--color-bg);
+            border-color: var(--color-panel-bg);
+          }
+
+          .call-callback-btn {
+            background: var(--color-bg) !important;
+            border-color: var(--color-border) !important;
+            color: var(--color-accent) !important;
+            width: 38px !important;
+            height: 38px !important;
+          }
+
+          .call-callback-btn:active {
+            background: var(--color-surface-soft) !important;
+          }
+
+          .calls-empty {
+            padding: 60px 24px;
+          }
+
+          .calls-empty-icon {
+            background: var(--color-panel-bg);
+            border: 1px solid var(--color-border);
+            color: var(--color-accent);
+          }
+        }
       `}</style>
 
       <div className="calls-header">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <img src="/silenX-logo.png" alt="SilenX" className="mobile-calls-logo" />
+          <h1 style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
+            <Phone size={22} className="desktop-calls-icon" style={{ color: 'var(--color-primary)' }} />
+            Calls
+          </h1>
+        </div>
+
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <div ref={menuRef} style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
             <button
@@ -385,7 +502,7 @@ const CallsPage: React.FC = () => {
                 style={{
                   position: 'absolute',
                   top: '100%',
-                  left: 0,
+                  right: 0,
                   marginTop: '8px',
                   background: 'var(--bg-secondary)',
                   border: '1px solid var(--border-color)',
@@ -428,14 +545,10 @@ const CallsPage: React.FC = () => {
               </div>
             )}
           </div>
-          <h1 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Phone size={22} style={{ color: 'var(--color-primary)' }} />
-            Calls
-          </h1>
+          <button type="button" className="calls-refresh-btn" onClick={fetchLogs} title="Refresh">
+            <RefreshCw size={16} />
+          </button>
         </div>
-        <button type="button" className="calls-refresh-btn" onClick={fetchLogs} title="Refresh">
-          <RefreshCw size={16} />
-        </button>
       </div>
 
       {loading ? (
@@ -522,6 +635,7 @@ const CallsPage: React.FC = () => {
                   <button
                     type="button"
                     title={`Call ${log.otherUser.displayName}`}
+                    className="call-callback-btn"
                     onClick={(e) => {
                       e.stopPropagation();
                       handleCallBack(log.otherUser, log.callType);

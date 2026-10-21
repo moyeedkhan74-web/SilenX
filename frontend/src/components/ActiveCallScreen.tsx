@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Mic, MicOff, Video, VideoOff, Volume2, VolumeX, PhoneOff, Maximize2, Minimize2, RefreshCw, Lock } from 'lucide-react';
+import { ArrowLeft, Mic, MicOff, Video, VideoOff, Volume2, VolumeX, PhoneOff, Maximize2, Minimize2, RefreshCw, Lock } from 'lucide-react';
 import { Avatar } from './Avatar';
 import { livekitService } from '../services/livekit';
 
@@ -206,6 +206,12 @@ export default function ActiveCallScreen({
           ) : (
             <video ref={localVideoRef} className="active-call__local-pip" autoPlay playsInline muted />
           )}
+          <div className="active-call__pip-label-row">
+            <span className="active-call__pip-badge">You</span>
+            <div className={`active-call__pip-mic-badge ${isMuted ? 'muted' : ''}`}>
+              {isMuted ? <MicOff size={10} /> : <Mic size={10} />}
+            </div>
+          </div>
         </div>
       )}
 
@@ -220,15 +226,34 @@ export default function ActiveCallScreen({
 
       {/* Top Bar Info */}
       <div className="active-call__top">
-        <h2 className="active-call__name">{callerName}</h2>
-        <div className="active-call__meta">
-          <span className="active-call__e2ee">
-            <Lock size={12} style={{ display: 'inline', marginRight: '4px', verticalAlign: 'middle' }} />
-            End-to-end encrypted
-          </span>
-          <span className="active-call__dot" />
-          <span className="active-call__timer">{formatDuration(seconds)}</span>
+        <button
+          type="button"
+          className="active-call__top-back"
+          onClick={toggleFullscreen}
+          aria-label="Back"
+          title="Minimize or Back"
+        >
+          <ArrowLeft size={20} />
+        </button>
+
+        <div className="active-call__top-center">
+          <div className="active-call__top-title-row">
+            <h2 className="active-call__name">{callerName}</h2>
+            <span className="active-call__top-lock" title="End-to-end encrypted">
+              <Lock size={14} />
+            </span>
+          </div>
+          <div className="active-call__meta">
+            <span className="active-call__e2ee desktop-only-e2ee">
+              <Lock size={12} style={{ display: 'inline', marginRight: '4px', verticalAlign: 'middle' }} />
+              End-to-end encrypted
+            </span>
+            <span className="active-call__dot desktop-only-dot" />
+            <span className="active-call__timer">{formatDuration(seconds)}</span>
+          </div>
         </div>
+
+        <div className="active-call__top-spacer" aria-hidden="true" />
       </div>
 
       {/* Floating Control Bar */}
@@ -245,20 +270,6 @@ export default function ActiveCallScreen({
             {isMuted ? <MicOff size={22} /> : <Mic size={22} />}
           </button>
           <span className="ctrl-btn-label">{isMuted ? 'Unmute' : 'Mute'}</span>
-        </div>
-
-        {/* Speaker Button */}
-        <div className="ctrl-btn-wrapper">
-          <button
-            type="button"
-            className={`ctrl-btn ${speakerOn ? 'ctrl-btn--on ctrl-btn--speaker-on' : 'ctrl-btn--muted'}`}
-            onClick={toggleSpeaker}
-            aria-label={speakerOn ? 'Speaker on' : 'Speaker off'}
-            title={speakerOn ? 'Speaker On' : 'Speaker Off'}
-          >
-            {speakerOn ? <Volume2 size={22} /> : <VolumeX size={22} />}
-          </button>
-          <span className="ctrl-btn-label">{speakerOn ? 'Speaker' : 'Off'}</span>
         </div>
 
         {/* Camera Toggle Button (Video Calls Only) */}
@@ -292,8 +303,22 @@ export default function ActiveCallScreen({
           </>
         )}
 
-        {/* Fullscreen Toggle Button */}
+        {/* Speaker Button */}
         <div className="ctrl-btn-wrapper">
+          <button
+            type="button"
+            className={`ctrl-btn ${speakerOn ? 'ctrl-btn--on ctrl-btn--speaker-on' : 'ctrl-btn--muted'}`}
+            onClick={toggleSpeaker}
+            aria-label={speakerOn ? 'Speaker on' : 'Speaker off'}
+            title={speakerOn ? 'Speaker On' : 'Speaker Off'}
+          >
+            {speakerOn ? <Volume2 size={22} /> : <VolumeX size={22} />}
+          </button>
+          <span className="ctrl-btn-label">{speakerOn ? 'Speaker' : 'Off'}</span>
+        </div>
+
+        {/* Fullscreen Toggle Button */}
+        <div className="ctrl-btn-wrapper desktop-only-control">
           <button
             type="button"
             className="ctrl-btn ctrl-btn--on"

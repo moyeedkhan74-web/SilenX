@@ -156,8 +156,22 @@ export const MediaMessage: React.FC<MediaMessageProps> = ({ message }) => {
       if (!message.mediaUrl) return;
       setDownloading(true);
       try {
-        const response = await fetch(message.mediaUrl);
-        const blob = await response.blob();
+        let downloadUrl = message.mediaUrl;
+        let blob: Blob;
+        if (downloadUrl.startsWith('blob:')) {
+          const response = await fetch(downloadUrl);
+          blob = await response.blob();
+        } else if (downloadUrl.startsWith('data:')) {
+          const response = await fetch(downloadUrl);
+          blob = await response.blob();
+        } else if (downloadUrl.startsWith('http://') || downloadUrl.startsWith('https://')) {
+          const response = await fetch(downloadUrl, { mode: 'cors' });
+          blob = await response.blob();
+        } else {
+          const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+          const response = await fetch(`${API_URL}${downloadUrl}`, { mode: 'cors' });
+          blob = await response.blob();
+        }
         const blobUrl = URL.createObjectURL(blob);
         const anchor = document.createElement('a');
         anchor.href = blobUrl;
@@ -170,6 +184,15 @@ export const MediaMessage: React.FC<MediaMessageProps> = ({ message }) => {
         setTimeout(() => setDownloaded(false), 2000);
       } catch (error) {
         console.error('Failed to download attachment', error);
+        const anchor = document.createElement('a');
+        anchor.href = message.mediaUrl;
+        anchor.download = getAttachmentName(message);
+        anchor.target = '_blank';
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+        setDownloaded(true);
+        setTimeout(() => setDownloaded(false), 2000);
       } finally {
         setDownloading(false);
       }

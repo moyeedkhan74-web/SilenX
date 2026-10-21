@@ -27,7 +27,7 @@
   justify-content: center;
   gap: 12px;
   padding: 32px;
-  color: var(--text-secondary, #94a3b8);
+  color: var(--text-secondary, var(--color-text-secondary));
   font-size: 14px;
 }
 
@@ -45,7 +45,7 @@
   flex-direction: column;
   gap: 10px;
   padding: 16px;
-  background: var(--bg-secondary, #0f172a);
+  background: var(--bg-secondary, var(--color-bg));
   border: 1px solid var(--border-color, #334155);
   border-radius: 12px;
 }
@@ -54,7 +54,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  color: var(--text-primary, #f1f5f9);
+  color: var(--text-primary, var(--color-text-primary));
   font-size: 15px;
   font-weight: 600;
 }
@@ -64,7 +64,7 @@
   font-size: 18px;
   font-weight: 600;
   letter-spacing: 0.08em;
-  color: var(--text-primary, #f1f5f9);
+  color: var(--text-primary, var(--color-text-primary));
   padding: 12px;
   background: rgba(0, 0, 0, 0.25);
   border-radius: 8px;
@@ -78,7 +78,7 @@
 
 .security-fingerprint-note {
   font-size: 13px;
-  color: var(--text-secondary, #94a3b8);
+  color: var(--text-secondary, var(--color-text-secondary));
   line-height: 1.5;
   margin: 0;
 }
@@ -94,19 +94,19 @@
   margin: 0;
   font-size: 15px;
   font-weight: 600;
-  color: var(--text-primary, #f1f5f9);
+  color: var(--text-primary, var(--color-text-primary));
 }
 
 .security-qr-note {
   font-size: 13px;
-  color: var(--text-secondary, #94a3b8);
+  color: var(--text-secondary, var(--color-text-secondary));
   text-align: center;
   margin: 0;
 }
 
 .security-qr-wrapper {
   padding: 16px;
-  background: var(--bg-secondary, #0f172a);
+  background: var(--bg-secondary, var(--color-bg));
   border: 1px solid var(--border-color, #334155);
   border-radius: 12px;
   display: inline-flex;

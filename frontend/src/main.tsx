@@ -36,23 +36,23 @@ class ErrorBoundary extends Component<Props, State> {
           alignItems: 'center',
           justifyContent: 'center',
           height: '100dvh',
-          backgroundColor: '#0b1120',
-          color: '#ffffff',
+          backgroundColor: 'var(--color-bg)',
+          color: 'var(--color-text-primary)',
           padding: '24px',
           textAlign: 'center',
           fontFamily: 'sans-serif'
         }}>
           <img src="/silenX-logo.png" alt="SilenX" style={{ width: '64px', height: '64px', marginBottom: '16px' }} />
           <h2 style={{ fontSize: '20px', marginBottom: '8px' }}>SlienX Application Notice</h2>
-          <p style={{ color: '#94a3b8', fontSize: '14px', maxWidth: '320px', marginBottom: '20px' }}>
+          <p style={{ color: 'var(--color-text-secondary)', fontSize: '14px', maxWidth: '320px', marginBottom: '20px' }}>
             {this.state.error?.message || 'A temporary display issue occurred. Please restart the app.'}
           </p>
           <button
             onClick={() => window.location.reload()}
             style={{
               padding: '10px 20px',
-              backgroundColor: '#08B5A5',
-              color: '#ffffff',
+              backgroundColor: 'var(--color-accent)',
+              color: 'var(--color-on-accent)',
               border: 'none',
               borderRadius: '8px',
               fontWeight: 600,

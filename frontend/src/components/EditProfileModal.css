@@ -8,8 +8,8 @@
   max-height: 88vh !important;
   padding: 0 !important;
   border-radius: 24px !important;
-  background: var(--color-surface, #0f172a) !important;
-  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  background: var(--color-surface, var(--color-bg)) !important;
+  border: 1px solid rgba(var(--color-text-primary-rgb), 0.12) !important;
   box-shadow: 
     0 32px 80px rgba(0, 0, 0, 0.6),
     0 0 0 1px rgba(255, 255, 255, 0.08) inset,
@@ -42,8 +42,8 @@
   align-items: center;
   justify-content: space-between;
   padding: 24px 28px 18px 28px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.03) 0%, transparent 100%);
+  border-bottom: 1px solid rgba(var(--color-text-primary-rgb), 0.08);
+  background: linear-gradient(180deg, rgba(var(--color-text-primary-rgb), 0.03) 0%, transparent 100%);
   flex-wrap: wrap;
   gap: 12px;
 }
@@ -94,8 +94,8 @@
   gap: 7px;
   padding: 5px 12px;
   border-radius: 20px;
-  background: rgba(15, 23, 42, 0.6);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(var(--color-bg-rgb), 0.6);
+  border: 1px solid rgba(var(--color-text-primary-rgb), 0.1);
   font-size: 12.5px;
   color: var(--text-secondary);
   box-shadow: 0 2px 8px rgba(0,0,0,0.2);
@@ -130,7 +130,7 @@
   text-align: center;
   margin-bottom: 24px;
   padding-bottom: 20px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid rgba(var(--color-text-primary-rgb), 0.08);
 }
 
 .epm-top-avatar-circle {
@@ -267,7 +267,7 @@
 
 .epm-helper-tag {
   font-size: 11.5px;
-  color: var(--text-tertiary, #64748b);
+  color: var(--text-tertiary, var(--color-text-tertiary));
 }
 
 .epm-input-wrapper {
@@ -281,8 +281,8 @@
   padding: 12px 14px;
   padding-right: 55px;
   border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(15, 23, 42, 0.7);
+  border: 1px solid rgba(var(--color-text-primary-rgb), 0.12);
+  background: rgba(var(--color-bg-rgb), 0.7);
   color: var(--text-primary);
   font-size: 14px;
   outline: none;
@@ -292,7 +292,7 @@
 
 .epm-input:focus {
   border-color: var(--color-accent, #14b8a6);
-  background: rgba(15, 23, 42, 0.9);
+  background: rgba(var(--color-bg-rgb), 0.9);
   box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.2), 0 2px 6px rgba(0, 0, 0, 0.2) inset;
 }
 
@@ -321,8 +321,8 @@
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(var(--color-text-primary-rgb), 0.05);
+  border: 1px solid rgba(var(--color-text-primary-rgb), 0.08);
   padding: 4px 9px;
   border-radius: 8px;
   color: var(--text-secondary);
@@ -349,8 +349,8 @@
   display: flex;
   flex-direction: column;
   border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(15, 23, 42, 0.7);
+  border: 1px solid rgba(var(--color-text-primary-rgb), 0.12);
+  background: rgba(var(--color-bg-rgb), 0.7);
   transition: all 0.2s ease;
   overflow: hidden;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2) inset;
@@ -385,7 +385,7 @@
   justify-content: flex-end;
   padding: 6px 12px;
   background: rgba(0, 0, 0, 0.2);
-  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  border-top: 1px solid rgba(var(--color-text-primary-rgb), 0.05);
 }
 
 .epm-bio-counter {
@@ -427,8 +427,8 @@
 .epm-chip {
   padding: 5px 11px;
   border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(var(--color-text-primary-rgb), 0.08);
+  background: rgba(var(--color-text-primary-rgb), 0.04);
   color: var(--text-secondary);
   font-size: 12px;
   cursor: pointer;
@@ -451,20 +451,20 @@
   gap: 12px;
   margin-top: 20px;
   padding-top: 18px;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-top: 1px solid rgba(var(--color-text-primary-rgb), 0.08);
 }
 
 .epm-action-cancel {
   border-radius: 12px !important;
   padding: 10px 18px !important;
   font-size: 13.5px !important;
-  background: rgba(255, 255, 255, 0.05) !important;
-  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  background: rgba(var(--color-text-primary-rgb), 0.05) !important;
+  border: 1px solid rgba(var(--color-text-primary-rgb), 0.1) !important;
   color: var(--text-secondary) !important;
 }
 
 .epm-action-cancel:hover {
-  background: rgba(255, 255, 255, 0.1) !important;
+  background: rgba(var(--color-text-primary-rgb), 0.1) !important;
   color: var(--text-primary) !important;
 }
 
@@ -475,7 +475,7 @@
   font-weight: 600 !important;
   background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%) !important;
   box-shadow: 0 4px 16px rgba(13, 148, 136, 0.35) !important;
-  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  border: 1px solid rgba(var(--color-text-primary-rgb), 0.15) !important;
 }
 
 .epm-action-save:hover:not(:disabled) {

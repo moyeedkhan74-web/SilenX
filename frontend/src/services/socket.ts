@@ -1,5 +1,5 @@
 import { io, Socket } from 'socket.io-client';
-import { SOCKET_URL, API_URL, getActiveBackendUrl, switchToBackupBackend, VOROA_PRIMARY_URL } from '../config/webrtc-config';
+import { SOCKET_URL, API_URL } from '../config/webrtc-config';
 import { useChatStore } from '../store/chatStore';
 import { useAuthStore } from '../store/authStore';
 import { auth } from '../config/firebase';
@@ -317,6 +317,7 @@ export const connectSocket = (idToken?: string): Socket => {
     connectErrorCount += 1;
 
     if (error.message === 'UNAUTHORIZED' || error.message?.includes('UNAUTHORIZED')) {
+      // Token expired/invalid — force-refresh and reconnect on the SAME server
       try {
         const currentUser = auth.currentUser;
         if (currentUser) {
@@ -328,15 +329,11 @@ export const connectSocket = (idToken?: string): Socket => {
       } catch (refreshErr) {
         console.warn('[Socket] Token refresh on connect_error failed:', refreshErr);
       }
-    } else if (connectErrorCount >= 3 && getActiveBackendUrl() === VOROA_PRIMARY_URL) {
-      console.warn('[Socket Failover] Primary Voroa socket connection failed 3 times. Switching to HA Render backup...');
-      const backupUrl = switchToBackupBackend();
-      connectErrorCount = 0;
-      if (socket) {
-        socket.disconnect();
-        socket = io(backupUrl, options);
-        attachOutboxListeners(socket);
-      }
+    } else {
+      // Other connection errors: let socket.io's built-in reconnectionAttempts handle
+      // retries on the same server. Switching to a different server is intentionally
+      // disabled to prevent split-brain (users on different servers can't exchange messages).
+      console.warn(`[Socket] Connection error #${connectErrorCount} — socket.io will auto-retry (${options.reconnectionAttempts} attempts max).`);
     }
   });
 
@@ -536,15 +533,14 @@ socket.on('receive-message-reaction', (payload: any) => {
         [conversationId]: updated,
       },
     });
-    // Persist read status to local storage & IndexedDB cache
-    const key = `slienx-chat-state-${useAuthStore.getState().user?.id || 'guest'}`;
-    try {
-      const stored = JSON.parse(localStorage.getItem(key) || '{}');
-      stored.messages = { ...stored.messages, [conversationId]: updated };
-      localStorage.setItem(key, JSON.stringify(stored));
-    } catch (e) {
-      console.warn('[Socket] Failed to persist messages-read state:', e);
-    }
+    // Persist read status to IndexedDB only. localStorage holds just the
+    // conversation list + active id — writing the full messages tree there
+    // blows the ~5 MB browser quota and throws QuotaExceededError.
+    void import('../services/db').then(({ dbService }) => {
+      void dbService.saveMessages(updated);
+    }).catch(() => {
+      // best-effort cache update
+    });
   });
 
   socket.on('group-updated', (payload: any) => {

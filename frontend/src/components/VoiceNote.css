@@ -12,7 +12,7 @@
   gap: 10px;
   padding: 8px 12px;
   border-radius: var(--radius-xl);
-  background: var(--glass-bg, rgba(255, 255, 255, 0.72));
+  background: var(--glass-bg, rgba(var(--color-text-primary-rgb), 0.72));
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
   border: 1px solid var(--border-color);
@@ -20,7 +20,7 @@
 }
 
 [data-theme='dark'] .vn-recorder {
-  background: rgba(19, 28, 46, 0.72);
+  background: rgba(var(--color-panel-bg-rgb), 0.72);
 }
 
 /* ── Recording status dot ── */
@@ -143,7 +143,7 @@
   min-width: 200px;
   padding: 9px 12px;
   border-radius: 16px;
-  background: var(--glass-bg, rgba(255, 255, 255, 0.6));
+  background: var(--glass-bg, rgba(var(--color-text-primary-rgb), 0.6));
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--border-color);
@@ -151,13 +151,13 @@
 }
 
 [data-theme='dark'] .vnp {
-  background: rgba(23, 36, 56, 0.65);
+  background: rgba(var(--color-surface-soft-rgb), 0.65);
 }
 
 .msg-wrapper.self .vnp {
   min-width: 200px;
   background: rgba(var(--color-surface-rgb), 0.16);
-  border-color: rgba(255, 255, 255, 0.22);
+  border-color: rgba(var(--color-text-primary-rgb), 0.22);
   box-shadow: 0 2px 10px rgba(2, 132, 199, 0.18);
 }
 

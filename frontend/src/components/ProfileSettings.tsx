@@ -23,7 +23,7 @@ export const ProfileSettings: React.FC = () => {
   };
 
   return (
-    <div style={{ padding: '24px', color: '#fff' }}>
+    <div style={{ padding: '24px', color: 'var(--color-text-primary)' }}>
       <h2>Profile Settings</h2>
       <div style={{ display: 'flex', alignItems: 'center', gap: '20px', margin: '20px 0' }}>
         <div style={{ position: 'relative' }}>
@@ -46,7 +46,7 @@ export const ProfileSettings: React.FC = () => {
         </div>
         <div>
           <h3>{user?.displayName || 'User'}</h3>
-          <p style={{ color: '#a1a1aa', margin: 0 }}>{user?.email || ''}</p>
+          <p style={{ color: 'var(--color-text-secondary)', margin: 0 }}>{user?.email || ''}</p>
         </div>
       </div>
 

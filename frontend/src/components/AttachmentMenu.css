@@ -22,6 +22,13 @@
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
+/* Hide mobile-specific sheet elements on desktop */
+.attach-backdrop { display: none; }
+.attach-sheet-handle { display: none; }
+.attach-sheet-header { display: none; }
+.attach-sheet-cancel-btn { display: none; }
+.attach-menu-desc { display: none; }
+
 .attach-menu-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -199,4 +206,182 @@
 }
 .attach-add-option:hover {
   text-decoration: underline;
+}
+
+/* ══════════════════════════════════════════════════════════
+   Mobile Bottom Sheet (Stitch Modern Utilitarian Flat Spec)
+   ══════════════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+  .attach-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 998;
+    animation: fadeIn 150ms ease-out;
+  }
+
+  .attach-menu-container {
+    position: fixed;
+    inset: auto 0 0 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    max-width: 500px;
+    margin: 0 auto;
+    z-index: 999;
+    background: var(--color-surface);
+    border: none;
+    border-top: 1px solid var(--color-border);
+    border-radius: 20px 20px 0 0;
+    box-shadow: none;
+    padding: 12px 18px max(16px, env(safe-area-inset-bottom, 16px));
+    box-sizing: border-box;
+    animation: slideUpSheet 220ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  @keyframes slideUpSheet {
+    from { transform: translateY(100%); }
+    to { transform: translateY(0); }
+  }
+
+  .attach-sheet-handle {
+    display: block;
+    width: 40px;
+    height: 4px;
+    background: var(--color-border);
+    border-radius: 9999px;
+    margin: 0 auto 12px;
+  }
+
+  .attach-sheet-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: 12px;
+    margin-bottom: 14px;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .attach-sheet-header-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--color-text-primary);
+  }
+
+  .attach-sheet-lock {
+    color: var(--color-accent);
+    flex-shrink: 0;
+  }
+
+  .attach-sheet-close {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    border: none;
+    background: transparent;
+    color: var(--color-text-muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+  }
+  .attach-sheet-close:active {
+    background: var(--color-surface-soft);
+  }
+
+  .attach-menu-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px 8px;
+    padding: 4px 0 8px;
+  }
+
+  .attach-menu-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 6px 4px;
+    border-radius: 12px;
+  }
+  .attach-menu-item:hover {
+    transform: none;
+  }
+  .attach-menu-item:active {
+    opacity: 0.8;
+  }
+
+  .attach-menu-icon {
+    width: 56px !important;
+    height: 56px !important;
+    border-radius: 50% !important;
+    background: var(--color-surface-soft) !important;
+    border: 1px solid var(--color-border) !important;
+    color: var(--color-text-primary) !important;
+    box-shadow: none !important;
+  }
+  .attach-menu-item:nth-child(1) .attach-menu-icon,
+  .attach-menu-item:nth-child(3) .attach-menu-icon,
+  .attach-menu-item:nth-child(5) .attach-menu-icon,
+  .attach-menu-item:nth-child(7) .attach-menu-icon {
+    color: var(--color-accent) !important;
+  }
+
+  .attach-menu-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--color-text-primary);
+    margin-top: 6px;
+  }
+
+  .attach-menu-desc {
+    display: block;
+    font-size: 10px;
+    color: var(--color-text-muted);
+    margin-top: 2px;
+    text-align: center;
+  }
+
+  .attach-sheet-cancel-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 48px;
+    border-radius: 12px;
+    background: var(--color-surface-soft);
+    border: 1px solid var(--color-border);
+    color: var(--color-text-primary);
+    font-weight: 600;
+    font-size: 14px;
+    margin-top: 14px;
+    cursor: pointer;
+  }
+  .attach-sheet-cancel-btn:active {
+    background: var(--color-border);
+  }
+
+  .attach-sub-modal {
+    max-width: 100%;
+    width: 100%;
+  }
+
+  .attach-input {
+    font-size: 16px !important;
+    min-height: 44px;
+    border-radius: 12px;
+    background: var(--color-surface-soft);
+    border-color: var(--color-border);
+    color: var(--color-text-primary);
+  }
+
+  .attach-auto-btn,
+  .attach-send-btn {
+    min-height: 44px;
+    border-radius: 12px;
+    font-size: 14px;
+  }
 }

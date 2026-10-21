@@ -18,7 +18,7 @@ const isLocalhost = !isCapacitorNative && (
   hostname.endsWith('.local')
 );
 
-export const VOROA_PRIMARY_URL = 'https://silenx-service.getvoroa.com';
+export const VOROA_PRIMARY_URL = 'https://silenx.onrender.com';
 export const RENDER_BACKUP_URL = 'https://silenx.onrender.com';
 
 const envApiUrl = (import.meta.env.VITE_API_URL as string | undefined)?.trim();
@@ -41,17 +41,16 @@ export const getActiveBackendUrl = (): string => activeBackendUrl;
 
 export const getBackupBackendUrl = (): string => {
   if (isLocalhost) return 'http://localhost:5000';
-  return activeBackendUrl.includes('getvoroa.com') ? RENDER_BACKUP_URL : VOROA_PRIMARY_URL;
+  return RENDER_BACKUP_URL;
 };
 
 export const switchToBackupBackend = (): string => {
+  // NOTE: Failover to Render is intentionally DISABLED because both servers
+  // run independent in-memory databases and socket registries. Switching a
+  // user mid-session would put them on a different server from their contacts,
+  // silently breaking message delivery. Retry on the same primary instead.
   if (isLocalhost) return activeBackendUrl;
-  const newUrl = getBackupBackendUrl();
-  if (activeBackendUrl !== newUrl) {
-    activeBackendUrl = newUrl;
-    _isFailoverActive = true;
-    console.warn(`[HA Failover] Active backend switched to backup server: ${activeBackendUrl}`);
-  }
+  console.warn('[HA Failover] Backup switch suppressed — keeping all users on primary to prevent split-brain messaging failure.');
   return activeBackendUrl;
 };
 

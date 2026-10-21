@@ -107,14 +107,14 @@
   place-items: center;
   border: none;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(var(--color-text-primary-rgb), 0.08);
   color: var(--text-secondary, #c6cfdb);
   cursor: pointer;
   transition: background 0.15s ease, color 0.15s ease;
 }
 
 .inapp-banner__close:hover {
-  background: rgba(255, 255, 255, 0.16);
+  background: rgba(var(--color-text-primary-rgb), 0.16);
   color: var(--text-primary, #fff);
 }
 

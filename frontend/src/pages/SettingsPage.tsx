@@ -47,10 +47,10 @@ export const SettingsPage: React.FC = () => {
 
   return (
     <div className="settings-tab">
-      <div style={{ maxWidth: '600px', width: '100%', margin: '0 auto' }}>
+      <div className="desktop-only settings-desktop-header-wrap" style={{ maxWidth: '600px', width: '100%', margin: '0 auto' }}>
         <h2>Settings</h2>
-        <SettingsPanel onDeleteAccountClick={handleDeleteAccount} />
       </div>
+      <SettingsPanel onDeleteAccountClick={handleDeleteAccount} />
     </div>
   );
 };

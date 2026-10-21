@@ -105,10 +105,11 @@ app.set('trust proxy', 1);
 // Rate Limiters
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 500, // Stingent auth budget: login + token refresh
+  max: 50000, // Generous limit for multi-tab/mobile sync & Render cold-start reconnect storms
   message: { error: 'Too many authentication attempts, please try again later.' },
   standardHeaders: true,
   legacyHeaders: false,
+  skipSuccessfulRequests: true,
 });
 
 const mediaUploadLimiter = rateLimit({

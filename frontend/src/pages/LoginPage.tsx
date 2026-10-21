@@ -7,7 +7,7 @@ import { GoogleAuthProvider, signInWithCredential, signInWithPopup, signInWithRe
 import { auth, googleProvider } from '../config/firebase';
 import { useAuthStore } from '../store/authStore';
 import { connectSocket } from '../services/socket';
-import { normalizeUid } from '../config/webrtc-config';
+import { API_URL, normalizeUid } from '../config/webrtc-config';
 import { authenticateWithGoogleBackend } from '../services/authApi';
 import type { UserStatus } from '../types';
 import './LoginPage.css';
@@ -85,8 +85,10 @@ const LoginPage: React.FC = () => {
   ) => {
     setStatusMessage('Connecting securely...');
     let body;
+    let backendAuthenticated = false;
     try {
       body = await authenticateWithGoogleBackend(idToken, (msg) => setStatusMessage(msg));
+      backendAuthenticated = true;
     } catch (backendErr: any) {
       console.warn('[Login] Backend verification fallback:', backendErr);
       const cleanEmail = fallbackEmail || 'user@gmail.com';
@@ -107,6 +109,35 @@ const LoginPage: React.FC = () => {
     }
 
     const serverUser = body.user;
+    const hasCustomAvatar =
+      typeof serverUser.avatarUrl === 'string' &&
+      serverUser.avatarUrl.length > 0 &&
+      !serverUser.avatarUrl.startsWith('https://api.dicebear.com/7.x/initials/svg?seed=');
+    let avatarUrl: string | null = serverUser.avatarUrl || null;
+    if (!hasCustomAvatar && fallbackAvatar) {
+      avatarUrl = fallbackAvatar;
+    }
+
+    if (backendAuthenticated && !hasCustomAvatar && fallbackAvatar) {
+      try {
+        const profileResponse = await fetch(`${API_URL}/api/users/me`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${idToken}`,
+          },
+          body: JSON.stringify({ avatarUrl: fallbackAvatar }),
+        });
+        if (profileResponse.ok) {
+          const updatedUser = await profileResponse.json();
+          avatarUrl = updatedUser.avatarUrl || fallbackAvatar;
+        } else {
+          console.warn(`[Login] Could not save Google profile photo (HTTP ${profileResponse.status}).`);
+        }
+      } catch (error) {
+        console.warn('[Login] Could not save Google profile photo:', error);
+      }
+    }
 
     try {
       login(
@@ -115,7 +146,7 @@ const LoginPage: React.FC = () => {
           uid: normalizeUid(serverUser.uid || serverUser.id),
           email: serverUser.email || fallbackEmail || '',
           displayName: serverUser.displayName || fallbackName || 'Google User',
-          avatarUrl: serverUser.avatarUrl || fallbackAvatar || null,
+          avatarUrl,
           status: (serverUser.status as UserStatus) || 'online',
           lastSeen: new Date().toISOString(),
           bio: serverUser.bio || 'Signed in with Google',

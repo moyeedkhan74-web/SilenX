@@ -9,10 +9,11 @@ const router = Router();
 
 const googleAuthLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5000, // Generous limit for multi-tab/mobile sync & Render cold-start reconnect storms
+  max: 50000, // Generous limit for multi-tab/mobile sync & Render cold-start reconnect storms
   message: { error: 'Too many authentication attempts, please try again later.' },
   standardHeaders: true,
   legacyHeaders: false,
+  skipSuccessfulRequests: true,
 });
 
 /**

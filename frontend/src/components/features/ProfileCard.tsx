@@ -81,7 +81,7 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
   return (
     <div className="profile-card" style={{ padding: '24px', backgroundColor: 'var(--bg-secondary)', borderRadius: '16px', border: '1px solid var(--border-color)' }}>
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '24px' }}>
-        <AvatarDisplay name={name} avatarUrl={avatarUrl} size={88} status={status} />
+        <AvatarDisplay name={name} avatarUrl={avatarUrl} size={88} status={profile?.status} />
         <h2 className="profile-name" style={{ marginTop: '16px', marginBottom: '4px', fontSize: '22px', fontWeight: 700 }}>{name}</h2>
         {email && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px', color: 'var(--text-secondary)', fontSize: '13px', background: 'var(--bg-primary)', padding: '4px 12px', borderRadius: '12px', border: '1px solid var(--border-color)' }}>

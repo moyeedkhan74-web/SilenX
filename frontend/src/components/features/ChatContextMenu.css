@@ -44,7 +44,7 @@
 }
 
 .menu-item:hover {
-  background: var(--input-bg, rgba(255, 255, 255, 0.05));
+  background: var(--input-bg, rgba(var(--color-text-primary-rgb), 0.05));
   color: var(--text-primary);
 }
 

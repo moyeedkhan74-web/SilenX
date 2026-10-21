@@ -794,6 +794,9 @@ redecryptMessages: async (conversationId?: string) => {
       const updatedMsgs = await Promise.all(
         msgs.map(async (msg) => {
           if ((msg.text === '[Encrypted Message]' || msg.text?.startsWith('SLX2.')) && msg.encryptedContent) {
+            // Resolve the crypto peer: when reading OUR OWN sent messages from
+            // history, the shared secret was derived against the RECIPIENT.
+            // For received messages, the peer is the sender.
             const peerId = otherMemberId || (msg.senderId !== currentUserId ? msg.senderId : currentUserId);
             try {
               const plain = await decryptIncoming(convId, msg.encryptedContent, msg.senderId, peerId);
@@ -834,7 +837,9 @@ redecryptMessages: async (conversationId?: string) => {
 
     if (updatedAny) {
       set({ messages: newMessagesState });
-      persistState({ messages: newMessagesState });
+      // Only persist conversation list + activeConversationId to localStorage;
+      // messages live in IndexedDB to avoid browser quota errors.
+      persistState({ conversations: state.conversations, activeConversationId: state.activeConversationId });
     }
   },
 }));

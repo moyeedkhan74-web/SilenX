@@ -1,6 +1,8 @@
 import React, { useRef, useState } from 'react';
 import { Download } from 'lucide-react';
 import { QRCodeCanvas } from 'qrcode.react';
+import { Capacitor } from '@capacitor/core';
+import { Filesystem, Directory } from '@capacitor/filesystem';
 
 interface QRCodeSectionProps {
   uid: string;
@@ -19,23 +21,38 @@ export const QRCodeSection: React.FC<QRCodeSectionProps> = ({
   const qrBgColor = '#ffffff';
   const qrFgColor = '#0f172a';
 
-  const handleDownload = () => {
+  const handleDownload = async () => {
     const canvas = qrRef.current?.querySelector('canvas');
     if (!canvas) return;
 
-    canvas.toBlob((blob) => {
-      if (!blob) return;
-      const url = URL.createObjectURL(blob);
+    const dataUrl = canvas.toDataURL('image/png');
+    const base64Data = dataUrl.split(',')[1];
+    const fileName = `silenx_qr_${uid}.png`;
+
+    if (Capacitor.isNativePlatform()) {
+      try {
+        await Filesystem.writeFile({
+          path: fileName,
+          data: base64Data,
+          directory: Directory.Documents,
+        });
+        setDownloaded(true);
+        setTimeout(() => setDownloaded(false), 2500);
+      } catch (err) {
+        console.error('QR save error:', err);
+        alert('Could not save QR code. Please check storage permissions.');
+      }
+    } else {
+      // Web fallback
       const link = document.createElement('a');
-      link.href = url;
-      link.download = `${uid}_qr.png`;
+      link.href = dataUrl;
+      link.download = fileName;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      URL.revokeObjectURL(url);
       setDownloaded(true);
       setTimeout(() => setDownloaded(false), 2000);
-    }, 'image/png');
+    }
   };
 
   return (
@@ -88,7 +105,7 @@ export const QRCodeSection: React.FC<QRCodeSectionProps> = ({
         }}
       >
         <Download size={14} /> 
-        {downloaded ? 'Saved!' : 'Download QR Code'}
+        {downloaded ? '✓ Saved to Documents!' : 'Save QR Code'}
       </button>
     </div>
   );

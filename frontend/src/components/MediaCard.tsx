@@ -270,11 +270,9 @@ const styles = `
   color: var(--text-primary, #e9edef);
 }
 
-@media (prefers-color-scheme: dark) {
-  .media-card {
-    background: var(--card-bg-dark, #1a272e);
-    border-color: var(--border-color-dark, #2a3842);
-  }
+.media-card {
+  background: var(--card-bg);
+  border-color: var(--border-color);
 }
 `;
 

@@ -35,20 +35,26 @@
     display: none !important;
   }
 
-  /* ── Native-style view switching: list ⇄ active chat ── */
+  /* â”€â”€ Native-style view switching: list â‡„ active chat â”€â”€ */
   .chats-mobile {
     position: relative;
     width: 100%;
+    max-width: 100vw;
+    overflow-x: hidden;
   }
 
   .mobile-pane {
     min-width: 0;
     height: 100%;
+    max-width: 100vw;
+    overflow-x: hidden;
   }
 
   .mobile-pane-list {
     flex: 1;
     width: 100%;
+    max-width: 100vw;
+    overflow-x: hidden;
   }
 
   .mobile-pane-chat {

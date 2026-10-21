@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useLayoutEffect, useCallback } from 'react';
 import { ArrowLeft, Phone, Video, MoreVertical, Lock, Search, Bell, UserX, Flag, Trash2, Check, CheckCheck, Clock,
   Star, MapPin, Pin, Image as ImageIcon, X, Copy, Forward, Send as ReplyIcon, ChevronUp, ChevronDown } from 'lucide-react';
 import { useIsMobile } from '../hooks/useIsMobile';
@@ -26,6 +26,7 @@ import { useSettingsStore } from '../store/settingsStore';
 import WallpaperPicker from './WallpaperPicker';
 import './ChatView.css';
 import { formatLastSeen, formatMessageTime } from '../utils/date';
+import { getCustomNickname } from '../utils/nicknames';
 
 export const ChatView: React.FC = () => {
   const isMobile = useIsMobile();
@@ -52,8 +53,11 @@ export const ChatView: React.FC = () => {
   const [isDraggingOver, setIsDraggingOver] = useState(false);
   const [droppedFiles, setDroppedFiles] = useState<File[]>([]);
   const [selectedMessageIds, setSelectedMessageIds] = useState<string[]>([]);
+  const [headerStatusOverflow, setHeaderStatusOverflow] = useState(0);
   const typingTimers = useRef<Record<string, NodeJS.Timeout>>({}); 
   const closeTimer = useRef<number | null>(null);
+  const headerStatusRef = useRef<HTMLSpanElement>(null);
+  const headerStatusTextRef = useRef<HTMLSpanElement>(null);
 
   const { chatWallpaper, chatWallpaperFit, chatWallpaperDim } = useSettingsStore();
 
@@ -97,6 +101,17 @@ export const ChatView: React.FC = () => {
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const [, setNicknameRevision] = useState(0);
+  useEffect(() => {
+    const handleNicknameChange = () => setNicknameRevision((r) => r + 1);
+    window.addEventListener('silenx:nickname-updated', handleNicknameChange);
+    window.addEventListener('storage', handleNicknameChange);
+    return () => {
+      window.removeEventListener('silenx:nickname-updated', handleNicknameChange);
+      window.removeEventListener('storage', handleNicknameChange);
+    };
   }, []);
 
   // Automatically emit read receipts when conversation is active or receives messages
@@ -617,6 +632,41 @@ export const ChatView: React.FC = () => {
     setActiveMessageId(null);
   };
 
+  const headerOtherUser = activeConvo?.members.find((m) => m.id !== (currentUser?.id || 'self'));
+  const headerStatus = activeConvo?.type === 'direct' && headerOtherUser ? headerOtherUser.status : null;
+  const headerLastSeen = headerOtherUser?.lastSeen ? formatLastSeen(headerOtherUser.lastSeen) : 'Offline';
+  const headerStatusText = typingUsers.length > 0
+    ? 'typing...'
+    : activeConvo?.type === 'group'
+      ? `${activeConvo.members.length} participants`
+      : headerStatus === 'online'
+        ? 'Online'
+        : headerLastSeen === 'Offline'
+          ? 'Offline'
+          : `Last seen ${headerLastSeen}`;
+
+  useLayoutEffect(() => {
+    const status = headerStatusRef.current;
+    const text = headerStatusTextRef.current;
+    if (!isMobile || !status || !text) return;
+
+    const measureOverflow = () => {
+      const overflow = Math.max(0, Math.ceil(text.scrollWidth - text.clientWidth));
+      setHeaderStatusOverflow((current) => current === overflow ? current : overflow);
+    };
+
+    measureOverflow();
+    const observer = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(measureOverflow) : null;
+    observer?.observe(status);
+    observer?.observe(text);
+    window.addEventListener('resize', measureOverflow);
+
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener('resize', measureOverflow);
+    };
+  }, [activeConversationId, headerStatusText, isMobile]);
+
   if (!activeConvo) {
     return (
       <div className="chatview-empty">
@@ -628,12 +678,22 @@ export const ChatView: React.FC = () => {
   }
 
   const otherUser = activeConvo.members.find((m) => m.id !== (currentUser?.id || 'self'));
-  const chatName = activeConvo.type === 'group' ? (activeConvo.name || 'Group Chat') : (otherUser?.displayName || 'Unknown');
+  const customNickname = otherUser ? getCustomNickname(otherUser.id, (otherUser as any).uid, (otherUser as any)._id, activeConversationId) : null;
+  const chatName = activeConvo.type === 'group' ? (activeConvo.name || 'Group Chat') : (customNickname || otherUser?.displayName || 'Unknown');
   const status = activeConvo.type === 'direct' && otherUser ? otherUser.status : null;
-  const formattedLastSeen = otherUser?.lastSeen ? formatLastSeen(otherUser.lastSeen) : 'Offline';
-  const statusText = activeConvo.type === 'group' 
-    ? `${activeConvo.members.length} participants` 
-    : (status === 'online' ? 'Online' : formattedLastSeen === 'Offline' ? 'Offline' : `Last seen ${formattedLastSeen}`);
+  const statusText = headerStatusText;
+
+  const getDateLabel = (dateStr?: string) => {
+    if (!dateStr) return null;
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return null;
+    const today = new Date().toDateString();
+    const yesterday = new Date(Date.now() - 86400000).toDateString();
+    const target = d.toDateString();
+    if (target === today) return 'Today';
+    if (target === yesterday) return 'Yesterday';
+    return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: d.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined });
+  };
 
   return (
     <div
@@ -719,7 +779,7 @@ export const ChatView: React.FC = () => {
         </header>
       ) : (
         <header className="chatview-header">
-          <div className="chatview-header-info">
+          <div className="chatview-header-left">
             {isMobile && (
               <button
                 className="icon-btn mobile-back-btn"
@@ -727,11 +787,13 @@ export const ChatView: React.FC = () => {
                 type="button"
                 onClick={() => setActiveConversation(null as any)}
               >
-                <ArrowLeft size={22} />
+                <ArrowLeft size={20} />
               </button>
             )}
             <div
               className="chatview-header-profile-btn"
+              role="button"
+              tabIndex={0}
               onClick={() => {
                 if (activeConvo?.type === 'group') {
                   setGroupDetailsOpen(true);
@@ -739,85 +801,119 @@ export const ChatView: React.FC = () => {
                   setContactDetailsOpen(true);
                 }
               }}
-              style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', flex: 1, minWidth: 0 }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  if (activeConvo?.type === 'group') {
+                    setGroupDetailsOpen(true);
+                  } else {
+                    setContactDetailsOpen(true);
+                  }
+                }
+              }}
             >
               <Avatar
                 name={chatName || 'SlienX'}
-                size={40}
+                size={38}
                 online={status === 'online'}
                 avatarUrl={activeConvo.type === 'group' ? (activeConvo.avatarUrl || null) : (otherUser?.avatarUrl || activeConvo.avatarUrl || null)}
               />
               <div className="chatview-header-meta">
                 <h3 className="chatview-header-name">
-                  {chatName}
-                  <span className="e2ee-badge" title="End-to-end encrypted">
-                    <Lock size={10} strokeWidth={2.6} />
-                    E2EE
+                  <span className="chatview-header-name-text">
+                    {chatName}
                   </span>
+                  {activeConvo?.type === 'direct' && (
+                    <span className="e2ee-badge" title="End-to-end encrypted">
+                      <Lock size={10} strokeWidth={2.6} />
+                      E2EE
+                    </span>
+                  )}
                 </h3>
-                <span className={`chatview-status-subtext ${status === 'online' ? 'online' : ''}`}>
-                  {statusText}
-                </span>
-              </div>
-            </div>
-            <div className="chatview-header-actions">
-              <button className="icon-btn call-btn" title="Start audio call" type="button" onClick={handleAudioCall}>
-                <Phone size={18} />
-              </button>
-              <button className="icon-btn call-btn" title="Start video call" type="button" onClick={handleVideoCall}>
-                <Video size={18} />
-              </button>
-              <div className="menu-wrapper" ref={headerMenuRef}>
-                <button className="icon-btn" title="More options" onClick={() => setMenuOpen((open) => !open)} type="button">
-                  <MoreVertical size={18} />
-                </button>
-                {menuOpen && (
-                  <div className="dropdown-menu">
-                    <button className="dropdown-item" type="button" onClick={handleSearchInChat}>
-                      <Search size={16} />
-                      <span>Search in chat</span>
-                    </button>
-                    <button className="dropdown-item" type="button" onClick={handleMuteNotifications}>
-                      <Bell size={16} />
-                      <span>{activeConversationState.isMuted ? 'Unmute notifications' : 'Mute notifications'}</span>
-                    </button>
-                    <button className="dropdown-item" type="button" onClick={handleVerifyEncryption}>
-                      <Lock size={16} />
-                      <span>Verify encryption</span>
-                    </button>
-                    <button className="dropdown-item" type="button" onClick={handleBlockContact}>
-                      <UserX size={16} />
-                      <span>{activeConversationState.isBlocked ? 'Unblock contact' : 'Block contact'}</span>
-                    </button>
-                    <button className="dropdown-item" type="button" onClick={handleReport}>
-                      <Flag size={16} />
-                      <span>Report</span>
-                    </button>
-                    <button
-                      className="dropdown-item"
-                      type="button"
-                      onClick={() => {
-                        setMenuOpen(false);
-                        setWallpaperPickerOpen(true);
-                      }}
+                {isMobile ? (
+                  <span
+                    ref={headerStatusRef}
+                    className={`chatview-status-subtext ${status === 'online' && typingUsers.length === 0 ? 'online' : ''} ${typingUsers.length > 0 ? 'chatview-typing-status' : ''}`}
+                  >
+                    {typingUsers.length > 0 && <span className="typing-dot" />}
+                    <span
+                      ref={headerStatusTextRef}
+                      className={`chatview-status-text ${headerStatusOverflow > 0 ? 'marquee' : ''}`}
+                      style={{ '--status-overflow-distance': `${headerStatusOverflow}px` } as React.CSSProperties}
                     >
-                      <ImageIcon size={16} />
-                      <span>Chat wallpaper</span>
-                    </button>
-                    <button
-                      className="dropdown-item danger"
-                      type="button"
-                      onClick={() => {
-                        setMenuOpen(false);
-                        setClearConfirmOpen(true);
-                      }}
-                    >
-                      <Trash2 size={16} />
-                      <span>Clear chat</span>
-                    </button>
-                  </div>
+                      <span className="chatview-status-text-inner">{headerStatusText}</span>
+                    </span>
+                  </span>
+                ) : typingUsers.length > 0 ? (
+                  <span className="chatview-typing-status">
+                    <span className="typing-dot" />
+                    typing...
+                  </span>
+                ) : (
+                  <span className={`chatview-status-subtext ${status === 'online' ? 'online' : ''}`}>
+                    {statusText}
+                  </span>
                 )}
               </div>
+            </div>
+          </div>
+
+          <div className="chatview-header-actions">
+            <button className="icon-btn call-btn" title="Start audio call" type="button" onClick={handleAudioCall}>
+              <Phone size={18} />
+            </button>
+            <button className="icon-btn call-btn" title="Start video call" type="button" onClick={handleVideoCall}>
+              <Video size={18} />
+            </button>
+            <div className="menu-wrapper" ref={headerMenuRef}>
+              <button className="icon-btn" title="More options" onClick={() => setMenuOpen((open) => !open)} type="button">
+                <MoreVertical size={18} />
+              </button>
+              {menuOpen && (
+                <div className="dropdown-menu">
+                  <button className="dropdown-item" type="button" onClick={handleSearchInChat}>
+                    <Search size={16} />
+                    <span>Search in chat</span>
+                  </button>
+                  <button className="dropdown-item" type="button" onClick={handleMuteNotifications}>
+                    <Bell size={16} />
+                    <span>{activeConversationState.isMuted ? 'Unmute notifications' : 'Mute notifications'}</span>
+                  </button>
+                  <button className="dropdown-item" type="button" onClick={handleVerifyEncryption}>
+                    <Lock size={16} />
+                    <span>Verify encryption</span>
+                  </button>
+                  <button className="dropdown-item" type="button" onClick={handleBlockContact}>
+                    <UserX size={16} />
+                    <span>{activeConversationState.isBlocked ? 'Unblock contact' : 'Block contact'}</span>
+                  </button>
+                  <button className="dropdown-item" type="button" onClick={handleReport}>
+                    <Flag size={16} />
+                    <span>Report</span>
+                  </button>
+                  <button
+                    className="dropdown-item"
+                    type="button"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      setWallpaperPickerOpen(true);
+                    }}
+                  >
+                    <ImageIcon size={16} />
+                    <span>Chat wallpaper</span>
+                  </button>
+                  <button
+                    className="dropdown-item danger"
+                    type="button"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      setClearConfirmOpen(true);
+                    }}
+                  >
+                    <Trash2 size={16} />
+                    <span>Clear chat</span>
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </header>
@@ -1007,52 +1103,67 @@ export const ChatView: React.FC = () => {
             This conversation has been reported.
           </div>
         )}
-        {currentMessages.map((msg) => {
+        {activeConvo?.type === 'direct' && (
+          <div className="chatview-e2ee-notice">
+            <Lock size={14} className="e2ee-notice-icon" />
+            <p>
+              Messages and calls are end-to-end encrypted. No one outside of this chat, not even SilenX, can read or listen to them.
+            </p>
+          </div>
+        )}
+        {currentMessages.map((msg, index) => {
           const isHighlighted = searchTerm && searchMatchIds.includes(msg.id);
           const isOwn = msg.isSelf;
           const isSelected = selectedMessageIds.includes(msg.id);
+          const prevMsg = index > 0 ? currentMessages[index - 1] : null;
 
-          if (msg.isSystem) {
-            return (
-              <div
-                key={msg.id}
-                className="msg-system"
-                style={{
-                  textAlign: 'center',
-                  margin: '16px auto',
-                  padding: '8px 16px',
-                  backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                  border: '1px solid var(--border-color)',
-                  color: 'var(--text-secondary)',
-                  fontSize: '13px',
-                  borderRadius: '10px',
-                  maxWidth: '85%',
-                  width: 'fit-content',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  justifyContent: 'center',
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
-                }}
-              >
-                <Lock size={12} style={{ color: 'var(--primary-light)' }} />
-                <span>{msg.text}</span>
-              </div>
-            );
-          }
+          const msgDate = msg.createdAt || msg.time;
+          const prevMsgDate = prevMsg ? (prevMsg.createdAt || prevMsg.time) : undefined;
+          const dateLabel = getDateLabel(msgDate);
+          const prevDateLabel = prevMsgDate ? getDateLabel(prevMsgDate) : undefined;
+          const showDateDivider = Boolean(dateLabel && dateLabel !== prevDateLabel);
 
           const msgSender = !isOwn ? activeConvo.members.find((m) => m.id === msg.senderId) || otherUser : null;
-
           const isMediaOnly = (msg.contentType === 'image' || msg.contentType === 'video');
           const isLegacyMediaText = msg.text === '📷 Photo' || msg.text === '📸 Camera photo' || msg.text?.startsWith('🎬 ');
           const showTextMessage = msg.text && !isLegacyMediaText;
 
           return (
-            <div 
-              key={msg.id} 
-              data-message-id={msg.id} 
-              className={`msg-wrapper ${isOwn ? 'self' : 'remote'} ${isHighlighted ? 'highlighted' : ''} ${isSelected ? 'selected' : ''}`}
-            >
+            <React.Fragment key={msg.id}>
+              {showDateDivider && (
+                <div className="chat-date-divider">
+                  <span className="chat-date-pill">{dateLabel}</span>
+                </div>
+              )}
+              {msg.isSystem ? (
+                <div
+                  className="msg-system"
+                  style={{
+                    textAlign: 'center',
+                    margin: '16px auto',
+                    padding: '8px 16px',
+                    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                    border: '1px solid var(--border-color)',
+                    color: 'var(--text-secondary)',
+                    fontSize: '13px',
+                    borderRadius: '10px',
+                    maxWidth: '85%',
+                    width: 'fit-content',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    justifyContent: 'center',
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+                  }}
+                >
+                  <Lock size={12} style={{ color: 'var(--primary-light)' }} />
+                  <span>{msg.text}</span>
+                </div>
+              ) : (
+                <div 
+                  data-message-id={msg.id} 
+                  className={`msg-wrapper ${isOwn ? 'self' : 'remote'} ${isHighlighted ? 'highlighted' : ''} ${isSelected ? 'selected' : ''}`}
+                >
               {!isOwn && (
                 <div className="msg-avatar" style={{ alignSelf: 'flex-end', marginRight: 8, flexShrink: 0 }}>
                   <Avatar name={msgSender?.displayName || 'User'} size={28} avatarUrl={msgSender?.avatarUrl} />
@@ -1206,6 +1317,8 @@ export const ChatView: React.FC = () => {
                 </SwipeableMessage>
               </div>
             </div>
+              )}
+            </React.Fragment>
           );
         })}
         {typingUsers.length > 0 && (
@@ -1322,8 +1435,8 @@ export const ChatView: React.FC = () => {
           lastSeen: otherUser.lastSeen,
         }}
         conversationId={activeConversationId || ''}
-        onAudioCall={handleAudioCall}
-        onVideoCall={() => {}}
+        onAudioCall={() => { setContactDetailsOpen(false); handleAudioCall(); }}
+        onVideoCall={() => { setContactDetailsOpen(false); handleVideoCall(); }}
         onSearchInChat={() => { setContactDetailsOpen(false); handleSearchInChat(); }}
       />
     )}

@@ -7,9 +7,11 @@ export interface ThemeTokens {
   colorPanelBg: string;
   colorPanelBgRgb: string;
   colorBorder: string;
+  colorBorderRgb: string;
   colorAccent: string;
   colorAccentHover: string;
   colorTextPrimary: string;
+  colorTextPrimaryRgb: string;
   colorTextSecondary: string;
   colorTextTertiary: string;
   colorTextPlaceholder: string;
@@ -45,9 +47,11 @@ export const themeTokens: Record<ThemeName, ThemeTokens> = {
     colorPanelBg: '#FFFFFF',
     colorPanelBgRgb: '255, 255, 255',
     colorBorder: '#E2E8F0',
+    colorBorderRgb: '226, 232, 240',
     colorAccent: '#0D9488',
     colorAccentHover: '#0F766E',
     colorTextPrimary: '#1E293B',
+    colorTextPrimaryRgb: '30, 41, 59',
     colorTextSecondary: '#64748B',
     colorTextTertiary: '#94A3B8',
     colorTextPlaceholder: '#94A3B8',
@@ -81,9 +85,11 @@ export const themeTokens: Record<ThemeName, ThemeTokens> = {
     colorPanelBg: '#131C2E',
     colorPanelBgRgb: '19, 28, 46',
     colorBorder: '#1E293B',
+    colorBorderRgb: '30, 41, 59',
     colorAccent: '#14B8A6',
     colorAccentHover: '#0D9488',
     colorTextPrimary: '#F1F5F9',
+    colorTextPrimaryRgb: '241, 245, 249',
     colorTextSecondary: '#94A3B8',
     colorTextTertiary: '#64748B',
     colorTextPlaceholder: '#64748B',

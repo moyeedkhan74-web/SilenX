@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useLayoutEffect, useMemo, useState } from 'react';
 import { ThemeName, themeTokens } from './themeTokens';
 
 interface ThemeContextValue {
@@ -25,14 +25,19 @@ const applyTheme = (theme: ThemeName) => {
   const tokens = themeTokens[theme];
   const root = document.documentElement;
   root.setAttribute('data-theme', theme);
+  root.classList.remove('light', 'dark');
+  root.classList.add(theme);
+  root.style.colorScheme = theme;
   root.style.setProperty('--color-bg', tokens.colorBg);
   root.style.setProperty('--color-bg-rgb', tokens.colorBgRgb);
   root.style.setProperty('--color-panel-bg', tokens.colorPanelBg);
   root.style.setProperty('--color-panel-bg-rgb', tokens.colorPanelBgRgb);
   root.style.setProperty('--color-border', tokens.colorBorder);
+  root.style.setProperty('--color-border-rgb', tokens.colorBorderRgb);
   root.style.setProperty('--color-accent', tokens.colorAccent);
   root.style.setProperty('--color-accent-hover', tokens.colorAccentHover);
   root.style.setProperty('--color-text-primary', tokens.colorTextPrimary);
+  root.style.setProperty('--color-text-primary-rgb', tokens.colorTextPrimaryRgb);
   root.style.setProperty('--color-text-secondary', tokens.colorTextSecondary);
   root.style.setProperty('--color-text-tertiary', tokens.colorTextTertiary);
   root.style.setProperty('--color-text-placeholder', tokens.colorTextPlaceholder);
@@ -63,7 +68,7 @@ const applyTheme = (theme: ThemeName) => {
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [theme, setThemeState] = useState<ThemeName>(() => getPreferredTheme());
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     applyTheme(theme);
     window.localStorage.setItem(STORAGE_KEY, theme);
   }, [theme]);

@@ -16,7 +16,7 @@
   align-items: center;
   gap: 16px;
   padding: 32px;
-  background: var(--bg-primary, #0f172a);
+  background: var(--bg-primary, var(--color-bg));
   border: 1px solid var(--border-color, #334155);
   border-radius: 20px;
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
@@ -39,13 +39,13 @@
   margin: 0;
   font-size: 20px;
   font-weight: 700;
-  color: var(--text-primary, #f1f5f9);
+  color: var(--text-primary, var(--color-text-primary));
 }
 
 .app-lock-subtitle {
   margin: 0;
   font-size: 13px;
-  color: var(--text-secondary, #94a3b8);
+  color: var(--text-secondary, var(--color-text-secondary));
   text-align: center;
 }
 
@@ -97,8 +97,8 @@
   height: 56px;
   border: 1px solid var(--border-color, #334155);
   border-radius: 14px;
-  background: var(--bg-secondary, #0f172a);
-  color: var(--text-primary, #f1f5f9);
+  background: var(--bg-secondary, var(--color-bg));
+  color: var(--text-primary, var(--color-text-primary));
   font-size: 20px;
   font-weight: 500;
   cursor: pointer;
@@ -113,7 +113,7 @@
 .app-lock-key-bio,
 .app-lock-key-del {
   font-size: 16px;
-  color: var(--text-secondary, #94a3b8);
+  color: var(--text-secondary, var(--color-text-secondary));
 }
 
 .app-lock-key-empty {
@@ -124,7 +124,7 @@
   margin-top: 8px;
   background: transparent;
   border: none;
-  color: var(--text-secondary, #94a3b8);
+  color: var(--text-secondary, var(--color-text-secondary));
   font-size: 12px;
   cursor: pointer;
   padding: 4px 8px;
@@ -132,14 +132,14 @@
 }
 
 .app-lock-toggle-visibility:hover {
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(var(--color-text-primary-rgb), 0.05);
 }
 
 .app-lock-cancel {
   margin-top: 8px;
   background: transparent;
   border: 1px solid var(--border-color, #334155);
-  color: var(--text-secondary, #94a3b8);
+  color: var(--text-secondary, var(--color-text-secondary));
   font-size: 13px;
   padding: 8px 16px;
   border-radius: 10px;
@@ -147,5 +147,5 @@
 }
 
 .app-lock-cancel:hover {
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(var(--color-text-primary-rgb), 0.05);
 }
