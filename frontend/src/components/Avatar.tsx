@@ -75,7 +75,9 @@ export function Avatar({ name = '', size = 40, online, avatarUrl }: AvatarProps)
           <img
             src={avatarUrl}
             alt={name}
-            loading="lazy"
+            loading="eager"
+            crossOrigin="anonymous"
+            referrerPolicy="no-referrer"
             style={{
               position: 'absolute',
               top: 0,

@@ -105,6 +105,8 @@ export const AvatarDisplay: React.FC<AvatarDisplayProps> = ({
             src={finalAvatarUrl}
             alt={name}
             loading="eager"
+            crossOrigin="anonymous"
+            referrerPolicy="no-referrer"
             style={{
               position: 'absolute',
               top: 0,

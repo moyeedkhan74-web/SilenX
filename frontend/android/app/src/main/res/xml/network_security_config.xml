@@ -6,4 +6,21 @@
             <certificates src="user" />
         </trust-anchors>
     </base-config>
+
+    <!-- Explicitly allow image CDN domains used for profile pictures -->
+    <domain-config cleartextTrafficPermitted="false">
+        <!-- Google profile photos -->
+        <domain includeSubdomains="true">lh3.googleusercontent.com</domain>
+        <!-- Firebase Storage avatars -->
+        <domain includeSubdomains="true">firebasestorage.googleapis.com</domain>
+        <!-- Backblaze B2 media -->
+        <domain includeSubdomains="true">f005.backblazeb2.com</domain>
+        <domain includeSubdomains="true">cdn.silenx.app</domain>
+        <!-- Render backend -->
+        <domain includeSubdomains="true">silenx.onrender.com</domain>
+        <domain includeSubdomains="true">silenx-service.getvoroa.com</domain>
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </domain-config>
 </network-security-config>

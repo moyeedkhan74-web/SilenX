@@ -55,6 +55,23 @@
             android:grantUriPermissions="true">
             <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/file_paths" />
         </provider>
+        <!-- FCM: OS-level notifications with Reply + Mark as Seen actions -->
+        <service
+            android:name=".SilenXFirebaseMessagingService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+
+        <receiver
+            android:name=".ReplyReceiver"
+            android:exported="false" />
+
+        <receiver
+            android:name=".SeenReceiver"
+            android:exported="false" />
+
     </application>
 
     <!-- Permissions for Step 2: Media picker (Photos) -->
