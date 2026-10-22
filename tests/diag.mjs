@@ -3,10 +3,14 @@ import { io } from 'socket.io-client';
 const BASE = 'https://silenx.onrender.com';
 
 async function api(path, opts = {}) {
-  opts.headers = opts.headers || {};
-  opts.headers['Authorization'] = 'Bearer ' + opts.token;
+  const method = (opts.method || 'POST').toUpperCase();
+  const headers = {
+    Authorization: 'Bearer ' + opts.token,
+    ...(opts.headers || {}),
+  };
   delete opts.token;
-  const res = await fetch(BASE + path, opts);
+  delete opts.headers;
+  const res = await fetch(BASE + path, { ...opts, method, headers });
   let body = null;
   try { body = await res.json(); } catch {}
   return { status: res.status, body };

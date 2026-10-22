@@ -8,6 +8,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import compression from 'compression';
+import mongoose from 'mongoose';
 import { config } from './config';
 import { registerSocketHandlers } from './websocket/handlers';
 import authRoutes from './routes/auth';
@@ -19,9 +20,10 @@ import groupCallRoutes from './routes/groupCalls';
 import requestRoutes from './routes/requests';
 import mediaRoutes from './routes/media';
 import notificationRoutes from './routes/notifications';
-import { connectDb } from './store/db';
+import { connectDb, isDbReady, hasMongoConnection } from './store/db';
 import { initializePruner } from './services/pruneService';
 import { configureWebPush } from './services/webPushService';
+import { buildRedisAdapter, closeRedisAdapter, getRedisAdapterStatus } from './services/redisAdapter';
 
 const app = express();
 
@@ -105,7 +107,7 @@ app.set('trust proxy', 1);
 // Rate Limiters
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 50000, // Generous limit for multi-tab/mobile sync & Render cold-start reconnect storms
+  max: 200, // ~13/min — allows mobile reconnect storms while deterring brute force
   message: { error: 'Too many authentication attempts, please try again later.' },
   standardHeaders: true,
   legacyHeaders: false,
@@ -116,6 +118,9 @@ const mediaUploadLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
   max: 50, // 50 uploads per hour
   message: { error: 'Upload limit reached, please try again in an hour.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  skipSuccessfulRequests: true,
 });
 
 app.use((_req: Request, res: Response, next) => {
@@ -176,13 +181,47 @@ const io = new Server(server, {
   },
 });
 
-// ─── REST API Routes ──────────────────────────────────────────────
-app.get('/health', (_req: Request, res: Response) => {
-  res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
+// ─── Redis Adapter (multi-server socket sync) ───────────────────────
+// When UPSTASH_REDIS_URL is set, all Socket.IO events (messages, calls,
+// presence) are broadcast through Redis so both Render instances stay in sync.
+// Falls back to in-memory adapter automatically if the env var is missing.
+const redisAdapter = buildRedisAdapter();
+if (redisAdapter) {
+  io.adapter(redisAdapter);
+  console.log('[Server] Socket.IO Redis adapter attached — multi-server sync enabled.');
+} else {
+  console.log('[Server] Socket.IO running with default in-memory adapter (single-server mode).');
+}
+
+// ─── Health Check Endpoints ───────────────────────────────────────────
+
+/**
+ * Liveness probe: always returns 200 if the server process is running.
+ * Used by Kubernetes/render to decide if the container should be restarted.
+ */
+app.get('/live', (_req: Request, res: Response) => {
+  res.status(200).json({ status: 'alive', timestamp: new Date().toISOString() });
+});
+
+/**
+ * Readiness probe: returns 200 only when all critical dependencies are ready.
+ * Critical: MongoDB (if configured). Redis is optional but reported.
+ */
+app.get('/ready', (_req: Request, res: Response) => {
+  const redis = getRedisAdapterStatus();
+  if (isDbReady()) {
+    return res.status(200).json({ status: 'ready', timestamp: new Date().toISOString(), db: 'mongo', redis });
+  }
+  res.status(503).json({ status: 'not ready', reason: 'db_initializing_or_failed', redis });
 });
 
 app.get('/api/status', (_req: Request, res: Response) => {
-  res.status(200).json({ usersOnline: io.engine.clientsCount });
+  res.status(200).json({
+    usersOnline: io.engine.clientsCount,
+    db: { ready: isDbReady(), mongoConnected: hasMongoConnection() },
+    redis: getRedisAdapterStatus(),
+    uptime: Math.floor(process.uptime()),
+  });
 });
 
 // ICE Servers for WebRTC Calls
@@ -299,28 +338,88 @@ registerSocketHandlers(io);
 const port = Number(process.env.PORT) || 5000;
 
 process.on('uncaughtException', (err) => {
-  console.error('[Server] Uncaught Exception (process kept alive):', err);
-  // DO NOT exit — keep server alive so health checks pass
+  console.error('[Server] Uncaught Exception:', err);
+  // Fatal — clean up resources and exit so a supervisor restarts us in a known state
+  gracefulShutdown('uncaughtException').catch(() => process.exit(1));
 });
 
 process.on('unhandledRejection', (reason) => {
-  console.error('[Server] Unhandled Rejection (process kept alive):', reason);
-  // DO NOT exit — keep server alive so health checks pass
+  console.error('[Server] Unhandled Rejection:', reason);
+  // Fatal — clean up resources and exit
+  gracefulShutdown('unhandledRejection').catch(() => process.exit(1));
 });
 
+// ─── Graceful Shutdown ──────────────────────────────────────────────
+const gracefulShutdown = async (signal: string) => {
+  console.log(`[Server] ${signal} received — shutting down gracefully…`);
+
+  // 1. Drain new HTTP connections (stop accepting new requests)
+  server.close(() => {
+    console.log('[Server] HTTP server closed.');
+  });
+
+  // 2. Close Redis adapter — prevents new Socket.IO messages from being queued
+  try {
+    await closeRedisAdapter();
+    console.log('[Server] Redis adapter closed.');
+  } catch (err) {
+    console.warn('[Server] Error closing Redis adapter:', err);
+  }
+
+  // 3. Leave in-flight Socket.IO connections active briefly; then disconnect
+  try {
+    const sio = app.get('io') as Server | undefined;
+    if (sio) {
+      // Prevent new events from being processed
+      sio.emit('__shutdown__');
+      // Wait a brief window for in-flight messages to complete
+      await new Promise<void>((resolve) => setTimeout(resolve, 3000));
+      sio.close();
+      console.log('[Server] Socket.IO server closed.');
+    }
+  } catch (err) {
+    console.warn('[Server] Error closing Socket.IO:', err);
+  }
+
+  // 4. Close MongoDB connection — release pool
+  try {
+    await mongoose.disconnect();
+    console.log('[Server] MongoDB connection closed.');
+  } catch (err) {
+    console.warn('[Server] Error closing MongoDB:', err);
+  }
+
+  // 5. Force exit after a generous deadline
+  setTimeout(() => process.exit(1), 15_000).unref();
+};
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT',  () => gracefulShutdown('SIGINT'));
+
 const startServer = async () => {
+  // ─── Critical: MongoDB startup ─────────────────────────────────────
+  try {
+    await connectDb();
+  } catch (err) {
+    console.error('[Server] MongoDB connection failed on startup (fatal):', err);
+    console.error('[Server] Exiting immediately per startup policy.');
+    process.exit(1);
+    return;
+  }
+
   server.listen(port, '0.0.0.0', () => {
     console.log(`[Server] SilenX backend listening on 0.0.0.0:${port}`);
-    console.log(`[Server] Health check available at http://0.0.0.0:${port}/health`);
+    console.log(`[Server] Liveness: http://0.0.0.0:${port}/live`);
+    console.log(`[Server] Readiness: http://0.0.0.0:${port}/ready`);
+    try {
+      initializePruner();
+    } catch (err) {
+      console.warn('[Server] Pruner failed to initialize (non-fatal):', err);
+    }
   });
 
   // VAPID signing keys power browser Web Push for background/closed tabs.
   configureWebPush();
-
-  // Non-blocking DB connect — server is already up and answering health checks
-  connectDb()
-    .then(() => initializePruner())
-    .catch((err) => console.error('[Server] MongoDB connection failed (non-fatal):', err));
 };
 
 

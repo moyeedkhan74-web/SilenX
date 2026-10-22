@@ -27,6 +27,39 @@ interface AuthenticatedSocketData {
 type AuthSocket = Socket & { data: AuthenticatedSocketData };
 
 /**
+ * In-memory per-user message rate limiter: 30 messages per 10-second window.
+ * Keys are userId; values are { count, windowStart } for a simple sliding window.
+ * Cleaned on every check to prevent unbounded growth.
+ */
+const messageRateLimiter = new Map<string, { count: number; windowStart: number }>();
+
+function cleanupRateLimiter(now: number, windowMs: number = 10_000) {
+  for (const [userId, entry] of messageRateLimiter) {
+    if (now - entry.windowStart >= windowMs) {
+      messageRateLimiter.delete(userId);
+    }
+  }
+}
+
+function checkRateLimit(userId: string, now: number, windowMs: number = 10_000): boolean {
+  cleanupRateLimiter(now, windowMs);
+  const entry = messageRateLimiter.get(userId);
+  if (!entry) {
+    messageRateLimiter.set(userId, { count: 1, windowStart: now });
+    return true;
+  }
+  if (now - entry.windowStart >= windowMs) {
+    messageRateLimiter.set(userId, { count: 1, windowStart: now });
+    return true;
+  }
+  entry.count += 1;
+  if (entry.count > 30) {
+    return false;
+  }
+  return true;
+}
+
+/**
  * Content-aware preview for OS notifications. Mirrors pushService so Firebase
  * and Web Push render identical text; E2EE ciphertext never reaches the server,
  * so media types fall back to labelled placeholders.
@@ -221,6 +254,108 @@ export function registerSocketHandlers(io: any): void {
       });
     }
 
+    // ─── Missed-message sync on reconnect ──────────────────────────────
+    // Emit messages the user missed while offline, capped at 200 total.
+    // Only send messages from conversations the user is a member of,
+    // created after their lastSeen, and NOT sent by the user themselves.
+    const lastSeen = connectedUser?.lastSeen ? connectedUser.lastSeen : new Date();
+    const missedMessages: typeof messages = [];
+
+    // Find conversations this user is a member of
+    const userConversationIds = conversationMembers
+      .filter(m => m.userId === userId)
+      .map(m => m.conversationId);
+
+    // Collect missed messages from each conversation
+    for (const convoId of userConversationIds) {
+      const convoMessages = messages.filter(
+        m => m.conversationId === convoId &&
+             m.createdAt > lastSeen &&
+             m.senderId !== userId
+      );
+      missedMessages.push(...convoMessages);
+    }
+
+    // Sort by createdAt descending (newest first) and cap at 200 total
+    missedMessages.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    missedMessages.length = Math.min(missedMessages.length, 200);
+
+    // Emit each missed message to the reconnecting socket only (not broadcast)
+    missedMessages.forEach(msg => {
+      socket.emit('receive-message', {
+        conversationId: msg.conversationId,
+        senderId: msg.senderId,
+        encryptedContent: msg.encryptedContent,
+        contentType: msg.contentType,
+        createdAt: msg.createdAt.toISOString(),
+        // Include additional fields the frontend may need
+        replyTo: msg.replyTo,
+        mediaUrl: msg.mediaUrl,
+        fileName: msg.fileName,
+        fileSize: msg.fileSize,
+        fileType: msg.fileType,
+        duration: msg.duration,
+        locationData: msg.locationData,
+        contactData: msg.contactData,
+        pollData: msg.pollData,
+        eventData: msg.eventData,
+      });
+    });
+
+    console.log('[Socket] Emitted %d missed messages to socket %s', missedMessages.length, socket.id);
+
+    // ── Explicit missed-message sync ─────────────────────────────────────
+    // Allow the frontend to trigger a sync after reconnect, passing a since timestamp.
+    // { since: string } — ISO timestamp; emits all messages created after that
+    // timestamp across the user's conversations that were not sent by the user.
+    socket.on('sync-missed-messages', async ({ since }: { since: string }) => {
+      const sinceTime = new Date(since).getTime();
+      const syncMessages: typeof messages = [];
+
+      // Find conversations this user is a member of
+      const userConversationIds = conversationMembers
+        .filter(m => m.userId === userId)
+        .map(m => m.conversationId);
+
+    // Collect messages since the provided timestamp
+    for (const convoId of userConversationIds) {
+      const convoMessages = messages.filter(
+        m => m.conversationId === convoId &&
+             m.createdAt.getTime() > sinceTime &&
+             m.senderId !== userId
+      );
+      syncMessages.push(...convoMessages);
+    }
+
+    // Sort by createdAt descending and cap at 200 total
+    syncMessages.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    syncMessages.length = Math.min(syncMessages.length, 200);
+
+    // Emit each missed message to the requesting socket only
+    syncMessages.forEach(msg => {
+      socket.emit('receive-message', {
+        conversationId: msg.conversationId,
+        senderId: msg.senderId,
+        encryptedContent: msg.encryptedContent,
+        contentType: msg.contentType,
+        createdAt: msg.createdAt.toISOString(),
+        replyTo: msg.replyTo,
+        mediaUrl: msg.mediaUrl,
+        fileName: msg.fileName,
+        fileSize: msg.fileSize,
+        fileType: msg.fileType,
+        duration: msg.duration,
+        locationData: msg.locationData,
+        contactData: msg.contactData,
+        pollData: msg.pollData,
+        eventData: msg.eventData,
+      });
+    });
+
+    console.log('[Socket] Sync emitted %d missed messages (since %s) for socket %s',
+      syncMessages.length, since, socket.id);
+    });
+
     // ── 'register' event is now a no-op; identity is set from the token ──────
     // Kept for backwards-compat but IGNORED — client cannot set their own userId
     socket.on('register', () => {
@@ -256,99 +391,110 @@ export function registerSocketHandlers(io: any): void {
 
     // ─── Messaging ──────────────────────────────────────────────────────────
 
-    socket.on('send-message', (data: SendMessagePayload) => {
-      // conversationId membership check
-      if (!isMemberOf(userId, data.conversationId)) {
-        socket.emit('error', { code: 'FORBIDDEN', message: 'Not a member of this conversation' });
-        return;
-      }
-
-      const newMsg = {
-        id: data.tempId || crypto.randomUUID(),
-        conversationId: data.conversationId,
-        senderId: userId, // always from verified identity
-        encryptedContent: data.encryptedContent,
-        contentType: data.contentType || 'text',
-        createdAt: new Date(),
-        editedAt: null,
-        deletedAt: null,
-        replyTo: data.replyTo,
-        mediaUrl: data.mediaUrl,
-        fileName: data.fileName,
-        fileSize: data.fileSize,
-        fileType: data.fileType,
-        duration: data.duration,
-        locationData: data.locationData,
-        contactData: data.contactData,
-        pollData: data.pollData,
-        eventData: data.eventData,
-      };
-      // Idempotent persist: offline clients re-emit the same tempId on
-      // reconnect, so never store the same message id twice.
-      if (!messages.some(m => m.id === newMsg.id)) {
-        messages.push(newMsg);
-        saveDb();
-      }
-
-      // Ack to the sender — the offline sync manager waits for this before
-      // dequeuing, guaranteeing exactly-once sends.
-      socket.emit('message-sent-ack', { tempId: data.tempId, id: newMsg.id });
-
-      const outgoing = {
-        ...data,
-        senderId: userId,
-        createdAt: newMsg.createdAt.toISOString(),
-      };
-
-      // Deliver only to the conversation members who are currently connected
-      const convoMemberIds = conversationMembers
-        .filter(m => m.conversationId === data.conversationId && m.userId !== userId)
-        .map(m => m.userId);
-
-      convoMemberIds.forEach(memberId => {
-        const recipientSocketId = getSocketIdForUser(memberId);
-
-        if (recipientSocketId) {
-          io.to(recipientSocketId).emit('receive-message', outgoing);
+    socket.on('send-message', async (data: SendMessagePayload) => {
+      try {
+        if (!checkRateLimit(userId, Date.now())) {
+          socket.emit('error', { code: 'RATE_LIMITED', message: 'Sending too fast. Please slow down.' });
+          return;
         }
 
-        // Raise an OS notification when the recipient is offline OR their tab
-        // is hidden/minimized — a connected socket alone doesn't mean they are
-        // looking at the chat.
-        if (!shouldNotifyViaPush(memberId)) return;
+        // conversationId membership check
+        if (!isMemberOf(userId, data.conversationId)) {
+          socket.emit('error', { code: 'FORBIDDEN', message: 'Not a member of this conversation' });
+          return;
+        }
 
-        // Dispatch to Web Push (browsers) and FCM Push (native Android/iOS)
-        const sender = users.find(u => u.id === userId);
-        const recipientUser = users.find(u => u.id === memberId);
+        const newMsg = {
+          id: data.tempId || crypto.randomUUID(),
+          conversationId: data.conversationId,
+          senderId: userId, // always from verified identity
+          encryptedContent: data.encryptedContent,
+          contentType: data.contentType || 'text',
+          createdAt: new Date(),
+          editedAt: null,
+          deletedAt: null,
+          replyTo: data.replyTo,
+          mediaUrl: data.mediaUrl,
+          fileName: data.fileName,
+          fileSize: data.fileSize,
+          fileType: data.fileType,
+          duration: data.duration,
+          locationData: data.locationData,
+          contactData: data.contactData,
+          pollData: data.pollData,
+          eventData: data.eventData,
+        };
 
-        if (hasWebPushSubscriptions(memberId)) {
-          sendWebPushToUser(memberId, {
-            type: 'message',
-            title: sender?.displayName || 'SilenX User',
-            body: buildNotificationPreview({
+        // Idempotent persist: offline clients re-emit the same tempId on
+        // reconnect, so never store the same message id twice.
+        if (!messages.some(m => m.id === newMsg.id)) {
+          messages.push(newMsg);
+          await saveDb(); // persist-before-ack: wait for MongoDB sync before acking
+        }
+
+        // Ack to the sender — the offline sync manager waits for this before
+        // dequeuing, guaranteeing exactly-once sends.
+        socket.emit('message-sent-ack', { tempId: data.tempId, id: newMsg.id });
+
+        const outgoing = {
+          ...data,
+          senderId: userId,
+          createdAt: newMsg.createdAt.toISOString(),
+        };
+
+        // Deliver only to the conversation members who are currently connected
+        const convoMemberIds = conversationMembers
+          .filter(m => m.conversationId === data.conversationId && m.userId !== userId)
+          .map(m => m.userId);
+
+        convoMemberIds.forEach(memberId => {
+          const recipientSocketId = getSocketIdForUser(memberId);
+
+          if (recipientSocketId) {
+            io.to(recipientSocketId).emit('receive-message', outgoing);
+          }
+
+          // Raise an OS notification when the recipient is offline OR their tab
+          // is hidden/minimized — a connected socket alone doesn't mean they are
+          // looking at the chat.
+          if (!shouldNotifyViaPush(memberId)) return;
+
+          // Dispatch to Web Push (browsers) and FCM Push (native Android/iOS)
+          const sender = users.find(u => u.id === userId);
+          const recipientUser = users.find(u => u.id === memberId);
+
+          if (hasWebPushSubscriptions(memberId)) {
+            sendWebPushToUser(memberId, {
+              type: 'message',
+              title: sender?.displayName || 'SilenX User',
+              body: buildNotificationPreview({
+                text: data.previewText,
+                contentType: data.contentType,
+                duration: data.duration,
+              }),
+              icon: sender?.avatarUrl || undefined,
+              conversationId: data.conversationId,
+              senderId: userId,
+              messageId: newMsg.id,
+            }).catch(() => false);
+          }
+
+          if (recipientUser?.fcmTokens && recipientUser.fcmTokens.length > 0) {
+            sendPushToUser(memberId, {
+              conversationId: data.conversationId,
+              senderId: userId,
+              senderDisplayName: sender?.displayName || 'SilenX User',
+              messageId: newMsg.id,
               text: data.previewText,
               contentType: data.contentType,
               duration: data.duration,
-            }),
-            icon: sender?.avatarUrl || undefined,
-            conversationId: data.conversationId,
-            senderId: userId,
-            messageId: newMsg.id,
-          }).catch(() => false);
-        }
-
-        if (recipientUser?.fcmTokens && recipientUser.fcmTokens.length > 0) {
-          sendPushToUser(memberId, {
-            conversationId: data.conversationId,
-            senderId: userId,
-            senderDisplayName: sender?.displayName || 'SilenX User',
-            messageId: newMsg.id,
-            text: data.previewText,
-            contentType: data.contentType,
-            duration: data.duration,
-          }).catch(() => false);
-        }
-      });
+            }).catch(() => false);
+          }
+        });
+      } catch (err) {
+        console.error('[Socket] send-message failed:', err);
+        socket.emit('error', { code: 'MESSAGE_SEND_FAILED', message: 'Failed to persist message' });
+      }
     });
 
     socket.on('edit-message', (data: EditMessagePayload) => {

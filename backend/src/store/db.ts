@@ -35,6 +35,16 @@ let isSyncing = false;
 let hasPendingChanges = false;
 let hasSeededDefaultConversation = false;
 
+/**
+ * Tracks whether MongoDB is connected and the in-memory store has been loaded.
+ * Readiness depends on this flag — sockets and REST routes check it before acking/serving.
+ */
+let dbReady = false;
+export const isDbReady = (): boolean => dbReady;
+
+/** Returns true only when mongoose.connection.readyState === 1 (connected). */
+export const hasMongoConnection = (): boolean => mongoose.connection.readyState === 1;
+
 function ensureSeedConversation() {
   // Disabled auto-seed conversation creation to prevent unexpected auto-merging of chats between accounts
   return;
@@ -116,132 +126,154 @@ async function syncCollection(Model: any, arr: any[]) {
 }
 
 export function saveDb() {
-  performSync().catch(err => console.error('[DB] saveDb sync triggered error:', err));
+  return performSync().catch(err => {
+    console.error('[DB] saveDb sync triggered error:', err);
+    throw err;
+  });
 }
 
 export async function connectDb() {
-  const mongoUri = process.env.MONGO_URI || 'mongodb://localhost:27017/slienx';
+  const explicitMongoUri = process.env.MONGO_URI;
+  const mongoUri = explicitMongoUri || 'mongodb://localhost:27017/slienx';
   console.log('[DB] Connecting to MongoDB...', mongoUri.replace(/:([^@]+)@/, ':****@'));
-  await mongoose.connect(mongoUri, { serverSelectionTimeoutMS: 45000 } as mongoose.ConnectOptions);
-  console.log('[DB] Connected to MongoDB Atlas success');
-
-  // Seed MongoDB with local db.json if database is completely empty
-  const userCount = await UserModel.countDocuments();
-  if (userCount === 0 && fs.existsSync(DB_FILE)) {
-    console.log('[DB] MongoDB is empty. Seeding from db.json...');
-    try {
-      const data = JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
-      if (data.users && data.users.length > 0) await UserModel.insertMany(data.users);
-      if (data.conversations && data.conversations.length > 0) await ConversationModel.insertMany(data.conversations);
-      if (data.conversationMembers && data.conversationMembers.length > 0) await ConversationMemberModel.insertMany(data.conversationMembers);
-      if (data.groups && data.groups.length > 0) await GroupModel.insertMany(data.groups);
-      if (data.groupMembers && data.groupMembers.length > 0) await GroupMemberModel.insertMany(data.groupMembers);
-      if (data.groupInvites && data.groupInvites.length > 0) await GroupInviteModel.insertMany(data.groupInvites);
-      if (data.messages && data.messages.length > 0) await MessageModel.insertMany(data.messages);
-      if (data.callLogs && data.callLogs.length > 0) await CallLogModel.insertMany(data.callLogs);
-      if (data.friendRequests && data.friendRequests.length > 0) await FriendRequestModel.insertMany(data.friendRequests);
-      if (data.friends && data.friends.length > 0) await FriendModel.insertMany(data.friends);
-      console.log('[DB] Seed successful!');
-    } catch (seedErr) {
-      console.error('[DB] Failed to seed from db.json:', seedErr);
-    }
-  }
-
-  // Load from MongoDB
-  const dbUsers = await UserModel.find({}).lean();
-  users.length = 0;
-  users.push(...dbUsers.map((u: any) => ({
-    ...u,
-    publicKey: u.publicKey || null,
-    publicKeys: u.publicKeys || [],
-    status: 'offline',
-    lastSeen: u.lastSeen ? new Date(u.lastSeen) : new Date(),
-    createdAt: u.createdAt ? new Date(u.createdAt) : new Date(),
-    updatedAt: u.updatedAt ? new Date(u.updatedAt) : new Date(),
-    deletedAt: u.deletedAt ? new Date(u.deletedAt) : null,
-  })));
-
+  let mongoConnected = false;
   try {
-    await UserModel.updateMany({ status: { $ne: 'offline' } }, { $set: { status: 'offline' } });
+    await mongoose.connect(mongoUri, { serverSelectionTimeoutMS: 45000 } as mongoose.ConnectOptions);
+    console.log('[DB] Connected to MongoDB Atlas success');
+    mongoConnected = true;
   } catch (err) {
-    console.warn('[DB] Failed to update statuses in MongoDB:', err);
+    if (explicitMongoUri) {
+      console.error('[DB] MongoDB connection failed (MONGO_URI explicitly set):', err);
+      throw err; // Fatal — let the server exit
+    }
+    console.warn('[DB] MongoDB connection failed, using in-memory store (no MONGO_URI):', err);
   }
 
-  const dbConvos = await ConversationModel.find({}).lean();
-  conversations.length = 0;
-  conversations.push(...dbConvos.map((c: any) => ({
-    ...c,
-    createdAt: c.createdAt ? new Date(c.createdAt) : new Date(),
-    updatedAt: c.updatedAt ? new Date(c.updatedAt) : new Date(),
-  })));
+  if (mongoConnected) {
+    // Seed MongoDB with local db.json if database is completely empty
+    const userCount = await UserModel.countDocuments();
+    if (userCount === 0 && fs.existsSync(DB_FILE)) {
+      console.log('[DB] MongoDB is empty. Seeding from db.json...');
+      try {
+        const data = JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
+        if (data.users && data.users.length > 0) await UserModel.insertMany(data.users);
+        if (data.conversations && data.conversations.length > 0) await ConversationModel.insertMany(data.conversations);
+        if (data.conversationMembers && data.conversationMembers.length > 0) await ConversationMemberModel.insertMany(data.conversationMembers);
+        if (data.groups && data.groups.length > 0) await GroupModel.insertMany(data.groups);
+        if (data.groupMembers && data.groupMembers.length > 0) await GroupMemberModel.insertMany(data.groupMembers);
+        if (data.groupInvites && data.groupInvites.length > 0) await GroupInviteModel.insertMany(data.groupInvites);
+        if (data.messages && data.messages.length > 0) await MessageModel.insertMany(data.messages);
+        if (data.callLogs && data.callLogs.length > 0) await CallLogModel.insertMany(data.callLogs);
+        if (data.friendRequests && data.friendRequests.length > 0) await FriendRequestModel.insertMany(data.friendRequests);
+        if (data.friends && data.friends.length > 0) await FriendModel.insertMany(data.friends);
+        console.log('[DB] Seed successful!');
+      } catch (seedErr) {
+        console.error('[DB] Failed to seed from db.json:', seedErr);
+      }
+    }
 
-  const dbGroups = await GroupModel.find({}).lean();
-  groups.length = 0;
-  groups.push(...dbGroups.map((g: any) => ({
-    ...g,
-    createdAt: g.createdAt ? new Date(g.createdAt) : new Date(),
-    updatedAt: g.updatedAt ? new Date(g.updatedAt) : new Date(),
-  })));
+    // Load from MongoDB
+    const dbUsers = await UserModel.find({}).lean();
+    users.length = 0;
+    users.push(...dbUsers.map((u: any) => ({
+      ...u,
+      publicKey: u.publicKey || null,
+      publicKeys: u.publicKeys || [],
+      status: 'offline',
+      lastSeen: u.lastSeen ? new Date(u.lastSeen) : new Date(),
+      createdAt: u.createdAt ? new Date(u.createdAt) : new Date(),
+      updatedAt: u.updatedAt ? new Date(u.updatedAt) : new Date(),
+      deletedAt: u.deletedAt ? new Date(u.deletedAt) : null,
+    })));
 
-  const dbGroupMembers = await GroupMemberModel.find({}).lean();
-  groupMembers.length = 0;
-  groupMembers.push(...dbGroupMembers.map((m: any) => ({
-    ...m,
-    joinedAt: m.joinedAt ? new Date(m.joinedAt) : new Date(),
-    mutedUntil: m.mutedUntil ? new Date(m.mutedUntil) : null,
-  })));
+    try {
+      await UserModel.updateMany({ status: { $ne: 'offline' } }, { $set: { status: 'offline' } });
+    } catch (err) {
+      console.warn('[DB] Failed to update statuses in MongoDB:', err);
+    }
 
-  const dbGroupInvites = await GroupInviteModel.find({}).lean();
-  groupInvites.length = 0;
-  groupInvites.push(...dbGroupInvites.map((i: any) => ({
-    ...i,
-    createdAt: i.createdAt ? new Date(i.createdAt) : new Date(),
-    expiresAt: i.expiresAt ? new Date(i.expiresAt) : new Date(),
-  })));
+    const dbConvos = await ConversationModel.find({}).lean();
+    conversations.length = 0;
+    conversations.push(...dbConvos.map((c: any) => ({
+      ...c,
+      createdAt: c.createdAt ? new Date(c.createdAt) : new Date(),
+      updatedAt: c.updatedAt ? new Date(c.updatedAt) : new Date(),
+    })));
 
-  const dbMembers = await ConversationMemberModel.find({}).lean();
-  conversationMembers.length = 0;
-  conversationMembers.push(...dbMembers.map((m: any) => ({
-    ...m,
-    joinedAt: m.joinedAt ? new Date(m.joinedAt) : new Date(),
-    leftAt: m.leftAt ? new Date(m.leftAt) : null,
-  })));
+    const dbGroups = await GroupModel.find({}).lean();
+    groups.length = 0;
+    groups.push(...dbGroups.map((g: any) => ({
+      ...g,
+      createdAt: g.createdAt ? new Date(g.createdAt) : new Date(),
+      updatedAt: g.updatedAt ? new Date(g.updatedAt) : new Date(),
+    })));
 
-  const dbMessages = await MessageModel.find({}).lean();
-  messages.length = 0;
-  messages.push(...dbMessages.map((m: any) => ({
-    ...m,
-    createdAt: m.createdAt ? new Date(m.createdAt) : new Date(),
-    editedAt: m.editedAt ? new Date(m.editedAt) : null,
-    deletedAt: m.deletedAt ? new Date(m.deletedAt) : null,
-  })));
+    const dbGroupMembers = await GroupMemberModel.find({}).lean();
+    groupMembers.length = 0;
+    groupMembers.push(...dbGroupMembers.map((m: any) => ({
+      ...m,
+      joinedAt: m.joinedAt ? new Date(m.joinedAt) : new Date(),
+      mutedUntil: m.mutedUntil ? new Date(m.mutedUntil) : null,
+    })));
 
-  const dbCallLogs = await CallLogModel.find({}).lean();
-  callLogs.length = 0;
-  callLogs.push(...dbCallLogs.map((c: any) => ({
-    ...c,
-    startedAt: c.startedAt ? new Date(c.startedAt) : new Date(),
-    endedAt: c.endedAt ? new Date(c.endedAt) : null,
-    deletedFor: c.deletedFor || [],
-  })));
+    const dbGroupInvites = await GroupInviteModel.find({}).lean();
+    groupInvites.length = 0;
+    groupInvites.push(...dbGroupInvites.map((i: any) => ({
+      ...i,
+      createdAt: i.createdAt ? new Date(i.createdAt) : new Date(),
+      expiresAt: i.expiresAt ? new Date(i.expiresAt) : new Date(),
+    })));
 
-  const dbRequests = await FriendRequestModel.find({}).lean();
-  friendRequests.length = 0;
-  friendRequests.push(...dbRequests.map((r: any) => ({
-    ...r,
-    createdAt: r.createdAt ? new Date(r.createdAt) : new Date(),
-    updatedAt: r.updatedAt ? new Date(r.updatedAt) : null,
-  })));
+    const dbMembers = await ConversationMemberModel.find({}).lean();
+    conversationMembers.length = 0;
+    conversationMembers.push(...dbMembers.map((m: any) => ({
+      ...m,
+      joinedAt: m.joinedAt ? new Date(m.joinedAt) : new Date(),
+      leftAt: m.leftAt ? new Date(m.leftAt) : null,
+    })));
 
-  const dbFriends = await FriendModel.find({}).lean();
-  friends.length = 0;
-  friends.push(...dbFriends.map((f: any) => ({
-    ...f,
-    createdAt: f.createdAt ? new Date(f.createdAt) : new Date(),
-  })));
+    const dbMessages = await MessageModel.find({}).lean();
+    messages.length = 0;
+    messages.push(...dbMessages.map((m: any) => ({
+      ...m,
+      createdAt: m.createdAt ? new Date(m.createdAt) : new Date(),
+      editedAt: m.editedAt ? new Date(m.editedAt) : null,
+      deletedAt: m.deletedAt ? new Date(m.deletedAt) : null,
+    })));
 
-  ensureSeedConversation();
-  console.log(`[DB] Successfully loaded state from MongoDB (${users.length} users, ${conversations.length} conversations, ${messages.length} messages)`);
+    const dbCallLogs = await CallLogModel.find({}).lean();
+    callLogs.length = 0;
+    callLogs.push(...dbCallLogs.map((c: any) => ({
+      ...c,
+      startedAt: c.startedAt ? new Date(c.startedAt) : new Date(),
+      endedAt: c.endedAt ? new Date(c.endedAt) : null,
+      deletedFor: c.deletedFor || [],
+    })));
+
+    const dbRequests = await FriendRequestModel.find({}).lean();
+    friendRequests.length = 0;
+    friendRequests.push(...dbRequests.map((r: any) => ({
+      ...r,
+      createdAt: r.createdAt ? new Date(r.createdAt) : new Date(),
+      updatedAt: r.updatedAt ? new Date(r.updatedAt) : null,
+    })));
+
+    const dbFriends = await FriendModel.find({}).lean();
+    friends.length = 0;
+    friends.push(...dbFriends.map((f: any) => ({
+      ...f,
+      createdAt: f.createdAt ? new Date(f.createdAt) : new Date(),
+    })));
+
+    ensureSeedConversation();
+    console.log(`[DB] Successfully loaded state from MongoDB (${users.length} users, ${conversations.length} conversations, ${messages.length} messages)`);
+  } else {
+    // No MongoDB — load from local db.json if it exists
+    loadDb();
+    console.log('[DB] Loaded state from local db.json (in-memory mode)');
+  }
+
+  dbReady = true;
 }
 
 export function loadDb() {
